@@ -16,7 +16,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
+    <OutputPath>..\..\bin\Debug\Elders.Cronus.Persistence.Cassandra\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -24,25 +24,32 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
+    <OutputPath>..\..\bin\Release\Elders.Cronus.Persistence.Cassandra\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Cassandra">
-      <HintPath>..\packages\CassandraCSharpDriver.2.1.0-beta1\lib\net40\Cassandra.dll</HintPath>
-      <Private>True</Private>
+      <HintPath>..\packages\CassandraCSharpDriver.2.1.2\lib\net40\Cassandra.dll</HintPath>
     </Reference>
-    <Reference Include="Cassandra.Data, Version=1.0.4.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\CassandraCSharpDriver.2.1.0-beta1\lib\net40\Cassandra.Data.dll</HintPath>
+    <Reference Include="Cassandra.Data">
+      <HintPath>..\packages\CassandraCSharpDriver.2.1.2\lib\net40\Cassandra.Data.dll</HintPath>
     </Reference>
     <Reference Include="Cassandra.Data.Linq">
-      <HintPath>..\packages\CassandraCSharpDriver.2.1.0-beta1\lib\net40\Cassandra.Data.Linq.dll</HintPath>
+      <HintPath>..\packages\CassandraCSharpDriver.2.1.2\lib\net40\Cassandra.Data.Linq.dll</HintPath>
     </Reference>
     <Reference Include="Crc32C.NET">
       <HintPath>..\packages\Crc32C.NET.1.0.5.0\lib\net20\Crc32C.NET.dll</HintPath>
+    </Reference>
+    <Reference Include="Elders.Cronus">
+      <HintPath>..\packages\Cronus.1.1.38\lib\net40-full\Elders.Cronus.dll</HintPath>
+    </Reference>
+    <Reference Include="Elders.Cronus.DomainModeling">
+      <HintPath>..\packages\Cronus.DomainModeling.1.0.0\lib\net40-full\Elders.Cronus.DomainModeling.dll</HintPath>
+    </Reference>
+    <Reference Include="Elders.Multithreading.Scheduler">
+      <HintPath>..\packages\Multithreading.Scheduler.1.0.0\lib\net40-full\Elders.Multithreading.Scheduler.dll</HintPath>
     </Reference>
     <Reference Include="Elders.Protoreg">
       <HintPath>..\packages\Protoreg.1.0.10\lib\Elders.Protoreg.dll</HintPath>
@@ -51,14 +58,10 @@
       <HintPath>..\packages\log4net.2.0.3\lib\net40-full\log4net.dll</HintPath>
     </Reference>
     <Reference Include="LZ4">
-      <HintPath>..\packages\lz4net.1.0.3.93\lib\net40-client\LZ4.dll</HintPath>
+      <HintPath>..\packages\lz4net.1.0.5.93\lib\net40-client\LZ4.dll</HintPath>
     </Reference>
     <Reference Include="protobuf-net">
       <HintPath>..\packages\protobuf-net.2.0.0.668\lib\net40\protobuf-net.dll</HintPath>
-    </Reference>
-    <Reference Include="RabbitMQ.Client, Version=3.3.5.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\RabbitMQ.Client.3.3.5\lib\net30\RabbitMQ.Client.dll</HintPath>
     </Reference>
     <Reference Include="Snappy.NET">
       <HintPath>..\packages\Snappy.NET.1.1.1.8\lib\net45\Snappy.NET.dll</HintPath>
@@ -87,16 +90,6 @@
     <None Include="packages.config">
       <SubType>Designer</SubType>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\Cronus.DomainModelling\src\Elders.Cronus.DomainModelling\Elders.Cronus.DomainModelling.csproj">
-      <Project>{3603583e-c261-4aa6-ae73-b3f4c7440d7c}</Project>
-      <Name>Elders.Cronus.DomainModelling</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\..\Cronus\src\Elders.Cronus\Elders.Cronus.csproj">
-      <Project>{32ea2250-01b3-4171-9ae7-214037a0d524}</Project>
-      <Name>Elders.Cronus</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

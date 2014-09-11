@@ -30,6 +30,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Elders.Cronus.DomainModeling">
+      <HintPath>..\packages\Cronus.DomainModeling.1.0.0\lib\net40-full\Elders.Cronus.DomainModeling.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="Microsoft.CSharp" />
@@ -44,22 +47,15 @@
     <Compile Include="Accounts\AccountState.cs">
       <DependentUpon>Account.cs</DependentUpon>
     </Compile>
-    <Compile Include="$(SolutionDir)AssemblyVersionInfo.cs">
-      <Link>Properties\AssemblyVersionInfo.cs</Link>
-    </Compile>
-    <Compile Include="$(SolutionDir)AssemblyCompanyProductInfo.cs">
-      <Link>Properties\AssemblyCompanyProductInfo.cs</Link>
-    </Compile>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Cronus.DomainModelling\src\Elders.Cronus.DomainModelling\Elders.Cronus.DomainModelling.csproj">
-      <Project>{3603583E-C261-4AA6-AE73-B3F4C7440D7C}</Project>
-      <Name>Elders.Cronus.DomainModelling</Name>
-    </ProjectReference>
     <ProjectReference Include="..\Elders.Cronus.Sample.IdentityAndAccess.Contracts\Elders.Cronus.Sample.IdentityAndAccess.Contracts.csproj">
       <Project>{3b7e885a-1b2a-4313-9fa2-fdff70064994}</Project>
       <Name>Elders.Cronus.Sample.IdentityAndAccess.Contracts</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

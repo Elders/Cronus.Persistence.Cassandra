@@ -51,7 +51,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
         public static T SetAggregateStatesAssembly<T>(this T self, Assembly aggregateStatesAssembly) where T : ICassandraEventStoreSettings
         {
             self.BoundedContext = aggregateStatesAssembly.GetAssemblyAttribute<BoundedContextAttribute>().BoundedContextName;
-            self.EventStoreTableNameStrategy = new CassandraEventStoreTableNameStrategy(self.BoundedContext);
+            self.EventStoreTableNameStrategy = new TablePerBoundedContext(aggregateStatesAssembly);
             return self;
         }
 
@@ -91,7 +91,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
 
             var persister = new CassandraPersister(settings.Session, settings.EventStoreTableNameStrategy, settings.Serializer);
             var aggregateRepository = new CassandraAggregateRepository(settings.Session, persister, settings.EventStoreTableNameStrategy, settings.Serializer);
-            var player = new CassandraEventStorePlayer();
+            var player = new CassandraEventStorePlayer(settings.Session, settings.EventStoreTableNameStrategy, settings.Serializer);
 
             return new Lazy<IEventStore>(() => new CassandraEventStore(aggregateRepository, persister, player, null));
         }

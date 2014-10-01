@@ -16,9 +16,12 @@ namespace Elders.Cronus.Sample.IdentityAndAccess.Accounts
 
         public void ChangeEmail(string oldEmail, string newEmail)
         {
-            //  Checks
-            var @event = new AccountEmailChanged(state.Id, oldEmail, newEmail);
-            Apply(@event);
+            //  Checks, business validation
+            if (oldEmail != newEmail)
+            {
+                var @event = new AccountEmailChanged(state.Id, oldEmail, newEmail);
+                Apply(@event);
+            }
         }
 
     }

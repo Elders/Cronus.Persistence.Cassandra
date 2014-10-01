@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Reflection;
-using Elders.Cronus.DomainModelling;
 using Elders.Cronus.UnitOfWork;
-using Elders.Cronus.Persistence.Cassandra.Config;
 using Elders.Cronus.Pipeline.Config;
 using Elders.Cronus.Pipeline.Hosts;
 using Elders.Cronus.Pipeline.Transport.InMemory.Config;
@@ -13,6 +11,7 @@ using Elders.Cronus.Sample.Collaboration.Users.Events;
 using Elders.Cronus.Sample.Collaboration.Users.Projections;
 using Elders.Cronus.Sample.CommonFiles;
 using NHibernate;
+using Elders.Cronus.Persistence.Cassandra.Config;
 
 namespace Elders.Cronus.Sample.Player
 {
@@ -61,25 +60,20 @@ namespace Elders.Cronus.Sample.Player
 
             var cfg = new CronusSettings()
                 .UseContractsFromAssemblies(new Assembly[] { Assembly.GetAssembly(typeof(UserState)), Assembly.GetAssembly(typeof(UserCreated)) })
-                .WithDefaultPublishersInMemory();
-
-            cfg
-                .UseCassandraEventStore(eventStore => eventStore
-                    .SetConnectionStringName("cronus_es")
-                    .SetAggregateStatesAssembly(typeof(UserState)))
-                .UseProjectionConsumable("Collaboration", consumable => consumable
-                    .SetNumberOfConsumers(1)
-                    .UseInMemoryTransport()
-                    .EventConsumer(c => c
-                        .UseEventHandler(h => h
-                            .UseUnitOfWork(new UnitOfWorkFactory() { CreateHandlerUnitOfWork = () => new HandlerScope(sf) })
-                            .RegisterAllHandlersInAssembly(Assembly.GetAssembly(typeof(UserProjection)), (type, context) =>
+                .WithDefaultPublishersInMemory("Collaboration", new Assembly[] { Assembly.GetAssembly(typeof(UserProjection)) }, (type, context) =>
                             {
                                 return FastActivator.CreateInstance(type)
                                     .AssignPropertySafely<IHaveNhibernateSession>(x => x.Session = context.HandlerContext.Get<Lazy<ISession>>().Value);
-                            }))));
+                            },
+                            new UnitOfWorkFactory() { CreateHandlerUnitOfWork = () => new HandlerScope(sf) });
 
-            new CronusPlayer(cfg.GetInstance()).Replay();
+            cfg.UseCassandraEventStore(eventStore => eventStore
+                    .SetConnectionStringName("cronus_es")
+                    .SetAggregateStatesAssembly(typeof(UserState)));
+
+
+
+            new CustomCronusPlayer(cfg.GetInstance()).Replay();
         }
 
         static ISessionFactory BuildSessionFactory()
@@ -91,5 +85,35 @@ namespace Elders.Cronus.Sample.Player
             cfg.CreateDatabase_AND_OVERWRITE_EXISTING_DATABASE();
             return cfg.BuildSessionFactory();
         }
+
+
     }
+
+    public class CustomCronusPlayer
+    {
+        static readonly log4net.ILog log = log4net.LogManager.GetLogger(typeof(CronusPlayer));
+
+        private readonly CronusConfiguration configuration;
+
+        public CustomCronusPlayer(CronusConfiguration configuration)
+        {
+            this.configuration = configuration;
+        }
+
+        public void Replay()
+        {
+            Console.WriteLine("Start replaying events...");
+
+            var publisher = configuration.EventPublisher;
+            int totalMessagesPublished = 0;
+            foreach (var evnt in configuration.EventStores.Single().Value.Player.GetEventsFromStart())
+            {
+                totalMessagesPublished++;
+                configuration.EventPublisher.Publish(evnt);
+            }
+            Console.WriteLine("Replay finished.");
+        }
+
+    }
+
 }

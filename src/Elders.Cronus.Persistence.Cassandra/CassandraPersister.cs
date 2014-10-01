@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using Cassandra;
@@ -10,15 +11,12 @@ namespace Elders.Cronus.Persistence.Cassandra
 {
     public class CassandraPersister : IEventStorePersister
     {
-
-        private const string InsertEventQueryTemplate = @"INSERT INTO {0} (id,ts,rev,data) VALUES (?,?,?,?);";
         private const string InsertEventsBatchQueryTemplate = @"
 BEGIN BATCH
   INSERT INTO {0} (id,ts,rev,data) VALUES (?,?,?,?);
   UPDATE {0}player SET events = events + ? WHERE date=?;
 APPLY BATCH;";
 
-        private PreparedStatement insertEventsPreparedStatement;
         private PreparedStatement insertEventsBatchPreparedStatement;
 
         private readonly ISerializer serializer;
@@ -27,23 +25,38 @@ APPLY BATCH;";
 
         private readonly ICassandraEventStoreTableNameStrategy tableNameStrategy;
 
+        private readonly ConcurrentDictionary<Type, PreparedStatement> persistAggregateEventsPreparedStatements;
+
         public CassandraPersister(ISession session, ICassandraEventStoreTableNameStrategy tableNameStrategy, ISerializer serializer)
         {
             this.tableNameStrategy = tableNameStrategy;
             this.session = session;
             this.serializer = serializer;
-            insertEventsPreparedStatement = session.Prepare(String.Format(InsertEventQueryTemplate, tableNameStrategy.GetEventsTableName()));
-            insertEventsBatchPreparedStatement = session.Prepare(String.Format(InsertEventsBatchQueryTemplate, tableNameStrategy.GetEventsTableName()));
+            this.persistAggregateEventsPreparedStatements = new ConcurrentDictionary<Type, PreparedStatement>();
         }
 
-        public void Persist(List<IDomainMessageCommit> commits)
+        public void Persist(List<IAggregateRoot> aggregates)
         {
-            foreach (var commit in commits)
+            foreach (var ar in aggregates)
             {
-                AggregateCommit arCommit = new AggregateCommit(commit.State.Id, commit.State.Version, commit.Events);
+                AggregateCommit arCommit = new AggregateCommit(ar.State.Id, ar.State.Version, ar.UncommittedEvents);
                 byte[] data = SerializeEvent(arCommit);
-                session.Execute(insertEventsBatchPreparedStatement.Bind(arCommit.AggregateId, arCommit.Timestamp, arCommit.Revision, data, new List<byte[]>() { data }, DateTime.FromFileTimeUtc(arCommit.Timestamp).ToString("yyyyMMdd")));
+                session.Execute(GetPreparedStatementToPersistAnAggregate(ar).Bind(arCommit.AggregateId, arCommit.Timestamp, arCommit.Revision, data, new List<byte[]>() { data }, DateTime.FromFileTimeUtc(arCommit.Timestamp).ToString("yyyyMMdd")));
             }
+        }
+
+        private PreparedStatement GetPreparedStatementToPersistAnAggregate<AR>(AR aggregate) where AR : IAggregateRoot
+        {
+            PreparedStatement persistAggregatePreparedStatement;
+            Type aggregateType = aggregate.GetType();
+            if (!persistAggregateEventsPreparedStatements.TryGetValue(aggregateType, out persistAggregatePreparedStatement))
+            {
+                string tableName = tableNameStrategy.GetEventsTableName(aggregate);
+                persistAggregatePreparedStatement = session.Prepare(String.Format(InsertEventsBatchQueryTemplate, tableName));
+                persistAggregateEventsPreparedStatements.TryAdd(aggregateType, persistAggregatePreparedStatement);
+            }
+
+            return persistAggregatePreparedStatement;
         }
 
         private byte[] SerializeEvent(AggregateCommit commit)
@@ -54,6 +67,5 @@ APPLY BATCH;";
                 return stream.ToArray();
             }
         }
-
     }
 }

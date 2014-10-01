@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using Cassandra;
@@ -16,8 +17,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         private readonly ISerializer serializer;
         private readonly ISession session;
         private readonly ICassandraEventStoreTableNameStrategy tableNameStrategy;
-
-        private PreparedStatement loadAggregateEventsPreparedStatement;
+        private readonly ConcurrentDictionary<Type, PreparedStatement> loadAggregateEventsPreparedStatements;
 
         private static AggregateVersionService versionService = new AggregateVersionService();
 
@@ -27,7 +27,58 @@ namespace Elders.Cronus.Persistence.Cassandra
             this.serializer = serializer;
             this.tableNameStrategy = tableNameStrategy;
             this.session = session;
-            this.loadAggregateEventsPreparedStatement = session.Prepare(String.Format(LoadAggregateEventsQueryTemplate, tableNameStrategy.GetEventsTableName()));
+            this.loadAggregateEventsPreparedStatements = new ConcurrentDictionary<Type, PreparedStatement>();
+        }
+
+        public void Save<AR>(AR aggregateRoot) where AR : IAggregateRoot
+        {
+            if (aggregateRoot.UncommittedEvents == null || aggregateRoot.UncommittedEvents.Count == 0)
+                return;
+            aggregateRoot.State.Version += 1;
+
+            int reservedVersion = versionService.ReserveVersion(aggregateRoot.State.Id, aggregateRoot.State.Version);
+            if (reservedVersion != aggregateRoot.State.Version)
+            {
+                throw new Exception("Retry command");
+            }
+            persister.Persist(new List<IAggregateRoot>() { aggregateRoot });
+        }
+
+        public AR Load<AR>(IAggregateRootId id) where AR : IAggregateRoot
+        {
+            var events = LoadAggregateCommits<AR>(id);
+            AR aggregateRoot = AggregateRootFactory.Build<AR>(events);
+            return aggregateRoot;
+        }
+
+        private List<AggregateCommit> LoadAggregateCommits<AR>(IAggregateRootId aggregateId) where AR : IAggregateRoot
+        {
+            List<AggregateCommit> events = new List<AggregateCommit>();
+            BoundStatement bs = GetPreparedStatementToLoadAnAggregate<AR>().Bind(aggregateId.Id);
+            var result = session.Execute(bs);
+            foreach (var row in result.GetRows())
+            {
+                var data = row.GetValue<byte[]>("data");
+                using (var stream = new MemoryStream(data))
+                {
+                    events.Add((AggregateCommit)serializer.Deserialize(stream));
+                }
+            }
+            return events;
+        }
+
+        private PreparedStatement GetPreparedStatementToLoadAnAggregate<AR>() where AR : IAggregateRoot
+        {
+            PreparedStatement loadAggregatePreparedStatement;
+            Type aggregateType = typeof(AR);
+            if (!loadAggregateEventsPreparedStatements.TryGetValue(aggregateType, out loadAggregatePreparedStatement))
+            {
+                string tableName = tableNameStrategy.GetEventsTableName<AR>();
+                loadAggregatePreparedStatement = session.Prepare(String.Format(LoadAggregateEventsQueryTemplate, tableName));
+                loadAggregateEventsPreparedStatements.TryAdd(aggregateType, loadAggregatePreparedStatement);
+            }
+
+            return loadAggregatePreparedStatement;
         }
 
         //}
@@ -54,43 +105,5 @@ namespace Elders.Cronus.Persistence.Cassandra
         //    }
         //    return events;
         //}
-
-        private List<AggregateCommit> LoadAggregateCommits(IAggregateRootId aggregateId)
-        {
-            List<AggregateCommit> events = new List<AggregateCommit>();
-            BoundStatement bs = loadAggregateEventsPreparedStatement.Bind(aggregateId.Id);
-            var result = session.Execute(bs);
-            foreach (var row in result.GetRows())
-            {
-                var data = row.GetValue<byte[]>("data");
-                using (var stream = new MemoryStream(data))
-                {
-                    events.Add((AggregateCommit)serializer.Deserialize(stream));
-                }
-            }
-            return events;
-        }
-
-        public void Save<AR>(AR aggregateRoot) where AR : IAggregateRoot
-        {
-            if (aggregateRoot.UncommittedEvents == null || aggregateRoot.UncommittedEvents.Count == 0)
-                return;
-            aggregateRoot.State.Version += 1;
-
-            int reservedVersion = versionService.ReserveVersion(aggregateRoot.State.Id, aggregateRoot.State.Version);
-            if (reservedVersion != aggregateRoot.State.Version)
-            {
-                throw new Exception("Retry command");
-            }
-            IDomainMessageCommit commit = new DomainMessageCommit(aggregateRoot.State, aggregateRoot.UncommittedEvents);
-            persister.Persist(new List<IDomainMessageCommit>() { commit });
-        }
-
-        public AR Load<AR>(IAggregateRootId id) where AR : IAggregateRoot
-        {
-            var events = LoadAggregateCommits(id);
-            AR aggregateRoot = AggregateRootFactory.Build<AR>(events);
-            return aggregateRoot;
-        }
     }
 }

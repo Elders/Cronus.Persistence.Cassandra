@@ -22,11 +22,14 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public void CreateEventsStorage()
         {
-            var createEventsTable = String.Format(CreateEventsTableTemplate, tableNameStrategy.GetEventsTableName()).ToLower();
-            session.Execute(createEventsTable);
+            foreach (var tableName in tableNameStrategy.GetAllTableNames())
+            {
+                var createEventsTable = String.Format(CreateEventsTableTemplate, tableName).ToLower();
+                session.Execute(createEventsTable);
 
-            var createEventsPlayerTable = String.Format(CreateReplayEventsTableTemplate, tableNameStrategy.GetEventsTableName()).ToLower();
-            session.Execute(createEventsPlayerTable);
+                var createEventsPlayerTable = String.Format(CreateReplayEventsTableTemplate, tableName).ToLower();
+                session.Execute(createEventsPlayerTable);
+            }
         }
 
         public void CreateStorage()

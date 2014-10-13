@@ -9,7 +9,7 @@ namespace Elders.Cronus.Sample.Collaboration.Users.Ports
         IMessageHandler<AccountRegistered>
     {
         public IPublisher<ICommand> CommandPublisher { get; set; }
-        static int counter = 0;
+        //static int counter = 0;
         public void Handle(AccountRegistered message)
         {
             //counter++;

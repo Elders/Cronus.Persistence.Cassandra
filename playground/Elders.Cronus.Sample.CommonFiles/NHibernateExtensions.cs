@@ -289,7 +289,7 @@ namespace Elders.Cronus.Sample.CommonFiles
         }
     }
 
-    public class AggregateIdUserType<T> : IUserType where T : IAggregateRootId
+    public class AggregateIdUserType<T> : IUserType where T : GuidId
     {
         bool IUserType.Equals(object x, object y)
         {

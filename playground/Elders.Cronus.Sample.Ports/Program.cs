@@ -3,7 +3,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using Elders.Cronus.DomainModeling;
-using Elders.Cronus.UnitOfWork;
+using Elders.Cronus.IocContainer;
 using Elders.Cronus.Pipeline.Config;
 using Elders.Cronus.Pipeline.Hosts;
 using Elders.Cronus.Pipeline.Transport.RabbitMQ.Config;
@@ -14,6 +14,7 @@ using Elders.Cronus.Sample.Collaboration.Users.Projections;
 using Elders.Cronus.Sample.CommonFiles;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Commands;
 using Elders.Cronus.Sample.Ports.Nhibernate;
+using Elders.Cronus.UnitOfWork;
 using NHibernate;
 using NHibernate.Mapping.ByCode;
 
@@ -28,27 +29,28 @@ namespace Elders.Cronus.Sample.Ports
             log4net.Config.XmlConfigurator.Configure();
 
             var sf = BuildSessionFactory();
-            var cfg = new CronusSettings()
-                .UseContractsFromAssemblies(new Assembly[] { Assembly.GetAssembly(typeof(RegisterAccount)), Assembly.GetAssembly(typeof(CreateUser)) })
-                .WithDefaultPublishersWithRabbitMq();
+            var container = new Container();
 
-            const string Collaboration = "Collaboration";
+            var cfg = new CronusSettings(container)
+                .UseContractsFromAssemblies(new Assembly[] { Assembly.GetAssembly(typeof(RegisterAccount)), Assembly.GetAssembly(typeof(CreateUser)) });
+
             cfg
-                .UsePipelineCommandPublisher(publisher => publisher.UseRabbitMqTransport())
-                .UsePortConsumable(Collaboration, consumable => consumable
-                    .SetNumberOfConsumers(2)
-                    .UseRabbitMqTransport()
-                    .EventConsumer(consumer => consumer
-                        .UsePortHandler(h => h
-                            .UseUnitOfWork(new UnitOfWorkFactory() { CreateBatchUnitOfWork = () => new BatchUnitOfWork(sf) })
-                            .RegisterAllHandlersInAssembly(Assembly.GetAssembly(typeof(UserProjection)), (type, context) =>
-                            {
-                                return FastActivator.CreateInstance(type)
-                                    .AssignPropertySafely<IHaveNhibernateSession>(x => x.Session = context.BatchContext.Get<Lazy<ISession>>().Value)
-                                    .AssignPropertySafely<IPort>(x => x.CommandPublisher = (cfg as IHaveCommandPublisher).CommandPublisher.Value);
-                            }))));
 
-            host = new CronusHost(cfg.GetInstance());
+                .UsePortConsumer(consumable => consumable
+                    .WithDefaultPublishersWithRabbitMq()
+                    .UseRabbitMqTransport()
+                    .SetNumberOfConsumerThreads(2)
+                    .UsePorts(c =>
+                    c.UseUnitOfWork(new UnitOfWorkFactory() { CreateBatchUnitOfWork = () => new BatchUnitOfWork(sf) })
+                        .RegisterAllHandlersInAssembly(Assembly.GetAssembly(typeof(UserProjection)), (type, context) =>
+                        {
+                            return FastActivator.CreateInstance(type)
+                                .AssignPropertySafely<IHaveNhibernateSession>(x => x.Session = context.BatchContext.Get<Lazy<ISession>>().Value)
+                                .AssignPropertySafely<IPort>(x => x.CommandPublisher = container.Resolve<IPublisher<ICommand>>());
+                        })));
+
+            (cfg as ISettingsBuilder).Build();
+            host = container.Resolve<CronusHost>();
             host.Start();
 
             Console.WriteLine("Ports started");

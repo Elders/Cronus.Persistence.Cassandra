@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Linq;
 using System.Reflection;
-using Elders.Cronus.Pipeline.Config;
-using Elders.Cronus.Pipeline.Hosts;
+//using Elders.Cronus.Pipeline.Config;
+//using Elders.Cronus.Pipeline.Hosts;
 using Elders.Cronus.Sample.Collaboration;
 using Elders.Cronus.Sample.Collaboration.Users;
 using Elders.Cronus.Sample.Collaboration.Users.Commands;
@@ -10,11 +10,12 @@ using Elders.Cronus.Sample.IdentityAndAccess.Accounts;
 using Elders.Cronus.Sample.CommonFiles;
 using NHibernate;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Commands;
-using Elders.Cronus.UnitOfWork;
+//using Elders.Cronus.UnitOfWork;
 using Elders.Cronus.Persistence.Cassandra.Config;
 using Elders.Cronus.Sample.InMemoryServer.Nhibernate;
 using Elders.Cronus.Sample.Collaboration.Users.Projections;
 using Elders.Cronus.DomainModeling;
+using Elders.Cronus.Pipeline.Hosts;
 
 namespace Elders.Cronus.Sample.InMemoryServer
 {
@@ -22,43 +23,43 @@ namespace Elders.Cronus.Sample.InMemoryServer
     {
         public static void Main(string[] args)
         {
-            log4net.Config.XmlConfigurator.Configure();
-            var sf = BuildNHibernateSessionFactory();
-            const string BC = "ContextlessDomain";//This can be fixed in futre versions.I just don't have time now. Log issue probably? Answer: Yes please.
-            var cfg = new CronusSettings()
-                .UseContractsFromAssemblies(new Assembly[] { Assembly.GetAssembly(typeof(RegisterAccount)), Assembly.GetAssembly(typeof(CreateUser)) })
-                .UseCassandraEventStore(eventStore => eventStore
-                    .SetConnectionStringName("cronus_es")
-                    .SetAggregateStatesAssembly(typeof(AccountState))
-                    .WithNewStorageIfNotExists());
+            //log4net.Config.XmlConfigurator.Configure();
+            //var sf = BuildNHibernateSessionFactory();
+            //const string BC = "ContextlessDomain";//This can be fixed in futre versions.I just don't have time now. Log issue probably? Answer: Yes please.
+            //var cfg = new CronusSettings()
+            //    .UseContractsFromAssemblies(new Assembly[] { Assembly.GetAssembly(typeof(RegisterAccount)), Assembly.GetAssembly(typeof(CreateUser)) })
+            //    .UseCassandraEventStore(eventStore => eventStore
+            //        .SetConnectionStringName("cronus_es")
+            //        .SetAggregateStatesAssembly(typeof(AccountState))
+            //        .WithNewStorageIfNotExists());
 
-            var configurationInstance = cfg.WithDefaultPublishersInMemory(BC, new Assembly[] { typeof(AccountAppService).Assembly, typeof(UserAppService).Assembly, typeof(UserProjection).Assembly }, (type, context) =>
-                     {
-                         return FastActivator.CreateInstance(type)
-                             .AssignPropertySafely<IAggregateRootApplicationService>(x => x.Repository = context.BatchContext.Get<Lazy<IAggregateRepository>>().Value)
-                             .AssignPropertySafely<IPort>(x => x.CommandPublisher = (cfg as IHaveCommandPublisher).CommandPublisher.Value)
-                             .AssignPropertySafely<IHaveNhibernateSession>(x => x.Session = context.BatchContext.Get<Lazy<ISession>>().Value);
-                     },
-                     new UnitOfWorkFactory() { CreateBatchUnitOfWork = () => new BatchScope(sf) }
-                     ).GetInstance();
+            //var configurationInstance = cfg.WithDefaultPublishersInMemory(BC, new Assembly[] { typeof(AccountAppService).Assembly, typeof(UserAppService).Assembly, typeof(UserProjection).Assembly }, (type, context) =>
+            //         {
+            //             return FastActivator.CreateInstance(type)
+            //                 .AssignPropertySafely<IAggregateRootApplicationService>(x => x.Repository = context.BatchContext.Get<Lazy<IAggregateRepository>>().Value)
+            //                 .AssignPropertySafely<IPort>(x => x.CommandPublisher = (cfg as IHaveCommandPublisher).CommandPublisher.Value)
+            //                 .AssignPropertySafely<IHaveNhibernateSession>(x => x.Session = context.BatchContext.Get<Lazy<ISession>>().Value);
+            //         },
+            //         new UnitOfWorkFactory() { CreateBatchUnitOfWork = () => new BatchScope(sf) }
+            //         ).GetInstance();
 
-            while (true)
-            {
-                int counter = 0;
-                while (true)
-                {
-                    configurationInstance.CommandPublisher.Publish(new RegisterAccount(new AccountId(Guid.NewGuid()), "awwwww@email.com"));
-                    counter++;
-                    if (counter % 200 == 0)
-                    {
-                        Console.WriteLine(counter);
-                    }
+            //while (true)
+            //{
+            //    int counter = 0;
+            //    while (true)
+            //    {
+            //        configurationInstance.CommandPublisher.Publish(new RegisterAccount(new AccountId(Guid.NewGuid()), "awwwww@email.com"));
+            //        counter++;
+            //        if (counter % 200 == 0)
+            //        {
+            //            Console.WriteLine(counter);
+            //        }
 
-                }
+            //    }
 
-                //Console.WriteLine("Sent");
-                //Console.ReadLine();
-            }
+            //    //Console.WriteLine("Sent");
+            //    //Console.ReadLine();
+            //}
         }
 
 

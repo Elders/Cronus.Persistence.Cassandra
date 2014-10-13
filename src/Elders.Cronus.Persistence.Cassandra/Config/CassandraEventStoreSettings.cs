@@ -1,28 +1,25 @@
 using System;
 using System.Configuration;
-using System.Linq;
 using System.Reflection;
 using Cassandra;
 using Elders.Cronus.DomainModeling;
 using Elders.Cronus.EventSourcing;
 using Elders.Cronus.EventSourcing.Config;
 using Elders.Cronus.Pipeline.Config;
-using Elders.Cronus.Pipeline.Hosts;
 using Elders.Cronus.Serializer;
+using Elders.Cronus.IocContainer;
 
 namespace Elders.Cronus.Persistence.Cassandra.Config
 {
     public static class CassandraEventStoreExtensions
     {
-        public static T UseCassandraEventStore<T>(this T self, Action<CassandraEventStoreSettings> configure) where T : ICronusSettings, IHaveEventStores
+        public static T UseCassandraEventStore<T>(this T self, Action<CassandraEventStoreSettings> configure) where T : IConsumerSettings<ICommand>
         {
-            CassandraEventStoreSettings settings = new CassandraEventStoreSettings();
+            CassandraEventStoreSettings settings = new CassandraEventStoreSettings(self);
             if (configure != null)
                 configure(settings);
 
-            self.CopySerializerTo(settings);
-
-            self.EventStores.Add((settings as ICassandraEventStoreSettings).BoundedContext, settings.GetInstanceLazy());
+            (settings as ISettingsBuilder).Build();
             return self;
         }
 
@@ -71,8 +68,24 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
         ICassandraEventStoreTableNameStrategy EventStoreTableNameStrategy { get; set; }
     }
 
-    public class CassandraEventStoreSettings : ICassandraEventStoreSettings
+    public class CassandraEventStoreSettings : SettingsBuilder, ICassandraEventStoreSettings
     {
+        public CassandraEventStoreSettings(ISettingsBuilder settingsBuilder) : base(settingsBuilder) { }
+
+        public override void Build()
+        {
+            var builder = this as ISettingsBuilder;
+            ICassandraEventStoreSettings settings = this as ICassandraEventStoreSettings;
+
+            var persister = new CassandraPersister(settings.Session, settings.EventStoreTableNameStrategy, builder.Container.Resolve<ISerializer>());
+            var aggregateRepository = new CassandraAggregateRepository(settings.Session, persister, settings.EventStoreTableNameStrategy, builder.Container.Resolve<ISerializer>());
+            var player = new CassandraEventStorePlayer(settings.Session, settings.EventStoreTableNameStrategy, builder.Container.Resolve<ISerializer>());
+
+            builder.Container.RegisterSingleton<IEventStore>(() => new CassandraEventStore(aggregateRepository, persister, player, null), builder.Name);
+            builder.Container.RegisterSingleton<IAggregateRepository>(() => aggregateRepository, builder.Name);
+            builder.Container.RegisterSingleton<IEventStorePersister>(() => persister, builder.Name);
+        }
+
         string IEventStoreSettings.BoundedContext { get; set; }
 
         string ICassandraEventStoreSettings.ConnectionString { get; set; }
@@ -81,19 +94,6 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
 
         string ICassandraEventStoreSettings.KeySpace { get; set; }
 
-        ISerializer IHaveSerializer.Serializer { get; set; }
-
         ISession ICassandraEventStoreSettings.Session { get; set; }
-
-        Lazy<IEventStore> ISettingsBuilder<IEventStore>.Build()
-        {
-            ICassandraEventStoreSettings settings = this as ICassandraEventStoreSettings;
-
-            var persister = new CassandraPersister(settings.Session, settings.EventStoreTableNameStrategy, settings.Serializer);
-            var aggregateRepository = new CassandraAggregateRepository(settings.Session, persister, settings.EventStoreTableNameStrategy, settings.Serializer);
-            var player = new CassandraEventStorePlayer(settings.Session, settings.EventStoreTableNameStrategy, settings.Serializer);
-
-            return new Lazy<IEventStore>(() => new CassandraEventStore(aggregateRepository, persister, player, null));
-        }
     }
 }

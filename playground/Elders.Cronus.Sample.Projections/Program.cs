@@ -14,6 +14,7 @@ using Elders.Cronus.Sample.Handlers.Nhibernate;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Commands;
 using NHibernate;
 using NHibernate.Mapping.ByCode;
+using Elders.Cronus.IocContainer;
 
 namespace Elders.Cronus.Sample.Projections
 {
@@ -25,22 +26,23 @@ namespace Elders.Cronus.Sample.Projections
             log4net.Config.XmlConfigurator.Configure();
 
             var sf = BuildSessionFactory();
-            var cfg = new CronusSettings()
+            var container = new Container();
+
+            var cfg = new CronusSettings(container)
                 .UseContractsFromAssemblies(new Assembly[] { Assembly.GetAssembly(typeof(RegisterAccount)), Assembly.GetAssembly(typeof(CreateUser)) })
-                .WithDefaultPublishersWithRabbitMq()
-                .UseProjectionConsumable("Collaboration", consumable => consumable
-                    .SetNumberOfConsumers(2)
+                .UseProjectionConsumer(consumer => consumer
+                    .WithDefaultPublishersWithRabbitMq()
                     .UseRabbitMqTransport()
-                    .EventConsumer(c => c
-                        .UseEventHandler(h => h
+                        .UseProjections(h => h
                             .UseUnitOfWork(new UnitOfWorkFactory() { CreateBatchUnitOfWork = () => new BatchScope(sf) })
                             .RegisterAllHandlersInAssembly(Assembly.GetAssembly(typeof(UserProjection)), (type, context) =>
                             {
                                 return FastActivator.CreateInstance(type)
                                     .AssignPropertySafely<IHaveNhibernateSession>(x => x.Session = context.BatchContext.Get<Lazy<ISession>>().Value);
-                            }))));
+                            })));
 
-            host = new CronusHost(cfg.GetInstance());
+            (cfg as ISettingsBuilder).Build();
+            host = container.Resolve<CronusHost>();
             host.Start();
 
             Console.WriteLine("Projections started");

@@ -41,7 +41,7 @@ APPLY BATCH;";
             {
                 AggregateCommit arCommit = new AggregateCommit(ar.State.Id, ar.State.Version, ar.UncommittedEvents);
                 byte[] data = SerializeEvent(arCommit);
-                session.Execute(GetPreparedStatementToPersistAnAggregate(ar).Bind(arCommit.AggregateId, arCommit.Timestamp, arCommit.Revision, data, new List<byte[]>() { data }, DateTime.FromFileTimeUtc(arCommit.Timestamp).ToString("yyyyMMdd")));
+                session.Execute(GetPreparedStatementToPersistAnAggregate(ar).Bind(Convert.ToBase64String(arCommit.AggregateId), arCommit.Timestamp, arCommit.Revision, data, new List<byte[]>() { data }, DateTime.FromFileTimeUtc(arCommit.Timestamp).ToString("yyyyMMdd")));
             }
         }
 

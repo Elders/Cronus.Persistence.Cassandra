@@ -2,13 +2,17 @@
 using System.Reflection;
 using System.Threading;
 using Elders.Cronus.DomainModeling;
+using Elders.Cronus.IocContainer;
+using Elders.Cronus.Pipeline;
 using Elders.Cronus.Pipeline.Config;
 using Elders.Cronus.Pipeline.Hosts;
+using Elders.Cronus.Pipeline.Transport;
 using Elders.Cronus.Pipeline.Transport.RabbitMQ.Config;
 using Elders.Cronus.Sample.Collaboration.Users;
 using Elders.Cronus.Sample.Collaboration.Users.Commands;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Commands;
+using Elders.Cronus.Serializer;
 
 namespace Elders.Cronus.Sample.UI
 {
@@ -24,8 +28,8 @@ namespace Elders.Cronus.Sample.UI
 
             HostUI(/////////////////////////////////////////////////////////////////
                                 publish: SingleCreationCommandFromUpstreamBC,
-                    delayBetweenBatches: 500,
-                              batchSize: 100,
+                    delayBetweenBatches: 1000,
+                              batchSize: 1,
                  numberOfMessagesToSend: Int32.MaxValue
                  ///////////////////////////////////////////////////////////////////
                  );
@@ -38,12 +42,17 @@ namespace Elders.Cronus.Sample.UI
         {
             log4net.Config.XmlConfigurator.Configure();
 
-            var cronusCfg = new CronusSettings()
-                .UseContractsFromAssemblies(new Assembly[] { Assembly.GetAssembly(typeof(RegisterAccount)), Assembly.GetAssembly(typeof(CreateUser)) })
-                .WithDefaultPublishersWithRabbitMq()
-                .GetInstance();
+            var container = new Container();
+            Func<IPipelineTransport> transport = () => container.Resolve<IPipelineTransport>();
+            Func<ISerializer> serializer = () => container.Resolve<ISerializer>();
+            container.RegisterSingleton<IPublisher<ICommand>>(() => new PipelinePublisher<ICommand>(transport(), serializer()));
 
-            commandPublisher = cronusCfg.CommandPublisher;
+            var cfg = new CronusSettings(container)
+                .UseContractsFromAssemblies(new Assembly[] { Assembly.GetAssembly(typeof(RegisterAccount)), Assembly.GetAssembly(typeof(CreateUser)) })
+                //.WithDefaultPublishersWithRabbitMq()
+                .UseRabbitMqTransport();
+            (cfg as ISettingsBuilder).Build();
+            commandPublisher = container.Resolve<IPublisher<ICommand>>();
         }
 
         private static void SingleCreationCommandFromUpstreamBC(int index)

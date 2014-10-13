@@ -45,14 +45,12 @@
     <Reference Include="Crc32C.NET">
       <HintPath>..\packages\Crc32C.NET.1.0.5.0\lib\net20\Crc32C.NET.dll</HintPath>
     </Reference>
-    <Reference Include="Elders.Cronus">
-      <HintPath>..\..\playground\packages\Cronus.1.1.39\lib\net40-full\Elders.Cronus.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Elders.Cronus.DomainModeling, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="Elders.Cronus, Version=1.1.42.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\playground\packages\Cronus.DomainModeling.1.0.1\lib\net40-full\Elders.Cronus.DomainModeling.dll</HintPath>
-      <Private>True</Private>
+      <HintPath>..\..\playground\packages\Cronus.1.1.42-beta7\lib\net40-full\Elders.Cronus.dll</HintPath>
+    </Reference>
+    <Reference Include="Elders.Cronus.DomainModeling">
+      <HintPath>..\..\playground\packages\Cronus.DomainModeling.1.0.4-alpha2\lib\net40-full\Elders.Cronus.DomainModeling.dll</HintPath>
     </Reference>
     <Reference Include="Elders.Multithreading.Scheduler">
       <HintPath>..\packages\Multithreading.Scheduler.1.0.0\lib\net40-full\Elders.Multithreading.Scheduler.dll</HintPath>

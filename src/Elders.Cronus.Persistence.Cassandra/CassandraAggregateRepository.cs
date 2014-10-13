@@ -54,7 +54,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         private List<AggregateCommit> LoadAggregateCommits<AR>(IAggregateRootId aggregateId) where AR : IAggregateRoot
         {
             List<AggregateCommit> events = new List<AggregateCommit>();
-            BoundStatement bs = GetPreparedStatementToLoadAnAggregate<AR>().Bind(aggregateId.Id);
+            BoundStatement bs = GetPreparedStatementToLoadAnAggregate<AR>().Bind(Convert.ToBase64String(aggregateId.RawId));
             var result = session.Execute(bs);
             foreach (var row in result.GetRows())
             {

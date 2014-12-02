@@ -6,7 +6,7 @@ using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Events;
 namespace Elders.Cronus.Sample.Collaboration.Users.Ports
 {
     public class UserPort : IPort,
-        IMessageHandler<AccountRegistered>
+        IEventHandler<AccountRegistered>
     {
         public IPublisher<ICommand> CommandPublisher { get; set; }
         //static int counter = 0;

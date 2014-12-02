@@ -28,8 +28,8 @@ namespace Elders.Cronus.Sample.UI
 
             HostUI(/////////////////////////////////////////////////////////////////
                                 publish: SingleCreationCommandFromUpstreamBC,
-                    delayBetweenBatches: 1000,
-                              batchSize: 1,
+                    delayBetweenBatches: 150,
+                              batchSize: 50,
                  numberOfMessagesToSend: Int32.MaxValue
                  ///////////////////////////////////////////////////////////////////
                  );

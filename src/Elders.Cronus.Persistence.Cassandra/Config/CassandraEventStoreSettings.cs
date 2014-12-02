@@ -3,11 +3,11 @@ using System.Configuration;
 using System.Reflection;
 using Cassandra;
 using Elders.Cronus.DomainModeling;
-using Elders.Cronus.EventSourcing;
-using Elders.Cronus.EventSourcing.Config;
 using Elders.Cronus.Pipeline.Config;
 using Elders.Cronus.Serializer;
 using Elders.Cronus.IocContainer;
+using Elders.Cronus.EventStore;
+using Elders.Cronus.EventStore.Config;
 
 namespace Elders.Cronus.Persistence.Cassandra.Config
 {
@@ -77,8 +77,9 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
             var builder = this as ISettingsBuilder;
             ICassandraEventStoreSettings settings = this as ICassandraEventStoreSettings;
 
+            builder.Container.RegisterSingleton<IAggregateRevisionService>(() => new InMemoryAggregateRevisionService(), builder.Name);
             var persister = new CassandraPersister(settings.Session, settings.EventStoreTableNameStrategy, builder.Container.Resolve<ISerializer>());
-            var aggregateRepository = new CassandraAggregateRepository(settings.Session, persister, settings.EventStoreTableNameStrategy, builder.Container.Resolve<ISerializer>());
+            var aggregateRepository = new AggregateRepository(persister, builder.Container.Resolve<IPublisher<IEvent>>(builder.Name), builder.Container.Resolve<IAggregateRevisionService>(builder.Name));
             var player = new CassandraEventStorePlayer(settings.Session, settings.EventStoreTableNameStrategy, builder.Container.Resolve<ISerializer>());
 
             builder.Container.RegisterSingleton<IEventStore>(() => new CassandraEventStore(aggregateRepository, persister, player, null), builder.Name);

@@ -1,5 +1,4 @@
-﻿using System;
-using Elders.Cronus.DomainModeling;
+﻿using Elders.Cronus.DomainModeling;
 using Elders.Cronus.Sample.Collaboration.Users.Events;
 
 namespace Elders.Cronus.Sample.Collaboration.Users
@@ -11,7 +10,6 @@ namespace Elders.Cronus.Sample.Collaboration.Users
         public User(UserId collaboratorId, string email)
         {
             var evnt = new UserCreated(collaboratorId, email);
-            state = new UserState();
             Apply(evnt);
         }
 

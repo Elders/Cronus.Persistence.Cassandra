@@ -1,5 +1,5 @@
 ﻿using Elders.Cronus.DomainModeling;
-using Elders.Cronus.EventSourcing;
+using Elders.Cronus.EventStore;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {

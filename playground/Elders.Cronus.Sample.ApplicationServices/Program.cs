@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
+﻿using System.Reflection;
 using Elders.Cronus.DomainModeling;
 using Elders.Cronus.Persistence.Cassandra.Config;
 using Elders.Cronus.Pipeline.Config;
@@ -13,7 +10,6 @@ using Elders.Cronus.Sample.IdentityAndAccess.Accounts;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Events;
 using Elders.Cronus.UnitOfWork;
 using Elders.Cronus.IocContainer;
-using Elders.Cronus.EventSourcing;
 
 namespace Elders.Cronus.Sample.ApplicationService
 {
@@ -46,7 +42,7 @@ namespace Elders.Cronus.Sample.ApplicationService
                     .SetAggregateStatesAssembly(typeof(AccountState))
                     .WithNewStorageIfNotExists())
                 .UseApplicationServices(cmdHandler => cmdHandler
-                    .UseUnitOfWork(new UnitOfWorkFactory() { CreateBatchUnitOfWork = () => new ApplicationServiceBatchUnitOfWork(container.Resolve<IAggregateRepository>(IAA), container.Resolve<IEventStorePersister>(IAA), container.Resolve<IPublisher<IEvent>>(IAA)) })
+                    .UseUnitOfWork(new UnitOfWorkFactory() { CreateBatchUnitOfWork = () => new ApplicationServiceBatchUnitOfWork(container.Resolve<IAggregateRepository>(IAA), container.Resolve<IPublisher<IEvent>>(IAA)) })
                     .RegisterAllHandlersInAssembly(typeof(AccountAppService))));
 
             string COLL = "COLL";
@@ -58,17 +54,8 @@ namespace Elders.Cronus.Sample.ApplicationService
                     .SetAggregateStatesAssembly(typeof(UserState))
                     .WithNewStorageIfNotExists())
                 .UseApplicationServices(cmdHandler => cmdHandler
-                    .UseUnitOfWork(new UnitOfWorkFactory() { CreateBatchUnitOfWork = () => new ApplicationServiceBatchUnitOfWork(container.Resolve<IAggregateRepository>(COLL), container.Resolve<IEventStorePersister>(COLL), container.Resolve<IPublisher<IEvent>>(COLL)) })
+                    .UseUnitOfWork(new UnitOfWorkFactory() { CreateBatchUnitOfWork = () => new ApplicationServiceBatchUnitOfWork(container.Resolve<IAggregateRepository>(COLL), container.Resolve<IPublisher<IEvent>>(COLL)) })
                     .RegisterAllHandlersInAssembly(typeof(UserAppService))));
-            //cfg.UseCommandConsumer(consumer => consumer
-            //    .UseRabbitMqTransport()
-            //    .UseCassandraEventStore(eventStore => eventStore
-            //        .SetConnectionStringName("cronus_es")
-            //        .SetAggregateStatesAssembly(typeof(UserState))
-            //        .WithNewStorageIfNotExists())
-            //    .UseApplicationServices(cmdHandler => cmdHandler
-            //        .UseUnitOfWork(new UnitOfWorkFactory() { CreateBatchUnitOfWork = () => new ApplicationServiceBatchUnitOfWork((cfg as IHaveContainer).Container.Resolve<IAggregateRepository>(), (cfg as IHaveContainer).Container.Resolve<IEventStorePersister>(), (cfg as IHaveEventPublisher).EventPublisher.Value) })
-            //        .RegisterAllHandlersInAssembly(typeof(UserAppService))));
 
             (cfg as ISettingsBuilder).Build();
             host = container.Resolve<CronusHost>();

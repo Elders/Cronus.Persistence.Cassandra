@@ -4,8 +4,8 @@ using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Commands;
 namespace Elders.Cronus.Sample.IdentityAndAccess.Accounts
 {
     public class AccountAppService : AggregateRootApplicationService<Account>,
-        IMessageHandler<RegisterAccount>,
-        IMessageHandler<ChangeAccountEmail>
+        ICommandHandler<RegisterAccount>,
+        ICommandHandler<ChangeAccountEmail>
     {
 
         public void Handle(RegisterAccount command)

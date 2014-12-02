@@ -41,13 +41,13 @@ namespace Elders.Cronus.Sample.Ports
                     .UseRabbitMqTransport()
                     .SetNumberOfConsumerThreads(2)
                     .UsePorts(c =>
-                    c.UseUnitOfWork(new UnitOfWorkFactory() { CreateBatchUnitOfWork = () => new BatchUnitOfWork(sf) })
-                        .RegisterAllHandlersInAssembly(Assembly.GetAssembly(typeof(UserProjection)), (type, context) =>
-                        {
-                            return FastActivator.CreateInstance(type)
-                                .AssignPropertySafely<IHaveNhibernateSession>(x => x.Session = context.BatchContext.Get<Lazy<ISession>>().Value)
-                                .AssignPropertySafely<IPort>(x => x.CommandPublisher = container.Resolve<IPublisher<ICommand>>());
-                        })));
+                        c.UseUnitOfWork(new UnitOfWorkFactory() { CreateBatchUnitOfWork = () => new BatchUnitOfWork(sf) })
+                            .RegisterAllHandlersInAssembly(Assembly.GetAssembly(typeof(UserProjection)), (type, context) =>
+                            {
+                                return FastActivator.CreateInstance(type)
+                                    .AssignPropertySafely<IHaveNhibernateSession>(x => x.Session = context.BatchContext.Get<Lazy<ISession>>().Value)
+                                    .AssignPropertySafely<IPort>(x => x.CommandPublisher = container.Resolve<IPublisher<ICommand>>());
+                            })));
 
             (cfg as ISettingsBuilder).Build();
             host = container.Resolve<CronusHost>();

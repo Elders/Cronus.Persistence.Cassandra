@@ -4,8 +4,8 @@ using Elders.Cronus.Sample.Collaboration.Users.Commands;
 namespace Elders.Cronus.Sample.Collaboration.Users
 {
     public class UserAppService : AggregateRootApplicationService<User>,
-        IMessageHandler<CreateUser>,
-        IMessageHandler<RenameUser>
+        ICommandHandler<CreateUser>,
+        ICommandHandler<RenameUser>
     {
         public void Handle(RenameUser command)
         {

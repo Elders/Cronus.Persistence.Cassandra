@@ -13,15 +13,12 @@ namespace Elders.Cronus.Sample.IdentityAndAccess.Accounts
         public override AccountId Id { get; set; }
 
         [DataMember(Order = 2)]
-        public override int Version { get; set; }
-
-        [DataMember(Order = 3)]
         public string Email { get; private set; }
 
-        [DataMember(Order = 4)]
+        [DataMember(Order = 3)]
         public string Firstname { get; private set; }
 
-        [DataMember(Order = 5)]
+        [DataMember(Order = 4)]
         public string LastName { get; private set; }
 
         public void When(AccountRegistered e)

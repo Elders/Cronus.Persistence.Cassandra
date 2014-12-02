@@ -1,10 +1,8 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using Cassandra;
 using Elders.Cronus.DomainModeling;
-using Elders.Cronus.EventSourcing;
+using Elders.Cronus.EventStore;
 using Elders.Cronus.Serializer;
 
 namespace Elders.Cronus.Persistence.Cassandra

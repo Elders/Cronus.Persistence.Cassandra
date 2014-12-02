@@ -33,13 +33,13 @@ namespace Elders.Cronus.Sample.Projections
                 .UseProjectionConsumer(consumer => consumer
                     .WithDefaultPublishersWithRabbitMq()
                     .UseRabbitMqTransport()
-                        .UseProjections(h => h
-                            .UseUnitOfWork(new UnitOfWorkFactory() { CreateBatchUnitOfWork = () => new BatchScope(sf) })
-                            .RegisterAllHandlersInAssembly(Assembly.GetAssembly(typeof(UserProjection)), (type, context) =>
-                            {
-                                return FastActivator.CreateInstance(type)
-                                    .AssignPropertySafely<IHaveNhibernateSession>(x => x.Session = context.BatchContext.Get<Lazy<ISession>>().Value);
-                            })));
+                    .UseProjections(h => h
+                        .UseUnitOfWork(new UnitOfWorkFactory() { CreateBatchUnitOfWork = () => new BatchScope(sf) })
+                        .RegisterAllHandlersInAssembly(Assembly.GetAssembly(typeof(UserProjection)), (type, context) =>
+                        {
+                            return FastActivator.CreateInstance(type)
+                                .AssignPropertySafely<IHaveNhibernateSession>(x => x.Session = context.BatchContext.Get<Lazy<ISession>>().Value);
+                        })));
 
             (cfg as ISettingsBuilder).Build();
             host = container.Resolve<CronusHost>();

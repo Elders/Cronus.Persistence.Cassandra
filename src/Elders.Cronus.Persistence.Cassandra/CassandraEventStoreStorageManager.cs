@@ -1,14 +1,14 @@
 using System;
 using Cassandra;
-using Elders.Cronus.EventSourcing;
+using Elders.Cronus.EventStore;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
     public class CassandraEventStoreStorageManager : IEventStoreStorageManager
     {
         private const string CreateKeySpaceTemplate = @"CREATE KEYSPACE IF NOT EXISTS {0} WITH replication = {{'class':'SimpleStrategy', 'replication_factor':1}};";
-        private const string CreateEventsTableTemplate = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id text, ts bigint, rev int, data blob, PRIMARY KEY (id,ts,rev)) WITH compression = {{ 'sstable_compression' : '' }};";
-        private const string CreateReplayEventsTableTemplate = @"CREATE TABLE IF NOT EXISTS ""{0}player"" (date text, events list<blob>, PRIMARY KEY (date)) WITH compression = {{ 'sstable_compression' : '' }};";
+        private const string CreateEventsTableTemplate = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id text, ts bigint, rev int, data blob, PRIMARY KEY (id,ts)) WITH CLUSTERING ORDER BY (ts ASC);";
+        private const string CreateReplayEventsTableTemplate = @"CREATE TABLE IF NOT EXISTS ""{0}player"" (date text, events list<blob>, PRIMARY KEY (date));";
         //private const string CreateSnapshotsTableTemplate = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id uuid, ver int, ts bigint, data blob, PRIMARY KEY (id,ver));";
 
         private readonly ISession session;

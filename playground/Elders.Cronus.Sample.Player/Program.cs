@@ -1,56 +1,11 @@
-﻿using System;
-using System.Linq;
+﻿using System.Linq;
 using System.Reflection;
-using Elders.Cronus.UnitOfWork;
-using Elders.Cronus.Pipeline.Config;
-using Elders.Cronus.Pipeline.Hosts;
-using Elders.Cronus.Pipeline.Transport.InMemory.Config;
-using Elders.Cronus.Sample.Collaboration;
-using Elders.Cronus.Sample.Collaboration.Users;
-using Elders.Cronus.Sample.Collaboration.Users.Events;
 using Elders.Cronus.Sample.Collaboration.Users.Projections;
 using Elders.Cronus.Sample.CommonFiles;
 using NHibernate;
-using Elders.Cronus.Persistence.Cassandra.Config;
 
 namespace Elders.Cronus.Sample.Player
 {
-    public class HandlerScope : IHandlerUnitOfWork
-    {
-        private readonly ISessionFactory sessionFactory;
-        private ISession session;
-        private ITransaction transaction;
-
-        public HandlerScope(ISessionFactory sessionFactory)
-        {
-            this.sessionFactory = sessionFactory;
-        }
-
-        public void Begin()
-        {
-            Context = new UnitOfWorkContext();
-
-            Lazy<ISession> lazySession = new Lazy<ISession>(() =>
-            {
-                session = sessionFactory.OpenSession();
-                transaction = session.BeginTransaction();
-                return session;
-            });
-            Context.Set<Lazy<ISession>>(lazySession);
-        }
-
-        public void End()
-        {
-            if (session != null)
-            {
-                transaction.Commit();
-                session.Clear();
-                session.Close();
-            }
-        }
-
-        public IUnitOfWorkContext Context { get; set; }
-    }
 
     class Program
     {

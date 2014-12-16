@@ -13,8 +13,6 @@ using Elders.Cronus.Sample.Collaboration.Users.DTOs;
 using Elders.Cronus.Sample.Collaboration.Users.Projections;
 using Elders.Cronus.Sample.CommonFiles;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Commands;
-using Elders.Cronus.Sample.Ports.Nhibernate;
-using Elders.Cronus.UnitOfWork;
 using NHibernate;
 using NHibernate.Mapping.ByCode;
 
@@ -35,19 +33,18 @@ namespace Elders.Cronus.Sample.Ports
                 .UseContractsFromAssemblies(new Assembly[] { Assembly.GetAssembly(typeof(RegisterAccount)), Assembly.GetAssembly(typeof(CreateUser)) });
 
             cfg
-
                 .UsePortConsumer(consumable => consumable
                     .WithDefaultPublishersWithRabbitMq()
                     .UseRabbitMqTransport()
                     .SetNumberOfConsumerThreads(2)
-                    .UsePorts(c =>
-                        c.UseUnitOfWork(new UnitOfWorkFactory() { CreateBatchUnitOfWork = () => new BatchUnitOfWork(sf) })
-                            .RegisterAllHandlersInAssembly(Assembly.GetAssembly(typeof(UserProjection)), (type, context) =>
-                            {
-                                return FastActivator.CreateInstance(type)
-                                    .AssignPropertySafely<IHaveNhibernateSession>(x => x.Session = context.BatchContext.Get<Lazy<ISession>>().Value)
-                                    .AssignPropertySafely<IPort>(x => x.CommandPublisher = container.Resolve<IPublisher<ICommand>>());
-                            })));
+                    .UsePorts(c => c.RegisterAllHandlersInAssembly(Assembly.GetAssembly(typeof(UserProjection)), type => container.Resolve(type))));
+
+            //{
+            //    return FastActivator.CreateInstance(type)
+            //        .AssignPropertySafely<IHaveNhibernateSession>(x => x.Session = context.BatchContext.Get<Lazy<ISession>>().Value)
+            //        .AssignPropertySafely<IPort>(x => x.CommandPublisher = container.Resolve<IPublisher<ICommand>>());
+            //}
+            // )));
 
             (cfg as ISettingsBuilder).Build();
             host = container.Resolve<CronusHost>();

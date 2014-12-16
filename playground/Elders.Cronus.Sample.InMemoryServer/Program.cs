@@ -1,21 +1,8 @@
-﻿using System;
-using System.Linq;
+﻿using System.Linq;
 using System.Reflection;
-//using Elders.Cronus.Pipeline.Config;
-//using Elders.Cronus.Pipeline.Hosts;
-using Elders.Cronus.Sample.Collaboration;
-using Elders.Cronus.Sample.Collaboration.Users;
-using Elders.Cronus.Sample.Collaboration.Users.Commands;
-using Elders.Cronus.Sample.IdentityAndAccess.Accounts;
 using Elders.Cronus.Sample.CommonFiles;
 using NHibernate;
-using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Commands;
-//using Elders.Cronus.UnitOfWork;
-using Elders.Cronus.Persistence.Cassandra.Config;
-using Elders.Cronus.Sample.InMemoryServer.Nhibernate;
 using Elders.Cronus.Sample.Collaboration.Users.Projections;
-using Elders.Cronus.DomainModeling;
-using Elders.Cronus.Pipeline.Hosts;
 
 namespace Elders.Cronus.Sample.InMemoryServer
 {

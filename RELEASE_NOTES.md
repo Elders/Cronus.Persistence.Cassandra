@@ -1,4 +1,4 @@
-#### 1.1.0-alpha01 - 13.10.2014
+#### 1.2.0 - 16.12.2014
 * Improved version with many changes towards more natural usage
 
 #### 1.0.1 - 11.09.2014

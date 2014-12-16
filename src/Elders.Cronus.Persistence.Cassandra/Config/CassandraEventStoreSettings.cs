@@ -78,13 +78,12 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
             ICassandraEventStoreSettings settings = this as ICassandraEventStoreSettings;
 
             builder.Container.RegisterSingleton<IAggregateRevisionService>(() => new InMemoryAggregateRevisionService(), builder.Name);
-            var persister = new CassandraPersister(settings.Session, settings.EventStoreTableNameStrategy, builder.Container.Resolve<ISerializer>());
-            var aggregateRepository = new AggregateRepository(persister, builder.Container.Resolve<IPublisher<IEvent>>(builder.Name), builder.Container.Resolve<IAggregateRevisionService>(builder.Name));
-            var player = new CassandraEventStorePlayer(settings.Session, settings.EventStoreTableNameStrategy, builder.Container.Resolve<ISerializer>());
+            var eventStore = new CassandraEventStore(settings.Session, settings.EventStoreTableNameStrategy, builder.Container.Resolve<ISerializer>());
+            var aggregateRepository = new AggregateRepository(eventStore, builder.Container.Resolve<IPublisher<IEvent>>(builder.Name), builder.Container.Resolve<IAggregateRevisionService>(builder.Name));
+            var player = new CassandraEventStorePlayer(settings.Session, settings.EventStoreTableNameStrategy, (this as IEventStoreSettings).BoundedContext, builder.Container.Resolve<ISerializer>());
 
-            builder.Container.RegisterSingleton<IEventStore>(() => new CassandraEventStore(aggregateRepository, persister, player, null), builder.Name);
             builder.Container.RegisterSingleton<IAggregateRepository>(() => aggregateRepository, builder.Name);
-            builder.Container.RegisterSingleton<IEventStorePersister>(() => persister, builder.Name);
+            builder.Container.RegisterSingleton<IEventStore>(() => eventStore, builder.Name);
         }
 
         string IEventStoreSettings.BoundedContext { get; set; }

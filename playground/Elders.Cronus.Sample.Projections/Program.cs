@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Linq;
 using System.Reflection;
-using Elders.Cronus.UnitOfWork;
 using Elders.Cronus.Pipeline.Config;
 using Elders.Cronus.Pipeline.Hosts;
 using Elders.Cronus.Pipeline.Transport.RabbitMQ.Config;
@@ -10,7 +9,6 @@ using Elders.Cronus.Sample.Collaboration.Users.Commands;
 using Elders.Cronus.Sample.Collaboration.Users.DTOs;
 using Elders.Cronus.Sample.Collaboration.Users.Projections;
 using Elders.Cronus.Sample.CommonFiles;
-using Elders.Cronus.Sample.Handlers.Nhibernate;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Commands;
 using NHibernate;
 using NHibernate.Mapping.ByCode;
@@ -34,12 +32,12 @@ namespace Elders.Cronus.Sample.Projections
                     .WithDefaultPublishersWithRabbitMq()
                     .UseRabbitMqTransport()
                     .UseProjections(h => h
-                        .UseUnitOfWork(new UnitOfWorkFactory() { CreateBatchUnitOfWork = () => new BatchScope(sf) })
-                        .RegisterAllHandlersInAssembly(Assembly.GetAssembly(typeof(UserProjection)), (type, context) =>
-                        {
-                            return FastActivator.CreateInstance(type)
-                                .AssignPropertySafely<IHaveNhibernateSession>(x => x.Session = context.BatchContext.Get<Lazy<ISession>>().Value);
-                        })));
+                        //.UseUnitOfWork(new UnitOfWorkFactory() { CreateBatchUnitOfWork = () => new BatchScope(sf) })
+                        .RegisterAllHandlersInAssembly(Assembly.GetAssembly(typeof(UserProjection)), type => container.Resolve(type))));
+            //{
+            //                return FastActivator.CreateInstance(type)
+            //                    .AssignPropertySafely<IHaveNhibernateSession>(x => x.Session = context.BatchContext.Get<Lazy<ISession>>().Value);
+            //            })));
 
             (cfg as ISettingsBuilder).Build();
             host = container.Resolve<CronusHost>();

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using Cassandra;
@@ -14,19 +15,35 @@ namespace Elders.Cronus.Persistence.Cassandra
         private readonly ISerializer serializer;
         private readonly ISession session;
         private readonly PreparedStatement loadAggregateEventsPreparedStatement;
-        public CassandraEventStorePlayer(ISession session, ICassandraEventStoreTableNameStrategy tableNameStrategy, ISerializer serializer)
+        public CassandraEventStorePlayer(ISession session, ICassandraEventStoreTableNameStrategy tableNameStrategy, string boundedContext, ISerializer serializer)
         {
             this.serializer = serializer;
             this.tableNameStrategy = tableNameStrategy;
             this.session = session;
-            //this.loadAggregateEventsPreparedStatement = session.Prepare(String.Format(LoadAggregateEventsQueryTemplate, tableNameStrategy.GetEventsTableName()));
+            this.loadAggregateEventsPreparedStatement = session.Prepare(String.Format(LoadAggregateEventsQueryTemplate, tableNameStrategy.GetEventsTableName(boundedContext)));
         }
 
-        private List<AggregateCommit> LoadAggregateCommits()
+        public IEnumerable<IEvent> GetEventsFromStart(int batchPerQuery = 100)
         {
-            List<AggregateCommit> events = new List<AggregateCommit>();
-            BoundStatement bs = loadAggregateEventsPreparedStatement.Bind("20140917");
-            var result = session.Execute(bs);
+            var startDate = new DateTime(2014, 14, 14);
+            while (startDate < DateTime.UtcNow.AddDays(1))
+            {
+                foreach (var item in LoadAggregateCommits(startDate, batchPerQuery))
+                {
+                    foreach (var evnt in item.Events)
+                    {
+                        yield return evnt;
+                    }
+                }
+                startDate = startDate.AddDays(1);
+            }
+        }
+
+        private List<AggregateCommit> LoadAggregateCommits(DateTime date, int batchSize)
+        {
+            List<AggregateCommit> commits = new List<AggregateCommit>();
+            var queryStatement = loadAggregateEventsPreparedStatement.Bind(date.ToString("yyyyMMdd")).SetPageSize(batchSize);
+            var result = session.Execute(queryStatement);
             foreach (var row in result.GetRows())
             {
                 var data = row.GetValue<List<byte[]>>("events");
@@ -34,23 +51,12 @@ namespace Elders.Cronus.Persistence.Cassandra
                 {
                     using (var stream = new MemoryStream(@event))
                     {
-                        events.Add((AggregateCommit)serializer.Deserialize(stream));
+                        var commit = (AggregateCommit)serializer.Deserialize(stream);
+                        commits.Add(commit);
                     }
                 }
             }
-            return events;
-        }
-
-        public IEnumerable<IEvent> GetEventsFromStart(int batchPerQuery = 1)
-        {
-            foreach (var item in LoadAggregateCommits())
-            {
-                foreach (var evnt in item.Events)
-                {
-                    yield return evnt;
-                }
-
-            }
+            return commits;
         }
     }
 }

@@ -45,13 +45,15 @@
     <Reference Include="Crc32C.NET">
       <HintPath>..\packages\Crc32C.NET.1.0.5.0\lib\net20\Crc32C.NET.dll</HintPath>
     </Reference>
-    <Reference Include="Elders.Cronus, Version=1.1.42.0, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="Elders.Cronus, Version=1.2.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\playground\packages\Cronus.1.1.42-rc07\lib\net45-full\Elders.Cronus.dll</HintPath>
+      <HintPath>..\..\playground\packages\Cronus.1.2.0\lib\net45-full\Elders.Cronus.dll</HintPath>
+      <Private>True</Private>
     </Reference>
-    <Reference Include="Elders.Cronus.DomainModeling, Version=1.0.4.0, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="Elders.Cronus.DomainModeling, Version=1.2.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\playground\packages\Cronus.DomainModeling.1.0.4-beta02\lib\net45-full\Elders.Cronus.DomainModeling.dll</HintPath>
+      <HintPath>..\..\playground\packages\Cronus.DomainModeling.1.2.0\lib\net45-full\Elders.Cronus.DomainModeling.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="Elders.Multithreading.Scheduler, Version=1.0.1.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -66,8 +68,9 @@
     <Reference Include="LZ4">
       <HintPath>..\packages\lz4net.1.0.5.93\lib\net40-client\LZ4.dll</HintPath>
     </Reference>
-    <Reference Include="protobuf-net">
-      <HintPath>..\packages\protobuf-net.2.0.0.668\lib\net40\protobuf-net.dll</HintPath>
+    <Reference Include="protobuf-net, Version=2.0.0.668, Culture=neutral, PublicKeyToken=257b51d87d2e4d67, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\playground\packages\Cronus.1.2.0\lib\net45-full\protobuf-net.dll</HintPath>
     </Reference>
     <Reference Include="Snappy.NET">
       <HintPath>..\packages\Snappy.NET.1.1.1.8\lib\net45\Snappy.NET.dll</HintPath>
@@ -82,10 +85,9 @@
     <Compile Include="TablePerBoundedContext.cs" />
     <Compile Include="CassandraEventStorePlayer.cs" />
     <Compile Include="CassandraEventStoreStorageManager.cs" />
-    <Compile Include="CassandraPersister.cs" />
+    <Compile Include="CassandraEventStore.cs" />
     <Compile Include="Config\CassandraConfiguration.cs" />
     <Compile Include="Config\CassandraEventStoreSettings.cs" />
-    <Compile Include="CassandraEventStore.cs" />
     <Compile Include="ICassandraEventStoreTableNameStrategy.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

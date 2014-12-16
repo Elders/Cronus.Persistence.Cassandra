@@ -32,17 +32,17 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Elders.Cronus, Version=1.1.42.0, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="Elders.Cronus, Version=1.2.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\Cronus.1.1.42-rc07\lib\net45-full\Elders.Cronus.dll</HintPath>
+      <HintPath>..\packages\Cronus.1.2.0\lib\net45-full\Elders.Cronus.dll</HintPath>
     </Reference>
-    <Reference Include="Elders.Cronus.DomainModeling, Version=1.0.4.0, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="Elders.Cronus.DomainModeling, Version=1.2.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\Cronus.DomainModeling.1.0.4-beta02\lib\net45-full\Elders.Cronus.DomainModeling.dll</HintPath>
+      <HintPath>..\packages\Cronus.DomainModeling.1.2.0\lib\net45-full\Elders.Cronus.DomainModeling.dll</HintPath>
     </Reference>
-    <Reference Include="Elders.Cronus.Transport.RabbitMQ, Version=1.0.4.0, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="Elders.Cronus.Transport.RabbitMQ, Version=1.2.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\Cronus.Transport.RabbitMQ.1.0.4-beta4\lib\net40-full\Elders.Cronus.Transport.RabbitMQ.dll</HintPath>
+      <HintPath>..\packages\Cronus.Transport.RabbitMQ.1.2.0\lib\net40-full\Elders.Cronus.Transport.RabbitMQ.dll</HintPath>
     </Reference>
     <Reference Include="Elders.Multithreading.Scheduler, Version=1.0.1.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -55,9 +55,9 @@
     <Reference Include="log4net">
       <HintPath>..\packages\log4net.2.0.3\lib\net40-full\log4net.dll</HintPath>
     </Reference>
-    <Reference Include="protobuf-net">
-      <HintPath>..\packages\protobuf-net.2.0.0.668\lib\net40\protobuf-net.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="protobuf-net, Version=2.0.0.668, Culture=neutral, PublicKeyToken=257b51d87d2e4d67, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\Cronus.1.2.0\lib\net45-full\protobuf-net.dll</HintPath>
     </Reference>
     <Reference Include="RabbitMQ.Client, Version=3.4.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>

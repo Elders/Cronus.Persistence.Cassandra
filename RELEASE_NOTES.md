@@ -1,3 +1,6 @@
+#### 2.0.0-alpha01 - 06.01.2015
+* Version for Cronus 2.0
+
 #### 1.2.0 - 16.12.2014
 * Improved version with many changes towards more natural usage
 

@@ -45,10 +45,9 @@
     <Reference Include="Crc32C.NET">
       <HintPath>..\packages\Crc32C.NET.1.0.5.0\lib\net20\Crc32C.NET.dll</HintPath>
     </Reference>
-    <Reference Include="Elders.Cronus, Version=1.2.0.0, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="Elders.Cronus, Version=2.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\playground\packages\Cronus.1.2.0\lib\net45-full\Elders.Cronus.dll</HintPath>
-      <Private>True</Private>
+      <HintPath>..\packages\Cronus.2.0.0-alpha02\lib\net45-full\Elders.Cronus.dll</HintPath>
     </Reference>
     <Reference Include="Elders.Cronus.DomainModeling, Version=1.2.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -59,8 +58,8 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\playground\packages\Multithreading.Scheduler.1.0.1\lib\net40-full\Elders.Multithreading.Scheduler.dll</HintPath>
     </Reference>
-    <Reference Include="Elders.Protoreg">
-      <HintPath>..\packages\Protoreg.1.0.10\lib\Elders.Protoreg.dll</HintPath>
+    <Reference Include="Elders.Proteus">
+      <HintPath>..\packages\Proteus.1.0.2\lib\net40-full\Elders.Proteus.dll</HintPath>
     </Reference>
     <Reference Include="log4net">
       <HintPath>..\packages\log4net.2.0.3\lib\net40-full\log4net.dll</HintPath>
@@ -70,7 +69,7 @@
     </Reference>
     <Reference Include="protobuf-net, Version=2.0.0.668, Culture=neutral, PublicKeyToken=257b51d87d2e4d67, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\playground\packages\Cronus.1.2.0\lib\net45-full\protobuf-net.dll</HintPath>
+      <HintPath>..\packages\Cronus.2.0.0-alpha02\lib\net45-full\protobuf-net.dll</HintPath>
     </Reference>
     <Reference Include="Snappy.NET">
       <HintPath>..\packages\Snappy.NET.1.1.1.8\lib\net45\Snappy.NET.dll</HintPath>

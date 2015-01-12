@@ -1,3 +1,6 @@
+#### 2.0.0-alpha02 - 12.01.2015
+* Version for Cronus 2.0
+
 #### 2.0.0-alpha01 - 06.01.2015
 * Version for Cronus 2.0
 

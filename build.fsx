@@ -55,7 +55,7 @@ Target "RestorePackages" (fun _ ->
 Target "CreateNuGet" (fun _ ->
     for package,description in packages do
     
-        let nugetToolsDir = nugetDir @@ "lib" @@ "net40-full"
+        let nugetToolsDir = nugetDir @@ "lib" @@ "net45-full"
         CleanDir nugetToolsDir
 
         match package with

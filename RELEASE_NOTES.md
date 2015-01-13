@@ -1,3 +1,6 @@
+#### 1.2.1 - 13.01.2015
+* Update Cronus package
+
 #### 1.2.0 - 16.12.2014
 * Improved version with many changes towards more natural usage
 

@@ -77,12 +77,9 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
             var builder = this as ISettingsBuilder;
             ICassandraEventStoreSettings settings = this as ICassandraEventStoreSettings;
 
-            builder.Container.RegisterSingleton<IAggregateRootAtomicAction>(() => new InMemoryAggregateRootAtomicAction(), builder.Name);
             var eventStore = new CassandraEventStore(settings.Session, settings.EventStoreTableNameStrategy, builder.Container.Resolve<ISerializer>());
-            var aggregateRepository = new AggregateRepository(eventStore, builder.Container.Resolve<IPublisher<IEvent>>(builder.Name), builder.Container.Resolve<IAggregateRootAtomicAction>(builder.Name));
             var player = new CassandraEventStorePlayer(settings.Session, settings.EventStoreTableNameStrategy, (this as IEventStoreSettings).BoundedContext, builder.Container.Resolve<ISerializer>());
 
-            builder.Container.RegisterSingleton<IAggregateRepository>(() => aggregateRepository, builder.Name);
             builder.Container.RegisterSingleton<IEventStore>(() => eventStore, builder.Name);
         }
 

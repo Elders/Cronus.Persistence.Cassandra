@@ -1,3 +1,6 @@
+#### 1.2.4 - 13.03.2015
+* Remove AggregateRepository init
+
 #### 1.2.3 - 12.03.2015
 * Update Cronus package
 

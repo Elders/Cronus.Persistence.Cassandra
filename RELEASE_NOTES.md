@@ -1,3 +1,6 @@
+#### 1.2.3 - 12.03.2015
+* Update Cronus package
+
 #### 1.2.2 - 07.02.2015
 * Update Cassandra package
 

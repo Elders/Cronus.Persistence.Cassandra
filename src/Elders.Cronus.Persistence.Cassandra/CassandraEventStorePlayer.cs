@@ -25,17 +25,27 @@ namespace Elders.Cronus.Persistence.Cassandra
             this.loadAggregateEventsPreparedStatement = session.Prepare(String.Format(LoadAggregateEventsQueryTemplate, tableNameStrategy.GetEventsTableName(boundedContext)));
         }
 
-        public IEnumerable<IEvent> GetEventsFromStart(int batchPerQuery = 100)
+        public IEnumerable<AggregateCommit> GetFromStart(int batchPerQuery = 100)
         {
             var startDate = new DateTime(2014, 1, 1);
             while (startDate < DateTime.UtcNow.AddDays(1))
             {
-                foreach (var item in LoadAggregateCommits(startDate, batchPerQuery))
+                foreach (var commit in LoadAggregateCommits(startDate, batchPerQuery))
                 {
-                    foreach (var evnt in item.Events)
-                    {
-                        yield return evnt;
-                    }
+                    yield return commit;
+                }
+                startDate = startDate.AddDays(1);
+            }
+        }
+
+        public IEnumerable<AggregateCommit> GetFromStart(DateTime start, DateTime end, int batchPerQuery = 100)
+        {
+            var startDate = start;
+            while (startDate < end)
+            {
+                foreach (var commit in LoadAggregateCommits(startDate, batchPerQuery))
+                {
+                    yield return commit;
                 }
                 startDate = startDate.AddDays(1);
             }
@@ -71,5 +81,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
             return commits;
         }
+
+
     }
 }

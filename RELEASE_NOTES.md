@@ -1,3 +1,6 @@
+#### 1.2.8 - 04.04.2015
+* Replaying events now returns the entire AggregateCommit
+
 #### 1.2.7 - 03.04.2015
 * Add log error when event deserialization fails while replaying the events
 

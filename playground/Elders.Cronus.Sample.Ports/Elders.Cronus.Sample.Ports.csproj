@@ -32,9 +32,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Elders.Cronus, Version=1.2.14.0, Culture=neutral, processorArchitecture=MSIL">
+    <Reference Include="Elders.Cronus, Version=1.2.16.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\Cronus.1.2.15\lib\net45-full\Elders.Cronus.dll</HintPath>
+      <HintPath>..\packages\Cronus.1.2.16\lib\net45-full\Elders.Cronus.dll</HintPath>
     </Reference>
     <Reference Include="Elders.Cronus.DomainModeling, Version=1.2.3.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -57,7 +57,7 @@
     </Reference>
     <Reference Include="protobuf-net, Version=2.0.0.668, Culture=neutral, PublicKeyToken=257b51d87d2e4d67, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\Cronus.1.2.15\lib\net45-full\protobuf-net.dll</HintPath>
+      <HintPath>..\packages\Cronus.1.2.16\lib\net45-full\protobuf-net.dll</HintPath>
     </Reference>
     <Reference Include="RabbitMQ.Client">
       <HintPath>..\packages\RabbitMQ.Client.3.4.3\lib\net35\RabbitMQ.Client.dll</HintPath>

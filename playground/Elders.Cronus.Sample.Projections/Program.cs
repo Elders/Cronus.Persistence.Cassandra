@@ -23,7 +23,7 @@ namespace Elders.Cronus.Sample.Projections
         {
             log4net.Config.XmlConfigurator.Configure();
 
-            var sf = BuildSessionFactory();
+            //var sf = BuildSessionFactory();
             var container = new Container();
             container.RegisterScoped<IUnitOfWork>(() => new NoUnitOfWork());
             var cfg = new CronusSettings(container)

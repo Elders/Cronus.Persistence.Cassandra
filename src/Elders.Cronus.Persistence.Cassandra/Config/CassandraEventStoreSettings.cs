@@ -81,6 +81,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
             var player = new CassandraEventStorePlayer(settings.Session, settings.EventStoreTableNameStrategy, (this as IEventStoreSettings).BoundedContext, builder.Container.Resolve<ISerializer>());
 
             builder.Container.RegisterSingleton<IEventStore>(() => eventStore, builder.Name);
+            builder.Container.RegisterSingleton<IEventStorePlayer>(() => player, builder.Name);
         }
 
         string IEventStoreSettings.BoundedContext { get; set; }

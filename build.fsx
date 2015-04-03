@@ -1,6 +1,5 @@
 ﻿#I @"./bin/tools/FAKE/tools/"
 #r @"./bin/tools/FAKE/tools/FakeLib.dll"
-#load @"./bin/tools/SourceLink.Fake/tools/SourceLink.fsx"
 
 open Fake
 open Fake.Git

@@ -1,4 +1,5 @@
-﻿using System.Runtime.Serialization;
+﻿using System;
+using System.Runtime.Serialization;
 using Elders.Cronus.DomainModeling;
 
 namespace Elders.Cronus.Sample.IdentityAndAccess.Accounts.Events
@@ -12,6 +13,7 @@ namespace Elders.Cronus.Sample.IdentityAndAccess.Accounts.Events
         {
             Id = id;
             Email = email;
+            IdOOps = new AccountId(Guid.Parse("06ec38d1-db16-428c-9c6c-d291733bf689"));
         }
 
         [DataMember(Order = 1)]
@@ -19,6 +21,9 @@ namespace Elders.Cronus.Sample.IdentityAndAccess.Accounts.Events
 
         [DataMember(Order = 2)]
         public string Email { get; private set; }
+
+        [DataMember(Order = 3)]
+        public AccountId IdOOps { get; private set; }
 
         public override string ToString()
         {

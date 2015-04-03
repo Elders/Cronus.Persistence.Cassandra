@@ -1,3 +1,6 @@
+#### 1.2.5 - 03.04.2015
+* Added the IEventStorePlayer to the Container
+
 #### 1.2.4 - 13.03.2015
 * Remove AggregateRepository init
 

@@ -1,3 +1,6 @@
+#### 1.2.7 - 03.04.2015
+* Add log error when event deserialization fails while replaying the events
+
 #### 1.2.6 - 03.04.2015
 * Fixed issue with the initial date when replaying events
 

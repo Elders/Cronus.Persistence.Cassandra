@@ -10,6 +10,8 @@ namespace Elders.Cronus.Persistence.Cassandra
 {
     public class CassandraEventStorePlayer : IEventStorePlayer
     {
+        public static log4net.ILog log = log4net.LogManager.GetLogger(typeof(CassandraEventStorePlayer));
+
         private const string LoadAggregateEventsQueryTemplate = @"SELECT events FROM {0}player WHERE date = ?;";
         private readonly ICassandraEventStoreTableNameStrategy tableNameStrategy;
         private readonly ISerializer serializer;
@@ -51,7 +53,18 @@ namespace Elders.Cronus.Persistence.Cassandra
                 {
                     using (var stream = new MemoryStream(@event))
                     {
-                        var commit = (AggregateCommit)serializer.Deserialize(stream);
+                        AggregateCommit commit;
+                        try
+                        {
+                            commit = (AggregateCommit)serializer.Deserialize(stream);
+                        }
+                        catch (Exception ex)
+                        {
+                            string error = "Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(@event);
+                            log.Error(error, ex);
+                            continue;
+                        }
+
                         commits.Add(commit);
                     }
                 }

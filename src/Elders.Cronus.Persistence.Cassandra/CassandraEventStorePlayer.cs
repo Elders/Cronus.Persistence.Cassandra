@@ -25,7 +25,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public IEnumerable<IEvent> GetEventsFromStart(int batchPerQuery = 100)
         {
-            var startDate = new DateTime(2014, 14, 14);
+            var startDate = new DateTime(2014, 1, 1);
             while (startDate < DateTime.UtcNow.AddDays(1))
             {
                 foreach (var item in LoadAggregateCommits(startDate, batchPerQuery))

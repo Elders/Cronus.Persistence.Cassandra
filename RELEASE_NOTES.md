@@ -1,3 +1,6 @@
+#### 1.2.6 - 03.04.2015
+* Fixed issue with the initial date when replaying events
+
 #### 1.2.5 - 03.04.2015
 * Added the IEventStorePlayer to the Container
 

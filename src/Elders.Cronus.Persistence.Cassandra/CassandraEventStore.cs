@@ -13,11 +13,7 @@ namespace Elders.Cronus.Persistence.Cassandra
     {
         private const string LoadAggregateEventsQueryTemplate = @"SELECT data FROM {0} WHERE id = ?;";
 
-        private const string InsertEventsBatchQueryTemplate = @"
-BEGIN BATCH
-  INSERT INTO {0} (id,ts,rev,data) VALUES (?,?,?,?);
-  UPDATE {0}player SET events = events + ? WHERE date=?;
-APPLY BATCH;";
+        private const string InsertEventsBatchQueryTemplate = @"INSERT INTO {0} (id,ts,rev,data) VALUES (?,?,?,?);";
 
         private PreparedStatement insertEventsBatchPreparedStatement;
 
@@ -64,7 +60,7 @@ APPLY BATCH;";
         public void Append(AggregateCommit aggregateCommit)
         {
             byte[] data = SerializeEvent(aggregateCommit);
-            session.Execute(GetPreparedStatementToPersistAnAggregateCommit(aggregateCommit).Bind(Convert.ToBase64String(aggregateCommit.AggregateRootId), aggregateCommit.Timestamp, aggregateCommit.Revision, data, new List<byte[]>() { data }, DateTime.FromFileTimeUtc(aggregateCommit.Timestamp).ToString("yyyyMMdd")));
+            session.Execute(GetPreparedStatementToPersistAnAggregateCommit(aggregateCommit).Bind(Convert.ToBase64String(aggregateCommit.AggregateRootId), aggregateCommit.Timestamp, aggregateCommit.Revision, data));
         }
 
         public EventStream Load(IAggregateRootId aggregateId)

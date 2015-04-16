@@ -34,7 +34,7 @@
       <HintPath>..\..\playground\packages\CassandraCSharpDriver.2.5.1\lib\net40\Cassandra.dll</HintPath>
     </Reference>
     <Reference Include="Elders.Cronus">
-      <HintPath>..\..\playground\packages\Cronus.1.2.16\lib\net45-full\Elders.Cronus.dll</HintPath>
+      <HintPath>..\..\playground\packages\Cronus.1.2.17\lib\net45-full\Elders.Cronus.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="Elders.Cronus.DomainModeling">
@@ -57,7 +57,7 @@
       <HintPath>..\..\playground\packages\lz4net.1.0.5.93\lib\net40-client\LZ4.dll</HintPath>
     </Reference>
     <Reference Include="protobuf-net">
-      <HintPath>..\..\playground\packages\Cronus.1.2.16\lib\net45-full\protobuf-net.dll</HintPath>
+      <HintPath>..\..\playground\packages\Cronus.1.2.17\lib\net45-full\protobuf-net.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />

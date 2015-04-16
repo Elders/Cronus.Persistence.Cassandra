@@ -1,3 +1,6 @@
+#### 1.2.10 - 04.16.2015
+* Update packages
+
 #### 1.2.9 - 04.16.2015
 * Deprecate writing in "*player" table.
 * Loading the events for Replay are now unordered from the "ES" table

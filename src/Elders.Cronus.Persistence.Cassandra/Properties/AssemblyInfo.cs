@@ -4,11 +4,11 @@ using System.Reflection;
 [assembly: AssemblyTitleAttribute("Elders.Cronus.Persistence.Cassandra")]
 [assembly: AssemblyDescriptionAttribute("Elders.Cronus.Persistence.Cassandra")]
 [assembly: AssemblyProductAttribute("Elders.Cronus.Persistence.Cassandra")]
-[assembly: AssemblyVersionAttribute("1.2.9")]
-[assembly: AssemblyInformationalVersionAttribute("1.2.9")]
-[assembly: AssemblyFileVersionAttribute("1.2.9")]
+[assembly: AssemblyVersionAttribute("1.2.10")]
+[assembly: AssemblyInformationalVersionAttribute("1.2.10")]
+[assembly: AssemblyFileVersionAttribute("1.2.10")]
 namespace System {
     internal static class AssemblyVersionInformation {
-        internal const string Version = "1.2.9";
+        internal const string Version = "1.2.10";
     }
 }

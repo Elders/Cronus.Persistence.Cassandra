@@ -25,35 +25,8 @@ namespace Elders.Cronus.Persistence.Cassandra
             this.loadAggregateEventsPreparedStatement = session.Prepare(String.Format(LoadAggregateEventsQueryTemplate, tableNameStrategy.GetEventsTableName(boundedContext)));
         }
 
-        public IEnumerable<AggregateCommit> GetFromStart(int batchPerQuery = 100)
+        public IEnumerable<AggregateCommit> LoadAggregateCommits(int batchSize)
         {
-            var startDate = new DateTime(2014, 1, 1);
-            while (startDate < DateTime.UtcNow.AddDays(1))
-            {
-                foreach (var commit in LoadAggregateCommits(startDate, batchPerQuery))
-                {
-                    yield return commit;
-                }
-                startDate = startDate.AddDays(1);
-            }
-        }
-
-        public IEnumerable<AggregateCommit> GetFromStart(DateTime start, DateTime end, int batchPerQuery = 100)
-        {
-            var startDate = start;
-            while (startDate < end)
-            {
-                foreach (var commit in LoadAggregateCommits(startDate, batchPerQuery))
-                {
-                    yield return commit;
-                }
-                startDate = startDate.AddDays(1);
-            }
-        }
-
-        private List<AggregateCommit> LoadAggregateCommits(DateTime date, int batchSize)
-        {
-            List<AggregateCommit> commits = new List<AggregateCommit>();
             var queryStatement = loadAggregateEventsPreparedStatement.Bind().SetPageSize(batchSize);
             var result = session.Execute(queryStatement);
             foreach (var row in result.GetRows())
@@ -72,11 +45,9 @@ namespace Elders.Cronus.Persistence.Cassandra
                         log.Error(error, ex);
                         continue;
                     }
-
-                    commits.Add(commit);
+                    yield return commit;
                 }
             }
-            return commits;
         }
     }
 }

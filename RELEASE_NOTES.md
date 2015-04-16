@@ -1,3 +1,7 @@
+#### 1.2.9 - 04.16.2015
+* Deprecate writing in "*player" table.
+* Loading the events for Replay are now unordered from the "ES" table
+
 #### 1.2.8 - 04.04.2015
 * Replaying events now returns the entire AggregateCommit
 

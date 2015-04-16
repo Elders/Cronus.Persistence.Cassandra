@@ -12,7 +12,7 @@ namespace Elders.Cronus.Persistence.Cassandra
     {
         public static log4net.ILog log = log4net.LogManager.GetLogger(typeof(CassandraEventStorePlayer));
 
-        private const string LoadAggregateEventsQueryTemplate = @"SELECT events FROM {0}player WHERE date = ?;";
+        private const string LoadAggregateEventsQueryTemplate = @"SELECT data FROM {0};";
         private readonly ICassandraEventStoreTableNameStrategy tableNameStrategy;
         private readonly ISerializer serializer;
         private readonly ISession session;
@@ -54,34 +54,29 @@ namespace Elders.Cronus.Persistence.Cassandra
         private List<AggregateCommit> LoadAggregateCommits(DateTime date, int batchSize)
         {
             List<AggregateCommit> commits = new List<AggregateCommit>();
-            var queryStatement = loadAggregateEventsPreparedStatement.Bind(date.ToString("yyyyMMdd")).SetPageSize(batchSize);
+            var queryStatement = loadAggregateEventsPreparedStatement.Bind().SetPageSize(batchSize);
             var result = session.Execute(queryStatement);
             foreach (var row in result.GetRows())
             {
-                var data = row.GetValue<List<byte[]>>("events");
-                foreach (var @event in data)
+                var data = row.GetValue<byte[]>("data");
+                using (var stream = new MemoryStream(data))
                 {
-                    using (var stream = new MemoryStream(@event))
+                    AggregateCommit commit;
+                    try
                     {
-                        AggregateCommit commit;
-                        try
-                        {
-                            commit = (AggregateCommit)serializer.Deserialize(stream);
-                        }
-                        catch (Exception ex)
-                        {
-                            string error = "Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(@event);
-                            log.Error(error, ex);
-                            continue;
-                        }
-
-                        commits.Add(commit);
+                        commit = (AggregateCommit)serializer.Deserialize(stream);
                     }
+                    catch (Exception ex)
+                    {
+                        string error = "Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
+                        log.Error(error, ex);
+                        continue;
+                    }
+
+                    commits.Add(commit);
                 }
             }
             return commits;
         }
-
-
     }
 }

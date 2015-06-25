@@ -1,10 +1,4 @@
-﻿using System.Linq;
-using System.Reflection;
-using Elders.Cronus.Sample.Collaboration.Users.Projections;
-using Elders.Cronus.Sample.CommonFiles;
-using NHibernate;
-
-namespace Elders.Cronus.Sample.Player
+﻿namespace Elders.Cronus.Sample.Player
 {
 
     class Program
@@ -31,15 +25,15 @@ namespace Elders.Cronus.Sample.Player
             //new CustomCronusPlayer(cfg.GetInstance()).Replay();
         }
 
-        static ISessionFactory BuildSessionFactory()
-        {
-            var typesThatShouldBeMapped = Assembly.GetAssembly(typeof(UserProjection)).GetExportedTypes().Where(t => t.Namespace.EndsWith("DTOs"));
-            var cfg = new NHibernate.Cfg.Configuration();
-            cfg = cfg.AddAutoMappings(typesThatShouldBeMapped);
-            cfg.Configure();
-            cfg.CreateDatabase_AND_OVERWRITE_EXISTING_DATABASE();
-            return cfg.BuildSessionFactory();
-        }
+        //static ISessionFactory BuildSessionFactory()
+        //{
+        //    var typesThatShouldBeMapped = Assembly.GetAssembly(typeof(UserProjection)).GetExportedTypes().Where(t => t.Namespace.EndsWith("DTOs"));
+        //    var cfg = new NHibernate.Cfg.Configuration();
+        //    cfg = cfg.AddAutoMappings(typesThatShouldBeMapped);
+        //    cfg.Configure();
+        //    cfg.CreateDatabase_AND_OVERWRITE_EXISTING_DATABASE();
+        //    return cfg.BuildSessionFactory();
+        //}
 
 
     }

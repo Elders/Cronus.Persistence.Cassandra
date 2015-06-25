@@ -1,3 +1,12 @@
+#### 2.1.0 - 25.06.2015
+* Untroduce EventStoreNoHintedHandOff retry policy. We will handle the retry instead of Cassandra
+
+#### 2.0.1 - 16.05.2015
+* Build for Cronus 2.*
+
+#### 2.0.0 - 16.05.2015
+* Build for Cronus 2.*
+
 #### 1.2.11 - 21.04.2015
 * Update packages
 

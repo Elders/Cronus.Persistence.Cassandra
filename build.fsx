@@ -1,5 +1,6 @@
 ﻿#I @"./bin/tools/FAKE/tools/"
 #r @"./bin/tools/FAKE/tools/FakeLib.dll"
+#r @"./bin/tools/Nuget.Core/lib/net40-Client/NuGet.Core.dll"
 
 open System
 open System.IO
@@ -8,10 +9,9 @@ open Fake.Git
 open Fake.FSharpFormatting
 open Fake.AssemblyInfoFile
 open Fake.ReleaseNotesHelper
+open Fake.ProcessHelper
 
-type System.String with member x.endswith (comp:System.StringComparison) str =
-                          let newVal = x.Remove(x.Length-4)
-                          newVal.EndsWith(str, comp)
+type System.String with member x.endswith (comp:System.StringComparison) str = x.EndsWith(str, comp)
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //  BEGIN EDIT
@@ -31,17 +31,29 @@ let release = LoadReleaseNotes releaseNotes
 
 let nuget = environVar "NUGET"
 let nugetWorkDir = "./bin/nuget" @@ appName
-let nugetOutDir = nugetWorkDir @@ "lib" @@ "net45-full"
 
-Target "Clean" (fun _ -> CleanDirs [buildDir; nugetOutDir;])
+Target "Clean" (fun _ -> CleanDirs [buildDir; nugetWorkDir;])
 
-Target "RestorePackages" (fun _ ->
+Target "RestoreNugetPackages" (fun _ ->
   let packagesDir = @"./src/packages"
-  !! "./**/packages.config"
+  !! "./src/*/packages.config"
   |> Seq.iter (RestorePackage (fun p ->
       { p with
           ToolPath = nuget
           OutputPath = packagesDir }))
+)
+
+Target "RestoreBowerPackages" (fun _ ->
+    !! "./src/*/package.config"
+    |> Seq.iter (fun config ->
+        config.Replace("package.config", "")
+        |> fun cfgDir ->
+            printf "Bower working dir: %s" cfgDir
+            let result = ExecProcess (fun info ->
+                            info.FileName <- "cmd"
+                            info.WorkingDirectory <- cfgDir
+                            info.Arguments <- "/c npm install") (TimeSpan.FromMinutes 20.0)
+            if result <> 0 then failwithf "'npm install' returned with a non-zero exit code")
 )
 
 Target "Build" (fun _ ->
@@ -58,6 +70,7 @@ Target "CreateWebNuGet" (fun _ ->
   let packages = [appName, appType]
   for appName,appType in packages do
 
+      let nugetOutDir = nugetWorkDir
       let nugetOutArtifactsDir = nugetOutDir @@ "Artifacts"
       CleanDir nugetOutArtifactsDir
 
@@ -105,13 +118,18 @@ Target "CreateLibraryNuGet" (fun _ ->
 
       //  Exclude libraries which are part of the packages.config file only when nuget package is created.
       let nugetPackagesFile = "./src/" @@ appName @@ "packages.config"
-      let nugetDependenciesFlat =
-        match fileExists nugetPackagesFile with
-        | true -> getDependencies nugetPackagesFile |> List.unzip |> fst
-        | _ -> []
+      let dependencies = getDependencies nugetPackagesFile
+      let dependencyFiles = dependencies
+                            |> Seq.map(fun (name,ver) -> name + "." + ver)
+                            |> Seq.collect(fun pkgName -> !! ("./src/packages/*/" + pkgName + ".nupkg"))
+                            |> Seq.collect(fun pkg -> global.NuGet.ZipPackage(pkg).GetFiles())
+                            |> Seq.map(fun file -> "\\" + filename file.Path)
+                            |> fun gga -> Collections.Set(gga)
+                            |> Set.toList
 
+      let nugetOutDir = nugetWorkDir @@ "lib" @@ "net45-full"
       let excludePaths (pathsToExclude : string list) (path: string) = pathsToExclude |> List.exists (path.endswith StringComparison.OrdinalIgnoreCase)|> not
-      let exclude = excludePaths nugetDependenciesFlat
+      let exclude = excludePaths dependencyFiles
       CopyDir nugetOutDir buildDir exclude
 
       let nuspecFile = appName + ".nuspec"
@@ -119,8 +137,7 @@ Target "CreateLibraryNuGet" (fun _ ->
       let nugetPackageName = getBuildParamOrDefault "nugetPackageName" appName
       let nugetDoPublish = nugetAccessKey.Equals "" |> not
       let nugetPublishUrl = getBuildParamOrDefault "nugetserver" "https://nuget.org"
-      let dep = getDependencies nugetPackagesFile
-      Console.WriteLine dep
+
 
       //  Create/Publish the nuget package
       NuGet (fun app ->
@@ -132,7 +149,7 @@ Target "CreateLibraryNuGet" (fun _ ->
               Version = release.NugetVersion
               Summary = appSummary
               ReleaseNotes = release.Notes |> toLines
-              Dependencies = dep
+              Dependencies = dependencies
               AccessKey = nugetAccessKey
               Publish = nugetDoPublish
               PublishUrl = nugetPublishUrl
@@ -155,7 +172,8 @@ Target "Release" (fun _ ->
 )
 
 "Clean"
-    ==> "RestorePackages"
+    ==> "RestoreNugetPackages"
+    ==> "RestoreBowerPackages"
     ==> "Build"
     =?> ("CreateLibraryNuGet", appType.Equals "nuget")
     =?> ("CreateWebNuGet", appType.Equals "web")

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Cassandra;
-using Elders.Cronus.DomainModeling;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.Serializer;
 
@@ -17,6 +16,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         private readonly ISerializer serializer;
         private readonly ISession session;
         private readonly PreparedStatement loadAggregateEventsPreparedStatement;
+
         public CassandraEventStorePlayer(ISession session, ICassandraEventStoreTableNameStrategy tableNameStrategy, string boundedContext, ISerializer serializer)
         {
             this.serializer = serializer;

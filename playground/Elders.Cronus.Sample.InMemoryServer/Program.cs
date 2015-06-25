@@ -1,10 +1,4 @@
-﻿using System.Linq;
-using System.Reflection;
-using Elders.Cronus.Sample.CommonFiles;
-using NHibernate;
-using Elders.Cronus.Sample.Collaboration.Users.Projections;
-
-namespace Elders.Cronus.Sample.InMemoryServer
+﻿namespace Elders.Cronus.Sample.InMemoryServer
 {
     class Program
     {
@@ -50,15 +44,15 @@ namespace Elders.Cronus.Sample.InMemoryServer
         }
 
 
-        static ISessionFactory BuildNHibernateSessionFactory()
-        {
-            var typesThatShouldBeMapped = Assembly.GetAssembly(typeof(UserProjection)).GetExportedTypes().Where(t => t.Namespace.EndsWith("DTOs"));
-            var cfg = new NHibernate.Cfg.Configuration()
-                .AddAutoMappings(typesThatShouldBeMapped)
-                .Configure()
-                .CreateDatabase();
+        //static ISessionFactory BuildNHibernateSessionFactory()
+        //{
+        //    var typesThatShouldBeMapped = Assembly.GetAssembly(typeof(UserProjection)).GetExportedTypes().Where(t => t.Namespace.EndsWith("DTOs"));
+        //    var cfg = new NHibernate.Cfg.Configuration()
+        //        .AddAutoMappings(typesThatShouldBeMapped)
+        //        .Configure()
+        //        .CreateDatabase();
 
-            return cfg.BuildSessionFactory();
-        }
+        //    return cfg.BuildSessionFactory();
+        //}
     }
 }

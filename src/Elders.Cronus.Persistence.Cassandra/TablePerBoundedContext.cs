@@ -27,10 +27,8 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public string[] GetAllTableNames()
         {
-            {
-                var boundedContext = aggregatesAssemblies.GetBoundedContext().BoundedContextName;
-                return (new System.Collections.Generic.List<string>() { GetEventsTableName(boundedContext) }).ToArray();
-            }
+            var boundedContext = aggregatesAssemblies.GetBoundedContext().BoundedContextName;
+            return (new System.Collections.Generic.List<string>() { GetEventsTableName(boundedContext) }).ToArray();
         }
 
         public string GetEventsTableName(string boundedContext)

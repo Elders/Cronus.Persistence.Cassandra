@@ -4,9 +4,8 @@ using Elders.Cronus.Sample.Collaboration.Users.Events;
 
 namespace Elders.Cronus.Sample.Collaboration.Users.Projections
 {
-    public class UserProjection : IProjection, IHaveNhibernateSession, IEventHandler<UserCreated>
+    public class UserProjection : IProjection, IEventHandler<UserCreated>
     {
-        public NHibernate.ISession Session { get; set; }
         public void Handle(UserCreated message)
         {
             var usr = new User();

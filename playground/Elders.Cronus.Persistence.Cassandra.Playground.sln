@@ -15,11 +15,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MultiNode", "MultiNode", "{
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SingleNode", "SingleNode", "{E0B49807-D9E4-43CB-B6D6-929A17212D7E}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CommonFiles", "CommonFiles", "{8C087A73-5BE4-427E-AFC7-2EB49B24BD86}"
-	ProjectSection(SolutionItems) = preProject
-		Elders.Cronus.Sample.CommonFiles\NHibernateExtensions.cs = Elders.Cronus.Sample.CommonFiles\NHibernateExtensions.cs
-	EndProjectSection
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Elders.Cronus.Sample.Collaboration", "Elders.Cronus.Sample.Collaboration\Elders.Cronus.Sample.Collaboration.csproj", "{23D7E91E-3ECD-4A2C-AA16-EA6A62A80BA7}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Elders.Cronus.Sample.Collaboration.Contracts", "Elders.Cronus.Sample.Collaboration.Contracts\Elders.Cronus.Sample.Collaboration.Contracts.csproj", "{3780033D-E621-4994-97F9-3F4BC0A2E88B}"
@@ -37,8 +32,6 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Elders.Cronus.Sample.Ports", "Elders.Cronus.Sample.Ports\Elders.Cronus.Sample.Ports.csproj", "{B332D877-A3C3-4609-A5EA-069AE3FC32CF}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Elders.Cronus.Sample.Projections", "Elders.Cronus.Sample.Projections\Elders.Cronus.Sample.Projections.csproj", "{DCB6988D-602C-43FD-A966-2D9446801E03}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Elders.Cronus.Sample.Player", "Elders.Cronus.Sample.Player\Elders.Cronus.Sample.Player.csproj", "{AD1B27D2-0778-46CC-B647-7A7A906F3324}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Elders.Cronus.Sample.InMemoryServer", "Elders.Cronus.Sample.InMemoryServer\Elders.Cronus.Sample.InMemoryServer.csproj", "{0B495064-1425-465E-A2DC-36275A206F0B}"
 EndProject
@@ -86,10 +79,6 @@ Global
 		{DCB6988D-602C-43FD-A966-2D9446801E03}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DCB6988D-602C-43FD-A966-2D9446801E03}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DCB6988D-602C-43FD-A966-2D9446801E03}.Release|Any CPU.Build.0 = Release|Any CPU
-		{AD1B27D2-0778-46CC-B647-7A7A906F3324}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{AD1B27D2-0778-46CC-B647-7A7A906F3324}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{AD1B27D2-0778-46CC-B647-7A7A906F3324}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{AD1B27D2-0778-46CC-B647-7A7A906F3324}.Release|Any CPU.Build.0 = Release|Any CPU
 		{0B495064-1425-465E-A2DC-36275A206F0B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{0B495064-1425-465E-A2DC-36275A206F0B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0B495064-1425-465E-A2DC-36275A206F0B}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -116,7 +105,6 @@ Global
 		{15005FAF-E7E6-4199-B2DB-E2B9604C2F9C} = {F500DEF9-297B-4BCB-AD06-AF60CE197CA2}
 		{B332D877-A3C3-4609-A5EA-069AE3FC32CF} = {F500DEF9-297B-4BCB-AD06-AF60CE197CA2}
 		{DCB6988D-602C-43FD-A966-2D9446801E03} = {F500DEF9-297B-4BCB-AD06-AF60CE197CA2}
-		{AD1B27D2-0778-46CC-B647-7A7A906F3324} = {F500DEF9-297B-4BCB-AD06-AF60CE197CA2}
 		{0B495064-1425-465E-A2DC-36275A206F0B} = {E0B49807-D9E4-43CB-B6D6-929A17212D7E}
 	EndGlobalSection
 EndGlobal

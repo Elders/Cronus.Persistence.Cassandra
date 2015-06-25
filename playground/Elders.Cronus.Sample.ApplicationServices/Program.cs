@@ -50,6 +50,7 @@ namespace Elders.Cronus.Sample.ApplicationService
             var COLL_appServiceFactory = new ApplicationServiceFactory(container, COLL);
             cfg.UseCommandConsumer(COLL, consumer => consumer
                 .UseRabbitMqTransport()
+                .SetNumberOfConsumerThreads(5)
                 .WithDefaultPublishersWithRabbitMq()
                 .UseCassandraEventStore(eventStore => eventStore
                     .SetConnectionStringName("cronus_es")

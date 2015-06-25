@@ -13,9 +13,7 @@ namespace Elders.Cronus.Persistence.Cassandra
     {
         private const string LoadAggregateEventsQueryTemplate = @"SELECT data FROM {0} WHERE id = ?;";
 
-        private const string InsertEventsBatchQueryTemplate = @"INSERT INTO {0} (id,ts,rev,data) VALUES (?,?,?,?);";
-
-        private PreparedStatement insertEventsBatchPreparedStatement;
+        private const string InsertEventsQueryTemplate = @"INSERT INTO {0} (id,ts,rev,data) VALUES (?,?,?,?);";
 
         private readonly ISerializer serializer;
 
@@ -41,7 +39,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             if (!persistAggregateEventsPreparedStatements.TryGetValue(aggregateCommit.BoundedContext, out persistAggregatePreparedStatement))
             {
                 string tableName = tableNameStrategy.GetEventsTableName(aggregateCommit);
-                persistAggregatePreparedStatement = session.Prepare(String.Format(InsertEventsBatchQueryTemplate, tableName));
+                persistAggregatePreparedStatement = session.Prepare(String.Format(InsertEventsQueryTemplate, tableName));
                 persistAggregateEventsPreparedStatements.TryAdd(aggregateCommit.BoundedContext, persistAggregatePreparedStatement);
             }
 
@@ -60,7 +58,9 @@ namespace Elders.Cronus.Persistence.Cassandra
         public void Append(AggregateCommit aggregateCommit)
         {
             byte[] data = SerializeEvent(aggregateCommit);
-            session.Execute(GetPreparedStatementToPersistAnAggregateCommit(aggregateCommit).Bind(Convert.ToBase64String(aggregateCommit.AggregateRootId), aggregateCommit.Timestamp, aggregateCommit.Revision, data));
+            session
+                .Execute(GetPreparedStatementToPersistAnAggregateCommit(aggregateCommit)
+                .Bind(Convert.ToBase64String(aggregateCommit.AggregateRootId), aggregateCommit.Timestamp, aggregateCommit.Revision, data));
         }
 
         public EventStream Load(IAggregateRootId aggregateId)

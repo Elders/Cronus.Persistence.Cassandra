@@ -18,7 +18,7 @@ namespace Elders.Cronus.Sample.Ports
         static CronusHost host;
         public static void Main(string[] args)
         {
-            Thread.Sleep(9000);
+            //Thread.Sleep(9000);
             log4net.Config.XmlConfigurator.Configure();
 
             var container = new Container();
@@ -29,7 +29,7 @@ namespace Elders.Cronus.Sample.Ports
                 .UsePortConsumer(consumable => consumable
                     .WithDefaultPublishersWithRabbitMq()
                     .UseRabbitMqTransport()
-                    .SetNumberOfConsumerThreads(2)
+                    .SetNumberOfConsumerThreads(5)
                     .UsePorts(c => c.RegisterAllHandlersInAssembly(Assembly.GetAssembly(typeof(UserProjection)), COLL_POOOOORTHandlerFactory.Create)));
 
             (cfg as ISettingsBuilder).Build();

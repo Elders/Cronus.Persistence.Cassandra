@@ -33,42 +33,28 @@
     <StartupObject>Elders.Cronus.Sample.Player.Program</StartupObject>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Elders.Cronus">
-      <HintPath>..\packages\Cronus.1.2.17\lib\net45-full\Elders.Cronus.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="Elders.Cronus, Version=2.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\Cronus.2.0.0\lib\net45-full\Elders.Cronus.dll</HintPath>
     </Reference>
     <Reference Include="Elders.Cronus.DomainModeling">
       <HintPath>..\packages\Cronus.DomainModeling.1.2.3\lib\net45-full\Elders.Cronus.DomainModeling.dll</HintPath>
     </Reference>
-    <Reference Include="Elders.Cronus.Transport.RabbitMQ">
-      <HintPath>..\packages\Cronus.Transport.RabbitMQ.1.2.5\lib\net45-full\Elders.Cronus.Transport.RabbitMQ.dll</HintPath>
+    <Reference Include="Elders.Cronus.Transport.RabbitMQ, Version=2.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\Cronus.Transport.RabbitMQ.2.0.0\lib\net45-full\Elders.Cronus.Transport.RabbitMQ.dll</HintPath>
     </Reference>
     <Reference Include="Elders.Multithreading.Scheduler">
       <HintPath>..\packages\Multithreading.Scheduler.1.0.1\lib\net40-full\Elders.Multithreading.Scheduler.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Elders.Protoreg">
-      <HintPath>..\packages\Protoreg.1.0.11\lib\net45-full\Elders.Protoreg.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Iesi.Collections">
-      <HintPath>..\packages\Iesi.Collections.4.0.1.4000\lib\net40\Iesi.Collections.dll</HintPath>
-    </Reference>
     <Reference Include="log4net">
       <HintPath>..\packages\log4net.2.0.3\lib\net40-full\log4net.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="NHibernate">
-      <HintPath>..\packages\NHibernate.4.0.2.4000\lib\net40\NHibernate.dll</HintPath>
-    </Reference>
-    <Reference Include="protobuf-net">
-      <HintPath>..\packages\Cronus.1.2.17\lib\net45-full\protobuf-net.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="RabbitMQ.Client, Version=3.5.0.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce, processorArchitecture=MSIL">
+    <Reference Include="RabbitMQ.Client, Version=3.5.2.0, Culture=neutral, PublicKeyToken=89e7d7c5feba84ce, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\RabbitMQ.Client.3.4.3\lib\net35\RabbitMQ.Client.dll</HintPath>
-      <Private>True</Private>
+      <HintPath>..\packages\RabbitMQ.Client.3.5.2\lib\net40\RabbitMQ.Client.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />

@@ -10,7 +10,6 @@ using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Events;
 using Elders.Cronus.IocContainer;
 using System;
 using Elders.Cronus.DomainModeling;
-using Elders.Cronus.UnitOfWork;
 
 namespace Elders.Cronus.Sample.ApplicationService
 {
@@ -30,7 +29,6 @@ namespace Elders.Cronus.Sample.ApplicationService
         static void UseCronusHostWithCassandraEventStore()
         {
             var container = new Container();
-            container.RegisterScoped<IUnitOfWork>(() => new NoUnitOfWork());
             var cfg = new CronusSettings(container)
                 .UseContractsFromAssemblies(new[] { Assembly.GetAssembly(typeof(AccountRegistered)), Assembly.GetAssembly(typeof(UserCreated)) });
 

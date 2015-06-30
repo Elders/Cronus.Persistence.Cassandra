@@ -7,7 +7,6 @@ using Elders.Cronus.Sample.Collaboration.Users.Commands;
 using Elders.Cronus.Sample.Collaboration.Users.Projections;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Commands;
 using Elders.Cronus.IocContainer;
-using Elders.Cronus.UnitOfWork;
 
 namespace Elders.Cronus.Sample.Projections
 {
@@ -20,7 +19,7 @@ namespace Elders.Cronus.Sample.Projections
 
             //var sf = BuildSessionFactory();
             var container = new Container();
-            container.RegisterScoped<IUnitOfWork>(() => new NoUnitOfWork());
+
             var cfg = new CronusSettings(container)
                 .UseContractsFromAssemblies(new Assembly[] { Assembly.GetAssembly(typeof(RegisterAccount)), Assembly.GetAssembly(typeof(CreateUser)) })
                 .UseProjectionConsumer(consumer => consumer

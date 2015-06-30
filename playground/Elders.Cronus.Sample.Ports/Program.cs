@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Reflection;
-using System.Threading;
 using Elders.Cronus.DomainModeling;
 using Elders.Cronus.IocContainer;
 using Elders.Cronus.Pipeline.Config;
@@ -9,7 +8,6 @@ using Elders.Cronus.Pipeline.Transport.RabbitMQ.Config;
 using Elders.Cronus.Sample.Collaboration.Users.Commands;
 using Elders.Cronus.Sample.Collaboration.Users.Projections;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Commands;
-using Elders.Cronus.UnitOfWork;
 
 namespace Elders.Cronus.Sample.Ports
 {
@@ -22,7 +20,6 @@ namespace Elders.Cronus.Sample.Ports
             log4net.Config.XmlConfigurator.Configure();
 
             var container = new Container();
-            container.RegisterScoped<IUnitOfWork>(() => new NoUnitOfWork());
             var COLL_POOOOORTHandlerFactory = new PortHandlerFactory(container, null);
             var cfg = new CronusSettings(container)
                 .UseContractsFromAssemblies(new Assembly[] { Assembly.GetAssembly(typeof(RegisterAccount)), Assembly.GetAssembly(typeof(CreateUser)) })

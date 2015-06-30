@@ -1,5 +1,8 @@
+#### 3.0.0 - 30.06.2015
+* Change the schema of the event storage. Now the revision is part of the cluster key.
+
 #### 2.1.0 - 25.06.2015
-* Untroduce EventStoreNoHintedHandOff retry policy. We will handle the retry instead of Cassandra
+* Introduce EventStoreNoHintedHandOff retry policy. We will handle the retry instead of Cassandra
 
 #### 2.0.1 - 16.05.2015
 * Build for Cronus 2.*

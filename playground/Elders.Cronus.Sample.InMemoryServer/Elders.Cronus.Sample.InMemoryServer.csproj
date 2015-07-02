@@ -55,10 +55,11 @@
   <ItemGroup>
     <Reference Include="Elders.Cronus, Version=2.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\Cronus.2.1.1\lib\net45-full\Elders.Cronus.dll</HintPath>
+      <HintPath>..\packages\Cronus.2.2.1\lib\net45-full\Elders.Cronus.dll</HintPath>
     </Reference>
-    <Reference Include="Elders.Cronus.DomainModeling">
-      <HintPath>..\packages\Cronus.DomainModeling.1.3.0\lib\net45-full\Elders.Cronus.DomainModeling.dll</HintPath>
+    <Reference Include="Elders.Cronus.DomainModeling, Version=1.2.3.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\Cronus.DomainModeling.2.0.1\lib\net45-full\Elders.Cronus.DomainModeling.dll</HintPath>
     </Reference>
     <Reference Include="Elders.Cronus.Transport.RabbitMQ, Version=2.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>

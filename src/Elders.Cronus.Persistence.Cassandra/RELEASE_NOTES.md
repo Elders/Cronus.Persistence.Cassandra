@@ -1,3 +1,6 @@
+#### 3.1.0 - 02.07.2015
+* Update DomainModeling
+
 #### 3.0.0 - 30.06.2015
 * Change the schema of the event storage. Now the revision is part of the cluster key.
 

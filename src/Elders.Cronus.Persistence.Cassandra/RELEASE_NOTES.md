@@ -1,3 +1,6 @@
+#### 3.1.3 - 03.07.2015
+* Update packages
+
 #### 3.1.2 - 02.07.2015
 * Update DomainModeling
 

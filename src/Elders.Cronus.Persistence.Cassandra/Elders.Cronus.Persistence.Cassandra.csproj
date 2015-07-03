@@ -36,11 +36,11 @@
     </Reference>
     <Reference Include="Elders.Cronus, Version=2.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\playground\packages\Cronus.2.2.2\lib\net45-full\Elders.Cronus.dll</HintPath>
+      <HintPath>..\..\playground\packages\Cronus.2.2.3\lib\net45-full\Elders.Cronus.dll</HintPath>
     </Reference>
     <Reference Include="Elders.Cronus.DomainModeling, Version=1.2.3.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\playground\packages\Cronus.DomainModeling.2.0.4\lib\net45-full\Elders.Cronus.DomainModeling.dll</HintPath>
+      <HintPath>..\..\playground\packages\Cronus.DomainModeling.2.1.0\lib\net45-full\Elders.Cronus.DomainModeling.dll</HintPath>
     </Reference>
     <Reference Include="Elders.Multithreading.Scheduler">
       <HintPath>..\..\playground\packages\Multithreading.Scheduler.1.0.1\lib\net40-full\Elders.Multithreading.Scheduler.dll</HintPath>

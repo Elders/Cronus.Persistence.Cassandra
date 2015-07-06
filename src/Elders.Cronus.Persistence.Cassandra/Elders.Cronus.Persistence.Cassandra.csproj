@@ -34,13 +34,13 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\playground\packages\CassandraCSharpDriver.2.5.2\lib\net40\Cassandra.dll</HintPath>
     </Reference>
-    <Reference Include="Elders.Cronus, Version=2.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\playground\packages\Cronus.2.2.3\lib\net45-full\Elders.Cronus.dll</HintPath>
+    <Reference Include="Elders.Cronus">
+      <HintPath>..\..\playground\packages\Cronus.2.2.4\lib\net45-full\Elders.Cronus.dll</HintPath>
+      <Private>True</Private>
     </Reference>
-    <Reference Include="Elders.Cronus.DomainModeling, Version=1.2.3.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\playground\packages\Cronus.DomainModeling.2.1.0\lib\net45-full\Elders.Cronus.DomainModeling.dll</HintPath>
+    <Reference Include="Elders.Cronus.DomainModeling">
+      <HintPath>..\..\playground\packages\Cronus.DomainModeling.2.1.1\lib\net45-full\Elders.Cronus.DomainModeling.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="Elders.Multithreading.Scheduler">
       <HintPath>..\..\playground\packages\Multithreading.Scheduler.1.0.1\lib\net40-full\Elders.Multithreading.Scheduler.dll</HintPath>

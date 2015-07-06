@@ -1,3 +1,6 @@
+#### 3.1.4 - 03.07.2015
+* Update packages
+
 #### 3.1.3 - 03.07.2015
 * Update packages
 

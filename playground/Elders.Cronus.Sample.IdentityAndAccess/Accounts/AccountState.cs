@@ -5,7 +5,7 @@ using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Events;
 namespace Elders.Cronus.Sample.IdentityAndAccess.Accounts
 {
     [DataContract(Name = "9e97081e-d230-4351-b23a-6cbb65df4cbb")]
-    public sealed class AccountState : AggregateRootState<AccountId>
+    public sealed class AccountState : AggregateRootState<Account, AccountId>
     {
         public AccountState() { }
 

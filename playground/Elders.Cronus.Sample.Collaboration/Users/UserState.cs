@@ -5,7 +5,7 @@ using Elders.Cronus.Sample.Collaboration.Users.Events;
 namespace Elders.Cronus.Sample.Collaboration.Users
 {
     [DataContract(Name = "c8978654-4380-44d2-8ebe-ae17a463dfb6")]
-    public class UserState : AggregateRootState<UserId>
+    public class UserState : AggregateRootState<User, UserId>
     {
         public UserState() { }
 

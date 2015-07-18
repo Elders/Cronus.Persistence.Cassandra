@@ -11,9 +11,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Collaboration", "Collaborat
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Hosts", "Hosts", "{ADD9DF68-737C-48B2-8B29-115AE24920EF}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MultiNode", "MultiNode", "{F500DEF9-297B-4BCB-AD06-AF60CE197CA2}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Multi", "Multi", "{F500DEF9-297B-4BCB-AD06-AF60CE197CA2}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SingleNode", "SingleNode", "{E0B49807-D9E4-43CB-B6D6-929A17212D7E}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Single", "Single", "{E0B49807-D9E4-43CB-B6D6-929A17212D7E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Elders.Cronus.Sample.Collaboration", "Elders.Cronus.Sample.Collaboration\Elders.Cronus.Sample.Collaboration.csproj", "{23D7E91E-3ECD-4A2C-AA16-EA6A62A80BA7}"
 EndProject

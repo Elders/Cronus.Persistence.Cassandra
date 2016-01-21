@@ -1,13 +1,14 @@
 #####################
 ## CURRENT PROJECT ##
 #####################
-release.cmd
 
-#Ignore git files
 *.orig
 
-#Ignore MSI artifacts during packaging
-*.wxs
+################
+## Elders.Nyx ##
+################
+release.cmd
+*/**/AssemblyInfo.cs
 
 ##############################################################
 ## Ignore Visual Studio temporary files, build results, and ##
@@ -215,9 +216,6 @@ FakesAssemblies/
 
 # Visual Studio 6 workspace options file
 *.opt
-
-# Nyx
-AssemblyInfo.cs
 
 #############
 ## WINDOWS ##

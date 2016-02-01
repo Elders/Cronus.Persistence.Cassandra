@@ -1,13 +1,13 @@
 using System;
 using System.Configuration;
 using System.Reflection;
-using DataStaxCassandra = Cassandra;
 using Elders.Cronus.DomainModeling;
-using Elders.Cronus.Pipeline.Config;
-using Elders.Cronus.Serializer;
-using Elders.Cronus.IocContainer;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.EventStore.Config;
+using Elders.Cronus.IocContainer;
+using Elders.Cronus.Pipeline.Config;
+using Elders.Cronus.Serializer;
+using DataStaxCassandra = Cassandra;
 
 namespace Elders.Cronus.Persistence.Cassandra.Config
 {

@@ -4,12 +4,13 @@ using System.IO;
 using Cassandra;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.Serializer;
+using Elders.Cronus.Persistence.Cassandra.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
     public class CassandraEventStorePlayer : IEventStorePlayer
     {
-        public static log4net.ILog log = log4net.LogManager.GetLogger(typeof(CassandraEventStorePlayer));
+        static readonly ILog log = LogProvider.GetLogger(typeof(CassandraEventStorePlayer));
 
         private const string LoadAggregateEventsQueryTemplate = @"SELECT data FROM {0};";
         private readonly ICassandraEventStoreTableNameStrategy tableNameStrategy;
@@ -42,7 +43,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                     catch (Exception ex)
                     {
                         string error = "Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
-                        log.Error(error, ex);
+                        log.ErrorException(error, ex);
                         continue;
                     }
                     yield return commit;

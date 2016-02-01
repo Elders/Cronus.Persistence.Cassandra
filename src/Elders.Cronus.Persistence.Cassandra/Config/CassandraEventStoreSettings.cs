@@ -1,7 +1,7 @@
 using System;
 using System.Configuration;
 using System.Reflection;
-using Cassandra;
+using DataStaxCassandra = Cassandra;
 using Elders.Cronus.DomainModeling;
 using Elders.Cronus.Pipeline.Config;
 using Elders.Cronus.Serializer;
@@ -30,7 +30,8 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
 
         public static T SetConnectionString<T>(this T self, string connectionString) where T : ICassandraEventStoreSettings
         {
-            var cluster = Cluster
+
+            var cluster = DataStaxCassandra.Cluster
                 .Builder()
                 .WithRetryPolicy(new EventStoreNoHintedHandOff())
                 .WithConnectionString(connectionString)
@@ -61,34 +62,11 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
         }
     }
 
-    public class EventStoreNoHintedHandOff : IRetryPolicy
-    {
-        public RetryDecision OnReadTimeout(IStatement query, ConsistencyLevel cl, int requiredResponses, int receivedResponses, bool dataRetrieved, int nbRetry)
-        {
-            if (nbRetry != 0)
-                return RetryDecision.Rethrow();
-
-            return receivedResponses >= requiredResponses && !dataRetrieved
-                       ? RetryDecision.Retry(cl)
-                       : RetryDecision.Rethrow();
-        }
-
-        public RetryDecision OnUnavailable(IStatement query, ConsistencyLevel cl, int requiredReplica, int aliveReplica, int nbRetry)
-        {
-            return RetryDecision.Rethrow();
-        }
-
-        public RetryDecision OnWriteTimeout(IStatement query, ConsistencyLevel cl, string writeType, int requiredAcks, int receivedAcks, int nbRetry)
-        {
-            return RetryDecision.Rethrow();
-        }
-    }
-
     public interface ICassandraEventStoreSettings : IEventStoreSettings
     {
         string ConnectionString { get; set; }
         string KeySpace { get; set; }
-        ISession Session { get; set; }
+        DataStaxCassandra.ISession Session { get; set; }
         ICassandraEventStoreTableNameStrategy EventStoreTableNameStrategy { get; set; }
     }
 
@@ -116,6 +94,6 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
 
         string ICassandraEventStoreSettings.KeySpace { get; set; }
 
-        ISession ICassandraEventStoreSettings.Session { get; set; }
+        DataStaxCassandra.ISession ICassandraEventStoreSettings.Session { get; set; }
     }
 }

@@ -9,11 +9,16 @@ namespace Elders.Cronus.Persistence.Cassandra
     public class TablePerBoundedContext : ICassandraEventStoreTableNameStrategy
     {
         private readonly ConcurrentDictionary<string, string> eventsTableName = new ConcurrentDictionary<string, string>();
-        private readonly Assembly aggregatesAssemblies;
+        private readonly string boundedContextName;
 
         public TablePerBoundedContext(Assembly aggregatesAssemblies)
         {
-            this.aggregatesAssemblies = aggregatesAssemblies;
+            this.boundedContextName = aggregatesAssemblies.GetBoundedContext().BoundedContextName;
+        }
+
+        public TablePerBoundedContext(string boundedContextName)
+        {
+            this.boundedContextName = boundedContextName;
         }
 
         public string GetEventsTableName(AggregateCommit aggregateCommit)
@@ -27,8 +32,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public string[] GetAllTableNames()
         {
-            var boundedContext = aggregatesAssemblies.GetBoundedContext().BoundedContextName;
-            return (new System.Collections.Generic.List<string>() { GetEventsTableName(boundedContext) }).ToArray();
+            return (new System.Collections.Generic.List<string>() { GetEventsTableName(boundedContextName) }).ToArray();
         }
 
         public string GetEventsTableName(string boundedContext)

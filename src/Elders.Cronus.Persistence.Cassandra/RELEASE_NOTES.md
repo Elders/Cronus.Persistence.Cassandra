@@ -1,3 +1,6 @@
+#### 3.1.6 - 15.06.2016
+* Add the ability to create TablePerBoundedContext with BoundedContextName directly.
+
 #### 3.1.5 - 19.03.2016
 * Update packages
 

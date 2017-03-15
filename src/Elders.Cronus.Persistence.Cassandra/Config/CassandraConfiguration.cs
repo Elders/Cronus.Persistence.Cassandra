@@ -1,4 +1,5 @@
 ﻿using System.Configuration;
+using DataStaxCassandra = Cassandra;
 
 namespace Elders.Cronus.Persistence.Cassandra.Config
 {

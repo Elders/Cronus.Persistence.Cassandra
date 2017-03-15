@@ -1,5 +1,5 @@
-#### 3.1.7 - 16.02.2017
-* Updates packages
+#### 3.2.0 - 15.03.2017
+* Command store
 
 #### 3.1.6 - 15.06.2016
 * Add the ability to create TablePerBoundedContext with BoundedContextName directly.

@@ -1,3 +1,6 @@
+#### 3.3.0-beta0001 - 15.03.2017
+* Add settings for replication strategies.
+
 #### 3.2.0 - 15.03.2017
 * Command store
 

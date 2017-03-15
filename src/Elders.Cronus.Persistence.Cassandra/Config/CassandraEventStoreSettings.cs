@@ -1,5 +1,4 @@
 using System;
-using System.Configuration;
 using System.Reflection;
 using Elders.Cronus.DomainModeling;
 using Elders.Cronus.EventStore;
@@ -7,6 +6,7 @@ using Elders.Cronus.EventStore.Config;
 using Elders.Cronus.IocContainer;
 using Elders.Cronus.Pipeline.Config;
 using Elders.Cronus.Serializer;
+using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
 using DataStaxCassandra = Cassandra;
 
 namespace Elders.Cronus.Persistence.Cassandra.Config
@@ -16,29 +16,22 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
         public static T UseCassandraEventStore<T>(this T self, Action<CassandraEventStoreSettings> configure) where T : IConsumerSettings<ICommand>
         {
             CassandraEventStoreSettings settings = new CassandraEventStoreSettings(self);
-            if (configure != null)
-                configure(settings);
+            configure?.Invoke(settings);
 
             (settings as ISettingsBuilder).Build();
             return self;
         }
 
-        public static T SetConnectionStringName<T>(this T self, string connectionStringName) where T : ICassandraEventStoreSettings
+        public static T SetCluster<T>(this T self, DataStaxCassandra.Cluster cluster) where T : ICassandraEventStoreSettings
         {
-            return self.SetConnectionString(ConfigurationManager.ConnectionStrings[connectionStringName].ConnectionString);
-        }
-
-        public static T SetConnectionString<T>(this T self, string connectionString) where T : ICassandraEventStoreSettings
-        {
-
-            var cluster = DataStaxCassandra.Cluster
-                .Builder()
-                .WithRetryPolicy(new EventStoreNoHintedHandOff())
-                .WithConnectionString(connectionString)
-                .Build();
             self.Session = cluster.ConnectAndCreateDefaultKeyspaceIfNotExists();
             self.KeySpace = self.Session.Keyspace;
+            return self;
+        }
 
+        public static T SetReplicationStrategy<T>(this T self, ICassandraReplicationStrategy replicationStrategy) where T : ICassandraEventStoreSettings
+        {
+            self.ReplicationStrategy = replicationStrategy;
             return self;
         }
 
@@ -49,14 +42,19 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
 
         public static T SetAggregateStatesAssembly<T>(this T self, Assembly aggregateStatesAssembly) where T : ICassandraEventStoreSettings
         {
-            self.BoundedContext = aggregateStatesAssembly.GetAssemblyAttribute<BoundedContextAttribute>().BoundedContextName;
+            return self.SetAggregateStatesAssembly(aggregateStatesAssembly, aggregateStatesAssembly.GetAssemblyAttribute<BoundedContextAttribute>().BoundedContextName);
+        }
+
+        public static T SetAggregateStatesAssembly<T>(this T self, Assembly aggregateStatesAssembly, string boundedContextName) where T : ICassandraEventStoreSettings
+        {
+            self.BoundedContext = boundedContextName;
             self.EventStoreTableNameStrategy = new TablePerBoundedContext(aggregateStatesAssembly);
             return self;
         }
 
         public static T WithNewStorageIfNotExists<T>(this T self) where T : ICassandraEventStoreSettings
         {
-            var storageManager = new CassandraEventStoreStorageManager(self.Session, self.EventStoreTableNameStrategy);
+            var storageManager = new CassandraEventStoreStorageManager(self.Session, self.EventStoreTableNameStrategy, self.ReplicationStrategy);
             storageManager.CreateStorage();
             return self;
         }
@@ -68,6 +66,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
         string KeySpace { get; set; }
         DataStaxCassandra.ISession Session { get; set; }
         ICassandraEventStoreTableNameStrategy EventStoreTableNameStrategy { get; set; }
+        ICassandraReplicationStrategy ReplicationStrategy { get; set; }
     }
 
     public class CassandraEventStoreSettings : SettingsBuilder, ICassandraEventStoreSettings
@@ -95,5 +94,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
         string ICassandraEventStoreSettings.KeySpace { get; set; }
 
         DataStaxCassandra.ISession ICassandraEventStoreSettings.Session { get; set; }
+
+        ICassandraReplicationStrategy ICassandraEventStoreSettings.ReplicationStrategy { get; set; }
     }
 }

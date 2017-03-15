@@ -1,22 +1,24 @@
 using System;
 using Cassandra;
 using Elders.Cronus.EventStore;
+using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
     public class CassandraEventStoreStorageManager : IEventStoreStorageManager
     {
-        private const string CreateKeySpaceTemplate = @"CREATE KEYSPACE IF NOT EXISTS {0} WITH replication = {{'class':'SimpleStrategy', 'replication_factor':1}};";
         private const string CreateEventsTableTemplate = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id text, ts bigint, rev int, data blob, PRIMARY KEY (id,rev,ts)) WITH CLUSTERING ORDER BY (rev ASC);";
         //private const string CreateSnapshotsTableTemplate = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id uuid, ver int, ts bigint, data blob, PRIMARY KEY (id,ver));";
 
         private readonly ISession session;
         private readonly ICassandraEventStoreTableNameStrategy tableNameStrategy;
+        private readonly ICassandraReplicationStrategy replicationStrategy;
 
-        public CassandraEventStoreStorageManager(ISession session, ICassandraEventStoreTableNameStrategy tableNameStrategy)
+        public CassandraEventStoreStorageManager(ISession session, ICassandraEventStoreTableNameStrategy tableNameStrategy, ICassandraReplicationStrategy replicationStrategy)
         {
             this.session = session;
             this.tableNameStrategy = tableNameStrategy;
+            this.replicationStrategy = replicationStrategy;
         }
 
         public void CreateEventsStorage()
@@ -30,7 +32,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public void CreateStorage()
         {
-            var createKeySpaceQuery = String.Format(CreateKeySpaceTemplate, session.Keyspace);
+            var createKeySpaceQuery = replicationStrategy.CreateKeySpaceTemplate(session.Keyspace);
             session.Execute(createKeySpaceQuery);
 
             CreateEventsStorage();

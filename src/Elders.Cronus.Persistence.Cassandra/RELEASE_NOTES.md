@@ -1,3 +1,6 @@
+#### 3.3.0-beta0002 - 13.04.2017
+* Improve the configuration API
+
 #### 3.3.0-beta0001 - 15.03.2017
 * Add settings for replication strategies.
 

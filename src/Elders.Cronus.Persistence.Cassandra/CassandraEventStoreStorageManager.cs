@@ -11,12 +11,14 @@ namespace Elders.Cronus.Persistence.Cassandra
         //private const string CreateSnapshotsTableTemplate = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id uuid, ver int, ts bigint, data blob, PRIMARY KEY (id,ver));";
 
         private readonly ISession session;
+        private readonly string keyspace;
         private readonly ICassandraEventStoreTableNameStrategy tableNameStrategy;
         private readonly ICassandraReplicationStrategy replicationStrategy;
 
-        public CassandraEventStoreStorageManager(ISession session, ICassandraEventStoreTableNameStrategy tableNameStrategy, ICassandraReplicationStrategy replicationStrategy)
+        public CassandraEventStoreStorageManager(ISession session, string keyspace, ICassandraEventStoreTableNameStrategy tableNameStrategy, ICassandraReplicationStrategy replicationStrategy)
         {
             this.session = session;
+            this.keyspace = keyspace;
             this.tableNameStrategy = tableNameStrategy;
             this.replicationStrategy = replicationStrategy;
         }
@@ -32,8 +34,9 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public void CreateStorage()
         {
-            var createKeySpaceQuery = replicationStrategy.CreateKeySpaceTemplate(session.Keyspace);
+            var createKeySpaceQuery = replicationStrategy.CreateKeySpaceTemplate(keyspace);
             session.Execute(createKeySpaceQuery);
+            session.ChangeKeyspace(keyspace);
 
             CreateEventsStorage();
             CreateSnapshotsStorage();

@@ -21,14 +21,20 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private readonly ICassandraEventStoreTableNameStrategy tableNameStrategy;
 
+        private readonly ConsistencyLevel writeConsistencyLevel;
+
+        private readonly ConsistencyLevel readConsistencyLevel;
+
         private readonly ConcurrentDictionary<string, PreparedStatement> persistAggregateEventsPreparedStatements;
         private readonly ConcurrentDictionary<string, PreparedStatement> loadAggregateEventsPreparedStatements;
 
-        public CassandraEventStore(ISession session, ICassandraEventStoreTableNameStrategy tableNameStrategy, ISerializer serializer)
+        public CassandraEventStore(ISession session, ICassandraEventStoreTableNameStrategy tableNameStrategy, ISerializer serializer, ConsistencyLevel writeConsistencyLevel, ConsistencyLevel readConsistencyLevel)
         {
             this.tableNameStrategy = tableNameStrategy;
             this.session = session;
             this.serializer = serializer;
+            this.writeConsistencyLevel = writeConsistencyLevel;
+            this.readConsistencyLevel = readConsistencyLevel;
             this.persistAggregateEventsPreparedStatements = new ConcurrentDictionary<string, PreparedStatement>();
             this.loadAggregateEventsPreparedStatements = new ConcurrentDictionary<string, PreparedStatement>();
         }
@@ -38,6 +44,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             PreparedStatement persistAggregatePreparedStatement;
             if (!persistAggregateEventsPreparedStatements.TryGetValue(aggregateCommit.BoundedContext, out persistAggregatePreparedStatement))
             {
+                persistAggregatePreparedStatement.SetConsistencyLevel(writeConsistencyLevel);
                 string tableName = tableNameStrategy.GetEventsTableName(aggregateCommit);
                 persistAggregatePreparedStatement = session.Prepare(String.Format(InsertEventsQueryTemplate, tableName));
                 persistAggregateEventsPreparedStatements.TryAdd(aggregateCommit.BoundedContext, persistAggregatePreparedStatement);
@@ -85,6 +92,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             PreparedStatement loadAggregatePreparedStatement;
             if (!loadAggregateEventsPreparedStatements.TryGetValue(boundedContext, out loadAggregatePreparedStatement))
             {
+                loadAggregatePreparedStatement.SetConsistencyLevel(readConsistencyLevel);
                 string tableName = tableNameStrategy.GetEventsTableName(boundedContext);
                 loadAggregatePreparedStatement = session.Prepare(String.Format(LoadAggregateEventsQueryTemplate, tableName));
                 loadAggregateEventsPreparedStatements.TryAdd(boundedContext, loadAggregatePreparedStatement);

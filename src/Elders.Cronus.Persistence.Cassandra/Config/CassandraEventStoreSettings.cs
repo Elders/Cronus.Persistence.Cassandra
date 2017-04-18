@@ -19,6 +19,8 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
             settings.SetReconnectionPolicy(new DataStaxCassandra.ExponentialReconnectionPolicy(100, 100000));
             settings.SetRetryPolicy(new EventStoreNoHintedHandOff());
             settings.SetReplicationStrategy(new SimpleReplicationStrategy(1));
+            settings.SetWriteConsistencyLevel(DataStaxCassandra.ConsistencyLevel.All);
+            settings.SetReadConsistencyLevel(DataStaxCassandra.ConsistencyLevel.Quorum);
             configure?.Invoke(settings);
 
             (settings as ISettingsBuilder).Build();
@@ -71,6 +73,32 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
         public static T SetCluster<T>(this T self, DataStaxCassandra.Cluster cluster) where T : ICassandraEventStoreSettings
         {
             self.Cluster = cluster;
+            return self;
+        }
+
+        /// <summary>
+        /// Use to se the consistency level that is going to be used when writing to the event store.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="self"></param>
+        /// <param name="writeConsistencyLevel"></param>
+        /// <returns></returns>
+        public static T SetWriteConsistencyLevel<T>(this T self, DataStaxCassandra.ConsistencyLevel writeConsistencyLevel) where T : ICassandraEventStoreSettings
+        {
+            self.WriteConsistencyLevel = writeConsistencyLevel;
+            return self;
+        }
+
+        /// <summary>
+        /// Use to set the consistency level that is going to be used when reading from the event store.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="self"></param>
+        /// <param name="readConsistencyLevel"></param>
+        /// <returns></returns>
+        public static T SetReadConsistencyLevel<T>(this T self, DataStaxCassandra.ConsistencyLevel readConsistencyLevel) where T : ICassandraEventStoreSettings
+        {
+            self.ReadConsistencyLevel = readConsistencyLevel;
             return self;
         }
 
@@ -158,6 +186,8 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
         string Keyspace { get; set; }
         string ConnectionString { get; set; }
         DataStaxCassandra.Cluster Cluster { get; set; }
+        DataStaxCassandra.ConsistencyLevel WriteConsistencyLevel { get; set; }
+        DataStaxCassandra.ConsistencyLevel ReadConsistencyLevel { get; set; }
         DataStaxCassandra.IRetryPolicy RetryPolicy { get; set; }
         DataStaxCassandra.IReconnectionPolicy ReconnectionPolicy { get; set; }
         ICassandraEventStoreTableNameStrategy EventStoreTableNameStrategy { get; set; }
@@ -194,7 +224,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
             storageManager.CreateStorage();
             session.ChangeKeyspace(settings.Keyspace);
 
-            var eventStore = new CassandraEventStore(session, settings.EventStoreTableNameStrategy, builder.Container.Resolve<ISerializer>());
+            var eventStore = new CassandraEventStore(session, settings.EventStoreTableNameStrategy, builder.Container.Resolve<ISerializer>(), settings.WriteConsistencyLevel, settings.ReadConsistencyLevel);
             var player = new CassandraEventStorePlayer(session, settings.EventStoreTableNameStrategy, (this as IEventStoreSettings).BoundedContext, builder.Container.Resolve<ISerializer>());
 
             builder.Container.RegisterSingleton<IEventStore>(() => eventStore, builder.Name);
@@ -208,6 +238,10 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
         string ICassandraEventStoreSettings.Keyspace { get; set; }
 
         DataStaxCassandra.Cluster ICassandraEventStoreSettings.Cluster { get; set; }
+
+        DataStaxCassandra.ConsistencyLevel ICassandraEventStoreSettings.WriteConsistencyLevel { get; set; }
+
+        DataStaxCassandra.ConsistencyLevel ICassandraEventStoreSettings.ReadConsistencyLevel { get; set; }
 
         DataStaxCassandra.IRetryPolicy ICassandraEventStoreSettings.RetryPolicy { get; set; }
 

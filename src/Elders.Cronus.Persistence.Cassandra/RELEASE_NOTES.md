@@ -1,3 +1,6 @@
+#### 3.3.0-beta0003 - 18.04.2017
+* Add settings for read and write consistency level
+
 #### 3.3.0-beta0002 - 13.04.2017
 * Improve the configuration API
 

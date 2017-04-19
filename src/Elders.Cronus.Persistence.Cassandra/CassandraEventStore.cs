@@ -42,13 +42,14 @@ namespace Elders.Cronus.Persistence.Cassandra
         private PreparedStatement GetPreparedStatementToPersistAnAggregateCommit(AggregateCommit aggregateCommit)
         {
             PreparedStatement persistAggregatePreparedStatement;
-            if (!persistAggregateEventsPreparedStatements.TryGetValue(aggregateCommit.BoundedContext, out persistAggregatePreparedStatement))
+            if (persistAggregateEventsPreparedStatements.TryGetValue(aggregateCommit.BoundedContext, out persistAggregatePreparedStatement) == false)
             {
-                persistAggregatePreparedStatement.SetConsistencyLevel(writeConsistencyLevel);
                 string tableName = tableNameStrategy.GetEventsTableName(aggregateCommit);
                 persistAggregatePreparedStatement = session.Prepare(String.Format(InsertEventsQueryTemplate, tableName));
                 persistAggregateEventsPreparedStatements.TryAdd(aggregateCommit.BoundedContext, persistAggregatePreparedStatement);
             }
+
+            persistAggregatePreparedStatement.SetConsistencyLevel(writeConsistencyLevel);
 
             return persistAggregatePreparedStatement;
         }
@@ -90,13 +91,14 @@ namespace Elders.Cronus.Persistence.Cassandra
         private PreparedStatement GetPreparedStatementToLoadAnAggregateCommit(string boundedContext)
         {
             PreparedStatement loadAggregatePreparedStatement;
-            if (!loadAggregateEventsPreparedStatements.TryGetValue(boundedContext, out loadAggregatePreparedStatement))
+            if (loadAggregateEventsPreparedStatements.TryGetValue(boundedContext, out loadAggregatePreparedStatement) == false)
             {
-                loadAggregatePreparedStatement.SetConsistencyLevel(readConsistencyLevel);
                 string tableName = tableNameStrategy.GetEventsTableName(boundedContext);
                 loadAggregatePreparedStatement = session.Prepare(String.Format(LoadAggregateEventsQueryTemplate, tableName));
                 loadAggregateEventsPreparedStatements.TryAdd(boundedContext, loadAggregatePreparedStatement);
             }
+
+            loadAggregatePreparedStatement.SetConsistencyLevel(readConsistencyLevel);
 
             return loadAggregatePreparedStatement;
         }

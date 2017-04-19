@@ -1,3 +1,6 @@
+#### 3.3.0-beta0004 - 19.04.2017
+* Fix the setting of consistency level
+
 #### 3.3.0-beta0003 - 18.04.2017
 * Add settings for read and write consistency level
 

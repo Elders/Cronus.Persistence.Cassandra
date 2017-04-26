@@ -1,3 +1,18 @@
+#### 3.3.0 - 26.04.2017
+* Add support for Cassandra cluster
+
+#### 3.3.0-beta0004 - 19.04.2017
+* Fix the setting of consistency level
+
+#### 3.3.0-beta0003 - 18.04.2017
+* Add settings for read and write consistency level
+
+#### 3.3.0-beta0002 - 13.04.2017
+* Improve the configuration API
+
+#### 3.3.0-beta0001 - 15.03.2017
+* Add settings for replication strategies.
+
 #### 3.2.0 - 15.03.2017
 * Command store
 

@@ -60,6 +60,9 @@
     <Compile Include="Config\EventStoreNoHintedHandOff.cs" />
     <Compile Include="CronusMessageStore\CassandraMessageStore.cs" />
     <Compile Include="CronusMessageStore\CronusMessagePersistenceMiddleware.cs" />
+    <Compile Include="ReplicationStrategies\ICassandraReplicationStrategy.cs" />
+    <Compile Include="ReplicationStrategies\NetworkTopologyReplicationStrategy.cs" />
+    <Compile Include="ReplicationStrategies\SimpleReplicationStrategy.cs" />
     <Compile Include="TablePerBoundedContext.cs" />
     <Compile Include="CassandraEventStorePlayer.cs" />
     <Compile Include="CassandraEventStoreStorageManager.cs" />

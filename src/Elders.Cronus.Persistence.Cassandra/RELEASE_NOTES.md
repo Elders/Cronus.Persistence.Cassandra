@@ -1,3 +1,7 @@
+#### 3.3.1 - 24.07.2017
+* Change the default retry policy to the Cassandra DefaultRetryPolicy.
+* Cassandra WriteTimeoutException is not considered as an error we only log warning about it.
+
 #### 3.3.0 - 26.04.2017
 * Add support for Cassandra cluster
 

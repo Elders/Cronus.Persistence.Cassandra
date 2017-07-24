@@ -6,11 +6,14 @@ using Cassandra;
 using Elders.Cronus.DomainModeling;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.Serializer;
+using Elders.Cronus.Persistence.Cassandra.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
     public class CassandraEventStore : IEventStore
     {
+        static readonly ILog log = LogProvider.GetLogger(typeof(CassandraEventStore));
+
         private const string LoadAggregateEventsQueryTemplate = @"SELECT data FROM {0} WHERE id = ?;";
 
         private const string InsertEventsQueryTemplate = @"INSERT INTO {0} (id,ts,rev,data) VALUES (?,?,?,?);";
@@ -66,9 +69,17 @@ namespace Elders.Cronus.Persistence.Cassandra
         public void Append(AggregateCommit aggregateCommit)
         {
             byte[] data = SerializeEvent(aggregateCommit);
-            session
-                .Execute(GetPreparedStatementToPersistAnAggregateCommit(aggregateCommit)
-                .Bind(Convert.ToBase64String(aggregateCommit.AggregateRootId), aggregateCommit.Timestamp, aggregateCommit.Revision, data));
+
+            try
+            {
+                session
+                    .Execute(GetPreparedStatementToPersistAnAggregateCommit(aggregateCommit)
+                        .Bind(Convert.ToBase64String(aggregateCommit.AggregateRootId), aggregateCommit.Timestamp, aggregateCommit.Revision, data));
+            }
+            catch (WriteTimeoutException ex)
+            {
+                log.WarnException("Write timeout while persisting an aggregate commit", ex);
+            }
         }
 
         public EventStream Load(IAggregateRootId aggregateId)

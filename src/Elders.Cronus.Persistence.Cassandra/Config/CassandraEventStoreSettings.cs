@@ -17,7 +17,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
         {
             CassandraEventStoreSettings settings = new CassandraEventStoreSettings(self);
             settings.SetReconnectionPolicy(new DataStaxCassandra.ExponentialReconnectionPolicy(100, 100000));
-            settings.SetRetryPolicy(new EventStoreNoHintedHandOff());
+            settings.SetRetryPolicy(new DataStaxCassandra.DefaultRetryPolicy());
             settings.SetReplicationStrategy(new SimpleReplicationStrategy(1));
             settings.SetWriteConsistencyLevel(DataStaxCassandra.ConsistencyLevel.All);
             settings.SetReadConsistencyLevel(DataStaxCassandra.ConsistencyLevel.Quorum);

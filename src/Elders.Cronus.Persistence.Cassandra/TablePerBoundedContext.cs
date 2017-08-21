@@ -22,9 +22,6 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public string GetEventsTableName(AggregateCommit aggregateCommit)
         {
-            // mynkow if(Environment.GetEnvironmentVariable("ForceCronusChecks"))
-            // if (boundedContext)
-
             var boundedContext = aggregateCommit.BoundedContext;
             return GetEventsTableName(boundedContext);
         }

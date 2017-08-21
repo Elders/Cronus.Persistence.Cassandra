@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Reflection;
-using Elders.Cronus.DomainModeling;
 using Elders.Cronus.EventStore;
 
 namespace Elders.Cronus.Persistence.Cassandra

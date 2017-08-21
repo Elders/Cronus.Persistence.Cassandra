@@ -1,6 +1,5 @@
 using System;
 using System.Reflection;
-using Elders.Cronus.DomainModeling;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.EventStore.Config;
 using Elders.Cronus.IocContainer;

@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using Cassandra;
-using Elders.Cronus.DomainModeling;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.Serializer;
 using Elders.Cronus.Persistence.Cassandra.Logging;

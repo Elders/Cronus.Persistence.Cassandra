@@ -10,6 +10,9 @@ using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Events;
 using Elders.Cronus.IocContainer;
 using System;
 using Elders.Cronus.DomainModeling;
+using System.Configuration;
+using Elders.Cronus.Cluster.Config;
+using Elders.Cronus.AtomicAction.Config;
 
 namespace Elders.Cronus.Sample.ApplicationService
 {
@@ -30,31 +33,32 @@ namespace Elders.Cronus.Sample.ApplicationService
         {
             var container = new Container();
             var cfg = new CronusSettings(container)
+                .UseCluster(cluster => cluster.UseAggregateRootAtomicAction(atomic => atomic.WithInMemory()))
                 .UseContractsFromAssemblies(new[] { Assembly.GetAssembly(typeof(AccountRegistered)), Assembly.GetAssembly(typeof(UserCreated)) });
 
             string IAA = "IAA";
             var IAA_appServiceFactory = new ApplicationServiceFactory(container, IAA);
             cfg.UseCommandConsumer(IAA, consumer => consumer
-                .UseRabbitMqTransport()
+                .UseRabbitMqTransport(x => x.Server = "docker-local.com")
                 .SetNumberOfConsumerThreads(5)
-                .WithDefaultPublishersWithRabbitMq()
+                .WithDefaultPublishers()
                 .UseCassandraEventStore(eventStore => eventStore
-                    .SetConnectionStringName("cronus_es")
-                    .SetAggregateStatesAssembly(typeof(AccountState))
-                    .WithNewStorageIfNotExists())
-                .UseApplicationServices(cmdHandler => cmdHandler.RegisterAllHandlersInAssembly(typeof(AccountAppService), IAA_appServiceFactory.Create)));
+                    .SetConnectionString(ConfigurationManager.ConnectionStrings["cronus_es"].ConnectionString)
+                    .SetAggregateStatesAssembly(typeof(AccountState)))
+                .UseApplicationServices(cmdHandler => cmdHandler.RegisterHandlersInAssembly(new[] { typeof(AccountAppService).Assembly }, IAA_appServiceFactory.Create))
+            );
 
             string COLL = "COLL";
             var COLL_appServiceFactory = new ApplicationServiceFactory(container, COLL);
             cfg.UseCommandConsumer(COLL, consumer => consumer
-                .UseRabbitMqTransport()
+                .UseRabbitMqTransport(x => x.Server = "docker-local.com")
                 .SetNumberOfConsumerThreads(5)
-                .WithDefaultPublishersWithRabbitMq()
+                .WithDefaultPublishers()
                 .UseCassandraEventStore(eventStore => eventStore
-                    .SetConnectionStringName("cronus_es")
-                    .SetAggregateStatesAssembly(typeof(UserState))
-                    .WithNewStorageIfNotExists())
-                .UseApplicationServices(cmdHandler => cmdHandler.RegisterAllHandlersInAssembly(typeof(UserAppService), COLL_appServiceFactory.Create)));
+                    .SetConnectionString(ConfigurationManager.ConnectionStrings["cronus_es"].ConnectionString)
+                    .SetAggregateStatesAssembly(typeof(UserState)))
+                .UseApplicationServices(cmdHandler => cmdHandler.RegisterHandlersInAssembly(new[] { typeof(UserAppService).Assembly }, COLL_appServiceFactory.Create))
+            );
 
             (cfg as ISettingsBuilder).Build();
             host = container.Resolve<CronusHost>();

@@ -7,6 +7,10 @@ using Elders.Cronus.Sample.Collaboration.Users.Commands;
 using Elders.Cronus.Sample.Collaboration.Users.Projections;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Commands;
 using Elders.Cronus.IocContainer;
+using System.Linq;
+using System.Collections.Generic;
+using Elders.Cronus.DomainModeling.Projections;
+using Elders.Cronus.DomainModeling;
 
 namespace Elders.Cronus.Sample.Projections
 {
@@ -19,16 +23,19 @@ namespace Elders.Cronus.Sample.Projections
 
             //var sf = BuildSessionFactory();
             var container = new Container();
+            var serviceLocator = new ServiceLocator(container);
+
+            var projectionTypes = typeof(UserProjection).Assembly.GetTypes().Where(x => typeof(IProjectionDefinition).IsAssignableFrom(x) == false && typeof(IProjection).IsAssignableFrom(x));
 
             var cfg = new CronusSettings(container)
-                .UseContractsFromAssemblies(new Assembly[] { Assembly.GetAssembly(typeof(RegisterAccount)), Assembly.GetAssembly(typeof(CreateUser)) })
-                .UseProjectionConsumer(consumer => consumer
-                .SetNumberOfConsumerThreads(5)
-                    .WithDefaultPublishersWithRabbitMq()
-                    .UseRabbitMqTransport()
-                    .UseProjections(h => h
-                        //.UseUnitOfWork(new UnitOfWorkFactory() { CreateBatchUnitOfWork = () => new BatchScope(sf) })
-                        .RegisterAllHandlersInAssembly(Assembly.GetAssembly(typeof(UserProjection)))));
+                    .UseContractsFromAssemblies(new Assembly[] { Assembly.GetAssembly(typeof(RegisterAccount)), Assembly.GetAssembly(typeof(CreateUser)) })
+                    .UseProjectionConsumer(consumer => consumer
+                        .SetNumberOfConsumerThreads(5)
+                        .WithDefaultPublishers()
+                        .UseRabbitMqTransport(x => x.Server = "docker-local.com")
+                        .UseProjections(h => h
+                            //.UseUnitOfWork(new UnitOfWorkFactory() { CreateBatchUnitOfWork = () => new BatchScope(sf) })
+                            .RegisterHandlerTypes(projectionTypes, serviceLocator.Resolve)));
             //{
             //                return FastActivator.CreateInstance(type)
             //                    .AssignPropertySafely<IHaveNhibernateSession>(x => x.Session = context.BatchContext.Get<Lazy<ISession>>().Value);
@@ -59,5 +66,43 @@ namespace Elders.Cronus.Sample.Projections
         //    cfg.CreateDatabase_AND_OVERWRITE_EXISTING_DATABASE();
         //    return cfg.BuildSessionFactory();
         //}
+    }
+
+
+    public class ServiceLocator
+    {
+        IContainer container;
+
+        public ServiceLocator(IContainer container)
+        {
+            this.container = container;
+        }
+
+        public object Resolve(Type objectType)
+        {
+            var instance = FastActivator.CreateInstance(objectType);
+            var props = objectType.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).ToList();
+            var dependencies = props.Where(x => container.IsRegistered(x.PropertyType));
+            foreach (var item in dependencies)
+            {
+                item.SetValue(instance, container.Resolve(item.PropertyType));
+            }
+            return instance;
+        }
+
+        public T Resolve<T>()
+        {
+            return (T)Resolve(typeof(T));
+        }
+    }
+
+    public static class CustomeEndpointConsumerRegistrations
+    {
+        public static T RegisterHandlerTypes<T>(this T self, IEnumerable<Type> messageHandlers, Func<Type, object> messageHandlerFactory) where T : ISubscrptionMiddlewareSettings
+        {
+            self.HandlerRegistrations = messageHandlers.ToList();
+            self.HandlerFactory = messageHandlerFactory;
+            return self;
+        }
     }
 }

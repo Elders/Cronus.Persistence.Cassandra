@@ -22,7 +22,7 @@ namespace Elders.Cronus.Sample.IdentityAndAccess.Accounts.Commands
 
         public override string ToString()
         {
-            return this.ToString("Register a new user with '{0}' email. {1}", Email, Id);
+            return this.ToString($"Register a new user with '{Email}' email. {Id}");
         }
     }
 }

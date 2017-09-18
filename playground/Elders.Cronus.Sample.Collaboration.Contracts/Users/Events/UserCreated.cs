@@ -22,7 +22,7 @@ namespace Elders.Cronus.Sample.Collaboration.Users.Events
 
         public override string ToString()
         {
-            return this.ToString("New user created with email '{0}'. {1}", Email, Id);
+            return this.ToString($"New user created with email '{Email}'. {Id}");
         }
     }
 }

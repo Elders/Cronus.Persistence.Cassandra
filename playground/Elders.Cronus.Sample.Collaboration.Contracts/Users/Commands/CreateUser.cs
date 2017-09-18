@@ -22,7 +22,7 @@ namespace Elders.Cronus.Sample.Collaboration.Users.Commands
 
         public override string ToString()
         {
-            return this.ToString("Create a new user with '{0}' email. {1}", Email, Id);
+            return this.ToString($"Create a new user with '{Email}' email. {Id}");
         }
     }
 }

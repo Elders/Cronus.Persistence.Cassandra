@@ -26,7 +26,7 @@ namespace Elders.Cronus.Sample.IdentityAndAccess.Accounts.Commands
 
         public override string ToString()
         {
-            return this.ToString("Change old account email '{0}' with '{1}'. {2}", OldEmail, NewEmail, Id);
+            return this.ToString($"Change old account email '{OldEmail}' with '{NewEmail}'. {Id}");
         }
     }
 }

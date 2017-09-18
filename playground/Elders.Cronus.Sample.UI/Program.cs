@@ -49,8 +49,7 @@ namespace Elders.Cronus.Sample.UI
 
             var cfg = new CronusSettings(container)
                 .UseContractsFromAssemblies(new Assembly[] { Assembly.GetAssembly(typeof(RegisterAccount)), Assembly.GetAssembly(typeof(CreateUser)) })
-                //.WithDefaultPublishersWithRabbitMq()
-                .UseRabbitMqTransport();
+                .UseRabbitMqTransport(x => x.Server = "docker-local.com");
             (cfg as ISettingsBuilder).Build();
             commandPublisher = container.Resolve<IPublisher<ICommand>>();
         }

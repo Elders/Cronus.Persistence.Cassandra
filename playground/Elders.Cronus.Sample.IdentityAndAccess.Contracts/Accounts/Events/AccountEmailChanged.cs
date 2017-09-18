@@ -26,7 +26,7 @@ namespace Elders.Cronus.Sample.IdentityAndAccess.Accounts.Events
 
         public override string ToString()
         {
-            return this.ToString("Account email '{0}' was changed to '{1}'. {2}", OldEmail, NewEmail, Id);
+            return this.ToString($"Account email '{OldEmail}' was changed to '{NewEmail}'. {Id}");
         }
     }
 }

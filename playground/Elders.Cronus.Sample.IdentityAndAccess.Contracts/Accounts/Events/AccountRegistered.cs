@@ -27,7 +27,7 @@ namespace Elders.Cronus.Sample.IdentityAndAccess.Accounts.Events
 
         public override string ToString()
         {
-            return this.ToString("New user registered with email '{0}'. {1}", Email, Id);
+            return this.ToString($"New user registered with email '{Email}'. {Id}");
         }
     }
 }

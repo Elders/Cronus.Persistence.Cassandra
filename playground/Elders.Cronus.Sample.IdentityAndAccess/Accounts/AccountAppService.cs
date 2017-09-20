@@ -7,10 +7,20 @@ namespace Elders.Cronus.Sample.IdentityAndAccess.Accounts
         ICommandHandler<RegisterAccount>,
         ICommandHandler<ChangeAccountEmail>
     {
+        static int counter = 0;
+        static System.DateTime last = System.DateTime.UtcNow;
 
         public void Handle(RegisterAccount command)
         {
             Repository.Save(new Account(command.Id, command.Email));
+
+            ++counter;
+            if ((System.DateTime.UtcNow - last).TotalSeconds > 1)
+            {
+                last = System.DateTime.UtcNow;
+                System.Console.WriteLine(counter);
+                counter = 0;
+            }
         }
 
         public void Handle(ChangeAccountEmail command)

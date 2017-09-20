@@ -40,7 +40,7 @@ namespace Elders.Cronus.Sample.ApplicationService
             var IAA_appServiceFactory = new ApplicationServiceFactory(container, IAA);
             cfg.UseCommandConsumer(IAA, consumer => consumer
                 .UseRabbitMqTransport(x => x.Server = "docker-local.com")
-                .SetNumberOfConsumerThreads(5)
+                .SetNumberOfConsumerThreads(1)
                 .WithDefaultPublishers()
                 .UseCassandraEventStore(eventStore => eventStore
                     .SetConnectionString(ConfigurationManager.ConnectionStrings["cronus_es"].ConnectionString)
@@ -52,7 +52,7 @@ namespace Elders.Cronus.Sample.ApplicationService
             var COLL_appServiceFactory = new ApplicationServiceFactory(container, COLL);
             cfg.UseCommandConsumer(COLL, consumer => consumer
                 .UseRabbitMqTransport(x => x.Server = "docker-local.com")
-                .SetNumberOfConsumerThreads(5)
+                .SetNumberOfConsumerThreads(1)
                 .WithDefaultPublishers()
                 .UseCassandraEventStore(eventStore => eventStore
                     .SetConnectionString(ConfigurationManager.ConnectionStrings["cronus_es"].ConnectionString)

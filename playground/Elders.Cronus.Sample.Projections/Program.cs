@@ -27,28 +27,23 @@ namespace Elders.Cronus.Sample.Projections
             var container = new Container();
             var serviceLocator = new ServiceLocator(container);
 
-            var projectionTypes = typeof(UserProjection).Assembly.GetTypes().Where(x => typeof(IProjectionDefinition).IsAssignableFrom(x));
-            //var projectionTypes = typeof(UserProjection).Assembly.GetTypes().Where(x => typeof(IProjectionDefinition).IsAssignableFrom(x) == false && typeof(IProjection).IsAssignableFrom(x));
+            //var projectionTypes = typeof(UserProjection).Assembly.GetTypes().Where(x => typeof(IProjectionDefinition).IsAssignableFrom(x));
+            var projectionTypes = typeof(UserProjection).Assembly.GetTypes().Where(x => typeof(IProjectionDefinition).IsAssignableFrom(x) == false && typeof(IProjection).IsAssignableFrom(x));
 
             var cfg = new CronusSettings(container)
                     .UseContractsFromAssemblies(new Assembly[] { Assembly.GetAssembly(typeof(RegisterAccount)), Assembly.GetAssembly(typeof(CreateUser)) })
                     .UseProjectionConsumer(consumer => consumer
-                        .SetNumberOfConsumerThreads(5)
+                        .SetNumberOfConsumerThreads(1)
                         .WithDefaultPublishers()
                         .UseRabbitMqTransport(x => x.Server = "docker-local.com")
                         .UseProjections(h => h
-            //.RegisterHandlerTypes(projectionTypes, serviceLocator.Resolve)));
-            //.UseCassandraProjections(x => x
-            //    .SetProjectionsConnectionString("Contact Points=docker-local.com;Port=9042;Default Keyspace=cronus_sample_20150317")
-            //    //.UseSnapshots(projectionTypes)
-            //    //.UseSnapshotStrategy(new DefaultSnapshotStrategy(TimeSpan.FromDays(1), 500))
-            //    .SetProjectionTypes(projectionTypes))
-            ////.UseUnitOfWork(new UnitOfWorkFactory() { CreateBatchUnitOfWork = () => new BatchScope(sf) })
-            //));
-            //{
-            //                return FastActivator.CreateInstance(type)
-            //                    .AssignPropertySafely<IHaveNhibernateSession>(x => x.Session = context.BatchContext.Get<Lazy<ISession>>().Value);
-            //            })));
+                            .RegisterHandlerTypes(projectionTypes, serviceLocator.Resolve)
+                        //.UseCassandraProjections(x => x
+                        //    .SetProjectionsConnectionString("Contact Points=docker-local.com;Port=9042;Default Keyspace=cronus_sample_20150317")
+                        //    //.UseSnapshots(projectionTypes)
+                        //    //.UseSnapshotStrategy(new DefaultSnapshotStrategy(TimeSpan.FromDays(1), 500))
+                        //    .SetProjectionTypes(projectionTypes))
+                        ));
 
             (cfg as ISettingsBuilder).Build();
             host = container.Resolve<CronusHost>();

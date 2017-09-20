@@ -40,7 +40,7 @@ namespace Elders.Cronus.Sample.Ports
                 .UsePortConsumer(consumable => consumable
                     .WithDefaultPublishers()
                     .UseRabbitMqTransport(x => x.Server = "docker-local.com")
-                    .SetNumberOfConsumerThreads(5)
+                    .SetNumberOfConsumerThreads(1)
                     .UsePorts(c => c.RegisterHandlersInAssembly(new[] { Assembly.GetAssembly(typeof(UserProjection)) }, COLL_POOOOORTHandlerFactory.Create)));
 
             (cfg as ISettingsBuilder).Build();

@@ -8,17 +8,24 @@ namespace Elders.Cronus.Sample.Collaboration.Users.Ports
     public class UserPort : IPort,
         IEventHandler<AccountRegistered>
     {
+        static int counter = 0;
+        static DateTime last = DateTime.UtcNow;
+
         public IPublisher<ICommand> CommandPublisher { get; set; }
-        //static int counter = 0;
+
         public void Handle(AccountRegistered message)
         {
-            //counter++;
             UserId userId = new UserId(Guid.NewGuid());
             var email = message.Email;
-            //if (counter % 500 == 0)
-            //    email = "cronus_2_@Elders.com";
-
             CommandPublisher.Publish(new CreateUser(userId, email));
+
+            ++counter;
+            if ((DateTime.UtcNow - last).TotalSeconds > 1)
+            {
+                last = DateTime.UtcNow;
+                Console.WriteLine(counter);
+                counter = 0;
+            }
         }
     }
 }

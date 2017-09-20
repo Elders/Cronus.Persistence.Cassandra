@@ -3,18 +3,43 @@ using Elders.Cronus.DomainModeling.Projections;
 using Elders.Cronus.Sample.Collaboration.Users.DTOs;
 using Elders.Cronus.Sample.Collaboration.Users.Events;
 using System.Runtime.Serialization;
+using System;
 
 namespace Elders.Cronus.Sample.Collaboration.Users.Projections
 {
     [DataContract(Name = "e588e9ee-ef50-4e02-ac83-189adca51a6c")]
-    public class UserProjection : IProjection, IEventHandler<UserCreated>
+    public class UserProjection : ProjectionDefinition<UserItem, UserId>, IEventHandler<UserCreated>
     {
+        public UserProjection()
+        {
+            Subscribe<UserCreated>(x => x.Id);
+        }
+
         public void Handle(UserCreated message)
         {
-            var usr = new User();
-            usr.Id = message.Id.Id;
-            usr.Email = message.Email;
-            // Session.Save(usr);
+        }
+    }
+
+    [DataContract(Name = "e588e9ee-ef50-4e02-ac83-189adca51a6c")]
+    public class UserProjection1 : IProjection, IEventHandler<UserCreated>
+    {
+        static int counter = 0;
+        static DateTime last = DateTime.UtcNow;
+
+        //public UserProjection()
+        //{
+        //    Subscribe<UserCreated>(x => x.Id);
+        //}
+
+        public void Handle(UserCreated message)
+        {
+            ++counter;
+            if ((DateTime.UtcNow - last).TotalSeconds > 1)
+            {
+                last = DateTime.UtcNow;
+                Console.WriteLine(counter);
+                counter = 0;
+            }
         }
     }
 

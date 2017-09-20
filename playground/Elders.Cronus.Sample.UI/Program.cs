@@ -13,6 +13,7 @@ using Elders.Cronus.Sample.Collaboration.Users.Commands;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Commands;
 using Elders.Cronus.Serializer;
+using Elders.Cronus.Transport.AzureServiceBus.Config;
 
 namespace Elders.Cronus.Sample.UI
 {
@@ -23,8 +24,8 @@ namespace Elders.Cronus.Sample.UI
         static void Main(string[] args)
         {
             //Thread.Sleep(10000);
-
-            ConfigurePublisher();
+            ConfigureRabbitMQPublisher();
+            //ConfigureAzureServuceBusPublisher();
 
             HostUI(/////////////////////////////////////////////////////////////////
                                 publish: SingleCreationCommandFromUpstreamBC,
@@ -38,7 +39,7 @@ namespace Elders.Cronus.Sample.UI
             Console.ReadLine();
         }
 
-        private static void ConfigurePublisher()
+        private static void ConfigureRabbitMQPublisher()
         {
             log4net.Config.XmlConfigurator.Configure();
 
@@ -49,7 +50,23 @@ namespace Elders.Cronus.Sample.UI
 
             var cfg = new CronusSettings(container)
                 .UseContractsFromAssemblies(new Assembly[] { Assembly.GetAssembly(typeof(RegisterAccount)), Assembly.GetAssembly(typeof(CreateUser)) })
-                .UseRabbitMqTransport(x => x.Server = "docker-local.com");
+                .UseRabbitMqTransport(x => x.Server = "10.0.2.4");
+            (cfg as ISettingsBuilder).Build();
+            commandPublisher = container.Resolve<IPublisher<ICommand>>();
+        }
+
+        private static void ConfigureAzureServuceBusPublisher()
+        {
+            log4net.Config.XmlConfigurator.Configure();
+
+            var container = new Container();
+            Func<IPipelineTransport> transport = () => container.Resolve<IPipelineTransport>();
+            Func<ISerializer> serializer = () => container.Resolve<ISerializer>();
+            container.RegisterSingleton<IPublisher<ICommand>>(() => new PipelinePublisher<ICommand>(transport(), serializer()));
+
+            var cfg = new CronusSettings(container)
+                .UseContractsFromAssemblies(new Assembly[] { Assembly.GetAssembly(typeof(RegisterAccount)), Assembly.GetAssembly(typeof(CreateUser)) })
+                .UseAzureServiceBusTransport(x => x.ConnectionString = "Endpoint=sb://mvclientshared-servicebus-test.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=YStt1qtFInb3kp2oIj76c6ibEzlSH4oPOSjAXBkY74g=");
             (cfg as ISettingsBuilder).Build();
             commandPublisher = container.Resolve<IPublisher<ICommand>>();
         }

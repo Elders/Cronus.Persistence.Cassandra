@@ -11,7 +11,6 @@ using Elders.Cronus.Sample.Collaboration.Users.Commands;
 using Elders.Cronus.Sample.Collaboration.Users.Projections;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Commands;
 using Elders.Cronus.Serializer;
-using Elders.Cronus.Transport.AzureServiceBus.Config;
 
 namespace Elders.Cronus.Sample.Ports
 {
@@ -37,12 +36,10 @@ namespace Elders.Cronus.Sample.Ports
                     Assembly.GetAssembly(typeof(RegisterAccount)),
                     Assembly.GetAssembly(typeof(CreateUser))
                 })
-                .UseRabbitMqTransport(x => x.Server = "10.0.2.4")
-                //.UseAzureServiceBusTransport(x => x.ConnectionString = "Endpoint=sb://mvclientshared-servicebus-test.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=YStt1qtFInb3kp2oIj76c6ibEzlSH4oPOSjAXBkY74g=")
+                .UseRabbitMqTransport(x => x.Server = "docker-local.com")
                 .UsePortConsumer(consumable => consumable
                     .WithDefaultPublishers()
-                    .UseRabbitMqTransport(x => x.Server = "10.0.2.4")
-                    //.UseAzureServiceBusTransport(x => x.ConnectionString = "Endpoint=sb://mvclientshared-servicebus-test.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=YStt1qtFInb3kp2oIj76c6ibEzlSH4oPOSjAXBkY74g=")
+                    .UseRabbitMqTransport(x => x.Server = "docker-local.com")
                     .SetNumberOfConsumerThreads(1)
                     .UsePorts(c => c.RegisterHandlersInAssembly(new[] { Assembly.GetAssembly(typeof(UserProjection)) }, COLL_POOOOORTHandlerFactory.Create)));
 

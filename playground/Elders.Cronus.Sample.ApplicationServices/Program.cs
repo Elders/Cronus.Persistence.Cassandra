@@ -13,7 +13,6 @@ using Elders.Cronus.DomainModeling;
 using System.Configuration;
 using Elders.Cronus.Cluster.Config;
 using Elders.Cronus.AtomicAction.Config;
-using Elders.Cronus.Transport.AzureServiceBus.Config;
 
 namespace Elders.Cronus.Sample.ApplicationService
 {
@@ -40,8 +39,7 @@ namespace Elders.Cronus.Sample.ApplicationService
             string IAA = "IAA";
             var IAA_appServiceFactory = new ApplicationServiceFactory(container, IAA);
             cfg.UseCommandConsumer(IAA, consumer => consumer
-                .UseRabbitMqTransport(x => x.Server = "10.0.2.4")
-                //.UseAzureServiceBusTransport(x => x.ConnectionString = "Endpoint=sb://mvclientshared-servicebus-test.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=YStt1qtFInb3kp2oIj76c6ibEzlSH4oPOSjAXBkY74g=")
+                .UseRabbitMqTransport(x => x.Server = "docker-local.com")
                 .SetNumberOfConsumerThreads(1)
                 .WithDefaultPublishers()
                 .UseCassandraEventStore(eventStore => eventStore
@@ -53,8 +51,7 @@ namespace Elders.Cronus.Sample.ApplicationService
             string COLL = "COLL";
             var COLL_appServiceFactory = new ApplicationServiceFactory(container, COLL);
             cfg.UseCommandConsumer(COLL, consumer => consumer
-                .UseRabbitMqTransport(x => x.Server = "10.0.2.4")
-                //.UseAzureServiceBusTransport(x => x.ConnectionString = "Endpoint=sb://mvclientshared-servicebus-test.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=YStt1qtFInb3kp2oIj76c6ibEzlSH4oPOSjAXBkY74g=")
+                .UseRabbitMqTransport(x => x.Server = "docker-local.com")
                 .SetNumberOfConsumerThreads(1)
                 .WithDefaultPublishers()
                 .UseCassandraEventStore(eventStore => eventStore

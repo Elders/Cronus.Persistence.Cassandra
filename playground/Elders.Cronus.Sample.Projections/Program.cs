@@ -13,7 +13,6 @@ using System.Collections.Generic;
 using Elders.Cronus.DomainModeling.Projections;
 using Elders.Cronus.DomainModeling;
 using Elders.Cronus.Projections.Cassandra.Snapshots;
-using Elders.Cronus.Transport.AzureServiceBus.Config;
 
 namespace Elders.Cronus.Sample.Projections
 {
@@ -36,8 +35,7 @@ namespace Elders.Cronus.Sample.Projections
                     .UseProjectionConsumer(consumer => consumer
                         .SetNumberOfConsumerThreads(1)
                         .WithDefaultPublishers()
-                        .UseRabbitMqTransport(x => x.Server = "10.0.2.4")
-                        //.UseAzureServiceBusTransport(x => x.ConnectionString = "Endpoint=sb://mvclientshared-servicebus-test.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=YStt1qtFInb3kp2oIj76c6ibEzlSH4oPOSjAXBkY74g=")
+                        .UseRabbitMqTransport(x => x.Server = "docker-local.com")
                         .UseProjections(h => h
                             .RegisterHandlerTypes(projectionTypes, serviceLocator.Resolve)
                         //.UseCassandraProjections(x => x

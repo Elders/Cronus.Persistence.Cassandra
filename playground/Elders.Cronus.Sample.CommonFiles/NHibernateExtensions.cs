@@ -11,7 +11,7 @@
 //using System.Reflection;
 //using System.Text;
 //using System.Threading;
-//using Elders.Cronus.DomainModeling;
+//using Elders.Cronus;
 //using NHibernate;
 //using NHibernate.Cfg;
 //using NHibernate.Collection;

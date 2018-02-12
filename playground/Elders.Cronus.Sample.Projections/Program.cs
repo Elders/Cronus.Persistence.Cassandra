@@ -2,17 +2,18 @@
 using System.Reflection;
 using Elders.Cronus.Pipeline.Config;
 using Elders.Cronus.Pipeline.Hosts;
-using Elders.Cronus.Pipeline.Transport.RabbitMQ.Config;
 using Elders.Cronus.Sample.Collaboration.Users.Commands;
-using Elders.Cronus.Sample.Collaboration.Users.Projections;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Commands;
 using Elders.Cronus.IocContainer;
-using Elders.Cronus.Projections.Cassandra.Config;
 using System.Linq;
 using System.Collections.Generic;
-using Elders.Cronus.DomainModeling.Projections;
-using Elders.Cronus.DomainModeling;
-using Elders.Cronus.Projections.Cassandra.Snapshots;
+using Elders.Cronus.Projections;
+using Elders.Cronus.Pipeline.Transport.RabbitMQ.Config;
+using Elders.Cronus.Projections.Cassandra.Config;
+using Elders.Cronus.Cluster.Config;
+using Elders.Cronus.Persistence.Cassandra.Config;
+using System.Configuration;
+using Elders.Cronus.Projections.Versioning;
 
 namespace Elders.Cronus.Sample.Projections
 {
@@ -28,22 +29,55 @@ namespace Elders.Cronus.Sample.Projections
             var serviceLocator = new ServiceLocator(container);
 
             //var projectionTypes = typeof(UserProjection).Assembly.GetTypes().Where(x => typeof(IProjectionDefinition).IsAssignableFrom(x));
-            var projectionTypes = typeof(UserProjection).Assembly.GetTypes().Where(x => typeof(IProjectionDefinition).IsAssignableFrom(x) == false && typeof(IProjection).IsAssignableFrom(x));
+            var systemProjections = typeof(PersistentProjectionVersionHandler).Assembly.GetTypes().Where(x => typeof(IProjectionDefinition).IsAssignableFrom(x)).ToList();
+            var collaborationProjections = typeof(Collaboration.Users.Projections.UserProjection).Assembly.GetTypes().Where(x => typeof(IProjectionDefinition).IsAssignableFrom(x));
+            systemProjections.AddRange(collaborationProjections);
 
             var cfg = new CronusSettings(container)
-                    .UseContractsFromAssemblies(new Assembly[] { Assembly.GetAssembly(typeof(RegisterAccount)), Assembly.GetAssembly(typeof(CreateUser)) })
-                    .UseProjectionConsumer(consumer => consumer
-                        .SetNumberOfConsumerThreads(1)
-                        .WithDefaultPublishers()
-                        .UseRabbitMqTransport(x => x.Server = "docker-local.com")
-                        .UseProjections(h => h
-                            .RegisterHandlerTypes(projectionTypes, serviceLocator.Resolve)
-                        //.UseCassandraProjections(x => x
-                        //    .SetProjectionsConnectionString("Contact Points=docker-local.com;Port=9042;Default Keyspace=cronus_sample_20150317")
-                        //    //.UseSnapshots(projectionTypes)
-                        //    //.UseSnapshotStrategy(new DefaultSnapshotStrategy(TimeSpan.FromDays(1), 500))
-                        //    .SetProjectionTypes(projectionTypes))
-                        ));
+                .UseCluster(cluster =>
+                {
+                    cluster.ClusterName = "playground";
+                    cluster.CurrentNodeName = "node1";
+                })
+                .UseContractsFromAssemblies(new Assembly[] { Assembly.GetAssembly(typeof(RegisterAccount)), Assembly.GetAssembly(typeof(CreateUser)) });
+
+            var projection_serviceLocator = new ServiceLocator(container, "Projection");
+            cfg.UseProjectionConsumer("Projection", consumer => consumer
+                 .WithDefaultPublishers()
+                 .SetNumberOfConsumerThreads(5)
+                 .UseRabbitMqTransport(x => x.Server = "docker-local.com")
+                 .UseProjections(h => h
+                     .RegisterHandlerTypes(systemProjections, projection_serviceLocator.Resolve)
+                     .UseCassandraProjections(x => x
+                         .SetProjectionsConnectionString("Contact Points=docker-local.com;Port=9042;Default Keyspace=cronus_sample_20180213")
+                         .SetProjectionTypes(systemProjections))
+                 ));
+
+            var systemSaga_serviceLocator = new ServiceLocator(container, "SystemSaga");
+            cfg.UseSagaConsumer("SystemSaga", consumer => consumer
+                 .WithDefaultPublishers()
+                 .UseRabbitMqTransport(x => x.Server = "docker-local.com")
+                 .ConfigureCassandraProjectionsStore(proj => proj
+                    .SetProjectionTypes(typeof(ProjectionBuilder).Assembly)
+                    .SetProjectionsConnectionString("Contact Points=docker-local.com;Port=9042;Default Keyspace=cronus_sample_20180213"))
+                 .UseCassandraEventStore(eventStore => eventStore
+                    .SetConnectionString(ConfigurationManager.ConnectionStrings["cronus_es"].ConnectionString)
+                    .SetAggregateStatesAssembly(typeof(Elders.Cronus.Sample.Collaboration.Users.UserState)))
+                 .UseSystemSagas(saga => saga.RegisterHandlerTypes(new List<Type>() { typeof(ProjectionBuilder) }, systemSaga_serviceLocator.Resolve))
+                );
+
+            //var systemProjectionTypes = typeof(PersistentProjectionVersionHandler).Assembly.GetTypes().Where(x => typeof(IProjectionDefinition).IsAssignableFrom(x));
+            //var systemProj_serviceLocator = new ServiceLocator(container, "SystemProj");
+            //cfg.UseProjectionConsumer("SystemProj", consumer => consumer
+            //     .WithDefaultPublishers()
+            //     .UseRabbitMqTransport(x => x.Server = "docker-local.com")
+            //     .UseSystemProjections(h => h
+            //        .RegisterHandlerTypes(systemProjectionTypes, systemProj_serviceLocator.Resolve)
+            //        .UseCassandraProjections(p => p
+            //            .SetProjectionsConnectionString("Contact Points=docker-local.com;Port=9042;Default Keyspace=cronus_sample_20180213")
+            //            .SetProjectionTypes(typeof(PersistentProjectionVersionHandler).Assembly)
+            //                ))
+            //    );
 
             (cfg as ISettingsBuilder).Build();
             host = container.Resolve<CronusHost>();
@@ -76,27 +110,24 @@ namespace Elders.Cronus.Sample.Projections
     public class ServiceLocator
     {
         IContainer container;
+        private readonly string namedInstance;
 
-        public ServiceLocator(IContainer container)
+        public ServiceLocator(IContainer container, string namedInstance = null)
         {
             this.container = container;
+            this.namedInstance = namedInstance;
         }
 
         public object Resolve(Type objectType)
         {
             var instance = FastActivator.CreateInstance(objectType);
             var props = objectType.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).ToList();
-            var dependencies = props.Where(x => container.IsRegistered(x.PropertyType));
+            var dependencies = props.Where(x => container.IsRegistered(x.PropertyType, namedInstance));
             foreach (var item in dependencies)
             {
-                item.SetValue(instance, container.Resolve(item.PropertyType));
+                item.SetValue(instance, container.Resolve(item.PropertyType, namedInstance));
             }
             return instance;
-        }
-
-        public T Resolve<T>()
-        {
-            return (T)Resolve(typeof(T));
         }
     }
 

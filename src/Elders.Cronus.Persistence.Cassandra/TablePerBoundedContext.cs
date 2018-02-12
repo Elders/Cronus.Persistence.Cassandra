@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Reflection;
-using Elders.Cronus.DomainModeling;
 using Elders.Cronus.EventStore;
 
 namespace Elders.Cronus.Persistence.Cassandra
@@ -23,9 +22,6 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public string GetEventsTableName(AggregateCommit aggregateCommit)
         {
-            // mynkow if(Environment.GetEnvironmentVariable("ForceCronusChecks"))
-            // if (boundedContext)
-
             var boundedContext = aggregateCommit.BoundedContext;
             return GetEventsTableName(boundedContext);
         }

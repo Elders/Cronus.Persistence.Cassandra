@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Runtime.Serialization;
-using Elders.Cronus.DomainModeling;
+using Elders.Cronus;
 
 namespace Elders.Cronus.Sample.IdentityAndAccess.Accounts.Events
 {

@@ -1,6 +1,5 @@
 using System;
 using System.Reflection;
-using Elders.Cronus.DomainModeling;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.EventStore.Config;
 using Elders.Cronus.IocContainer;
@@ -13,7 +12,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
 {
     public static class CassandraEventStoreExtensions
     {
-        public static T UseCassandraEventStore<T>(this T self, Action<CassandraEventStoreSettings> configure) where T : IConsumerSettings<ICommand>
+        public static T UseCassandraEventStore<T>(this T self, Action<CassandraEventStoreSettings> configure) where T : ICanConfigureEventStore
         {
             CassandraEventStoreSettings settings = new CassandraEventStoreSettings(self);
             settings.SetReconnectionPolicy(new DataStaxCassandra.ExponentialReconnectionPolicy(100, 100000));

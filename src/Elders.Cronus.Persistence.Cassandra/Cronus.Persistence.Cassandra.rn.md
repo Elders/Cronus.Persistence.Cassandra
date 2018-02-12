@@ -1,3 +1,7 @@
+#### 4.0.0 - 12.02.2018
+* This release uses the official netstandard 2.0
+* BREAKING: configuration via app/web.config section is not supported anymore. Use Pandora.
+
 #### 3.3.1 - 24.07.2017
 * Change the default retry policy to the Cassandra DefaultRetryPolicy.
 * Cassandra WriteTimeoutException is not considered as an error we only log warning about it.

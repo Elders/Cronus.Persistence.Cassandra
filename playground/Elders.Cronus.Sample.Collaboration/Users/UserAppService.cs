@@ -1,4 +1,4 @@
-﻿using Elders.Cronus.DomainModeling;
+﻿using Elders.Cronus;
 using Elders.Cronus.Sample.Collaboration.Users.Commands;
 
 namespace Elders.Cronus.Sample.Collaboration.Users

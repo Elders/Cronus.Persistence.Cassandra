@@ -1,4 +1,4 @@
-﻿using Elders.Cronus.DomainModeling;
+﻿using Elders.Cronus;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Events;
 
 namespace Elders.Cronus.Sample.IdentityAndAccess.Accounts

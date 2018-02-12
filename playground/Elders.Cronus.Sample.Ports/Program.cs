@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Reflection;
-using Elders.Cronus.DomainModeling;
+using Elders.Cronus;
 using Elders.Cronus.IocContainer;
 using Elders.Cronus.Pipeline;
 using Elders.Cronus.Pipeline.Config;
@@ -11,6 +11,7 @@ using Elders.Cronus.Sample.Collaboration.Users.Commands;
 using Elders.Cronus.Sample.Collaboration.Users.Projections;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Commands;
 using Elders.Cronus.Serializer;
+using Elders.Cronus.Transport.RabbitMQ;
 
 namespace Elders.Cronus.Sample.Ports
 {
@@ -24,12 +25,7 @@ namespace Elders.Cronus.Sample.Ports
 
             var container = new Container();
 
-            Func<IPipelineTransport> transport = () => container.Resolve<IPipelineTransport>();
-            Func<ISerializer> serializer = () => container.Resolve<ISerializer>();
-
-            container.RegisterSingleton<IPublisher<ICommand>>(() => new PipelinePublisher<ICommand>(transport(), serializer()));
-
-            var COLL_POOOOORTHandlerFactory = new PortHandlerFactory(container, null);
+            var COLL_POOOOORTHandlerFactory = new PortHandlerFactory(container, "Ports");
             var cfg = new CronusSettings(container)
                 .UseContractsFromAssemblies(new Assembly[]
                 {
@@ -37,11 +33,11 @@ namespace Elders.Cronus.Sample.Ports
                     Assembly.GetAssembly(typeof(CreateUser))
                 })
                 .UseRabbitMqTransport(x => x.Server = "docker-local.com")
-                .UsePortConsumer(consumable => consumable
-                    .WithDefaultPublishers()
-                    .UseRabbitMqTransport(x => x.Server = "docker-local.com")
-                    .SetNumberOfConsumerThreads(1)
-                    .UsePorts(c => c.RegisterHandlersInAssembly(new[] { Assembly.GetAssembly(typeof(UserProjection)) }, COLL_POOOOORTHandlerFactory.Create)));
+                .UsePortConsumer("Ports", consumable => consumable
+                     .WithDefaultPublishers()
+                     .UseRabbitMqTransport(x => x.Server = "docker-local.com")
+                     .SetNumberOfConsumerThreads(5)
+                     .UsePorts(c => c.RegisterHandlersInAssembly(new[] { Assembly.GetAssembly(typeof(UserProjection)) }, COLL_POOOOORTHandlerFactory.Create)));
 
             (cfg as ISettingsBuilder).Build();
 

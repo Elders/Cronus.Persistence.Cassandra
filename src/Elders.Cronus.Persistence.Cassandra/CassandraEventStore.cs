@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using Cassandra;
-using Elders.Cronus.DomainModeling;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.Serializer;
 using Elders.Cronus.Persistence.Cassandra.Logging;
@@ -82,10 +81,10 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
-        public EventStream Load(IAggregateRootId aggregateId)
+        public EventStream Load(IAggregateRootId aggregateId, Func<IAggregateRootId, string> getBoundedContext)
         {
             List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
-            string boundedContext = aggregateId.GetType().GetBoundedContext().BoundedContextName;
+            string boundedContext = getBoundedContext(aggregateId);
             BoundStatement bs = GetPreparedStatementToLoadAnAggregateCommit(boundedContext).Bind(Convert.ToBase64String(aggregateId.RawId));
             var result = session.Execute(bs);
             foreach (var row in result.GetRows())

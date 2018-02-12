@@ -1,4 +1,4 @@
-#### 4.0.0-beta0001 - 21.08.2017
+#### 4.0.0 - 12.02.2018
 * This release uses the official netstandard 2.0
 * BREAKING: configuration via app/web.config section is not supported anymore. Use Pandora.
 

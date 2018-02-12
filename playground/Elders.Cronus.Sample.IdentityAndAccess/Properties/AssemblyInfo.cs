@@ -1,5 +1,5 @@
 ﻿using System.Reflection;
-using Elders.Cronus.DomainModeling;
+using Elders.Cronus;
 
 [assembly: AssemblyTitle("Elders.Cronus.Sample.IdentityAndAccess")]
 [assembly: AssemblyDescription("")]

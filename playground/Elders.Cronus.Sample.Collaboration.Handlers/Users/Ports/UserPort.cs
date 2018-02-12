@@ -1,5 +1,5 @@
 ﻿using System;
-using Elders.Cronus.DomainModeling;
+using Elders.Cronus;
 using Elders.Cronus.Sample.Collaboration.Users.Commands;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Events;
 
@@ -15,7 +15,7 @@ namespace Elders.Cronus.Sample.Collaboration.Users.Ports
 
         public void Handle(AccountRegistered message)
         {
-            UserId userId = new UserId(Guid.NewGuid());
+            UserId userId = new UserId(message.Id.Id);
             var email = message.Email;
             CommandPublisher.Publish(new CreateUser(userId, email));
 

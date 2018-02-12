@@ -1,18 +1,21 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
-using Elders.Cronus.DomainModeling;
 using Elders.Cronus.IocContainer;
-using Elders.Cronus.Pipeline;
 using Elders.Cronus.Pipeline.Config;
 using Elders.Cronus.Pipeline.Hosts;
-using Elders.Cronus.Pipeline.Transport;
 using Elders.Cronus.Pipeline.Transport.RabbitMQ.Config;
+using Elders.Cronus.Projections;
+using Elders.Cronus.Projections.Cassandra.Config;
+using Elders.Cronus.Projections.Versioning;
 using Elders.Cronus.Sample.Collaboration.Users;
 using Elders.Cronus.Sample.Collaboration.Users.Commands;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Commands;
 using Elders.Cronus.Serializer;
+using Elders.Cronus.Transport.RabbitMQ;
 
 namespace Elders.Cronus.Sample.UI
 {
@@ -20,16 +23,21 @@ namespace Elders.Cronus.Sample.UI
     {
         static IPublisher<ICommand> commandPublisher;
 
+        static Queue<StringTenantId> sentCommands = new Queue<StringTenantId>();
+
         static void Main(string[] args)
         {
             //Thread.Sleep(10000);
 
             ConfigurePublisher();
+            //commandPublisher.Publish(new ReplayProjection(new ProjectionArId("e588e9ee-ef50-4e02-ac83-189adca51a6c"), null));
+
+            //commandPublisher.Publish(new CancelReplayProjection(new ProjectionArId("e588e9ee-ef50-4e02-ac83-189adca51a6c"), null));
 
             HostUI(/////////////////////////////////////////////////////////////////
                                 publish: SingleCreationCommandFromUpstreamBC,
-                    delayBetweenBatches: 100,
-                              batchSize: 70,
+                    delayBetweenBatches: 1000,
+                              batchSize: 1,
                  numberOfMessagesToSend: Int32.MaxValue
                  ///////////////////////////////////////////////////////////////////
                  );
@@ -38,32 +46,38 @@ namespace Elders.Cronus.Sample.UI
             Console.ReadLine();
         }
 
+        static Container container = new Container();
         private static void ConfigurePublisher()
         {
             log4net.Config.XmlConfigurator.Configure();
 
-            var container = new Container();
-            Func<IPipelineTransport> transport = () => container.Resolve<IPipelineTransport>();
-            Func<ISerializer> serializer = () => container.Resolve<ISerializer>();
-            container.RegisterSingleton<IPublisher<ICommand>>(() => new PipelinePublisher<ICommand>(transport(), serializer()));
-
             var cfg = new CronusSettings(container)
-                .UseContractsFromAssemblies(new Assembly[] { Assembly.GetAssembly(typeof(RegisterAccount)), Assembly.GetAssembly(typeof(CreateUser)) })
+                .UseContractsFromAssemblies(new Assembly[] { Assembly.GetAssembly(typeof(RegisterAccount)), Assembly.GetAssembly(typeof(CreateUser)), Assembly.GetAssembly(typeof(ProjectionVersionManagerId)) })
                 .UseRabbitMqTransport(x => x.Server = "docker-local.com");
+
+            var collaborationProjections = typeof(Collaboration.Users.Projections.UserProjection).Assembly.GetTypes().Where(x => typeof(IProjectionDefinition).IsAssignableFrom(x));
+            cfg.ConfigureCassandraProjectionsStore(x => x
+                .SetProjectionsConnectionString("Contact Points=docker-local.com;Port=9042;Default Keyspace=cronus_sample_20180213")
+                .SetProjectionTypes(collaborationProjections));
+
             (cfg as ISettingsBuilder).Build();
-            commandPublisher = container.Resolve<IPublisher<ICommand>>();
+
+            var serializer = container.Resolve<ISerializer>();
+            commandPublisher = (container.Resolve<ITransport>() as RabbitMqTransport).GetPublisher<ICommand>(serializer);
         }
 
-        private static void SingleCreationCommandFromUpstreamBC(int index)
+        private static AccountId SingleCreationCommandFromUpstreamBC(int index)
         {
             AccountId accountId = new AccountId(Guid.NewGuid());
             var email = String.Format("cronus_{0}_{1}_@Elders.com", index, DateTime.Now);
             commandPublisher.Publish(new RegisterAccount(accountId, email));
+
+            return accountId;
         }
 
         private static void SingleCreationCommandFromDownstreamBC(int index)
         {
-            UserId userId = new UserId(Guid.NewGuid());
+            UserId userId = new UserId(Guid.NewGuid().ToString());
             var email = String.Format("cronus_{0}_@Elders.com", index);
             commandPublisher.Publish(new CreateUser(userId, email));
         }
@@ -82,51 +96,53 @@ namespace Elders.Cronus.Sample.UI
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        private static void HostUI(Action<int> publish, int delayBetweenBatches = 0, int batchSize = 1, int numberOfMessagesToSend = Int32.MaxValue)
+        private static void HostUI(Func<int, StringTenantId> publish, int delayBetweenBatches = 0, int batchSize = 1, int numberOfMessagesToSend = Int32.MaxValue)
         {
             Console.WriteLine("Start sending commands...");
-            if (batchSize == 1)
+
+            IProjectionRepository repo = container.Resolve<IProjectionRepository>();
+
+            for (int i = 0; i <= numberOfMessagesToSend - batchSize; i = i + batchSize)
             {
-                if (delayBetweenBatches == 0)
+                for (int j = 0; j < batchSize; j++)
                 {
-                    for (int i = 0; i < numberOfMessagesToSend; i++)
-                    {
-                        publish(i);
-                    }
+                    sentCommands.Enqueue(publish(i + j));
                 }
-                else
+
+                Thread.Sleep(delayBetweenBatches);
+
+                while (sentCommands.Count > 0)
                 {
-                    for (int i = 0; i < numberOfMessagesToSend; i++)
-                    {
-                        publish(i);
-                        Thread.Sleep(delayBetweenBatches);
-                    }
+                    var theId = sentCommands.Dequeue();
+                    var userId = new UserId(theId.Id);
+                    var result = repo.Get<Collaboration.Users.Projections.UserProjection>(userId);
+                    Console.WriteLine(result.Success + "     " + userId.ToString());
                 }
             }
-            else
+        }
+    }
+
+    public class ServiceLocator
+    {
+        IContainer container;
+        private readonly string namedInstance;
+
+        public ServiceLocator(IContainer container, string namedInstance = null)
+        {
+            this.container = container;
+            this.namedInstance = namedInstance;
+        }
+
+        public object Resolve(Type objectType)
+        {
+            var instance = FastActivator.CreateInstance(objectType);
+            var props = objectType.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).ToList();
+            var dependencies = props.Where(x => container.IsRegistered(x.PropertyType, namedInstance));
+            foreach (var item in dependencies)
             {
-                if (delayBetweenBatches == 0)
-                {
-                    for (int i = 0; i <= numberOfMessagesToSend - batchSize; i = i + batchSize)
-                    {
-                        for (int j = 0; j < batchSize; j++)
-                        {
-                            publish(i + j);
-                        }
-                    }
-                }
-                else
-                {
-                    for (int i = 0; i <= numberOfMessagesToSend - batchSize; i = i + batchSize)
-                    {
-                        for (int j = 0; j < batchSize; j++)
-                        {
-                            publish(i + j);
-                        }
-                        Thread.Sleep(delayBetweenBatches);
-                    }
-                }
+                item.SetValue(instance, container.Resolve(item.PropertyType, namedInstance));
             }
+            return instance;
         }
     }
 

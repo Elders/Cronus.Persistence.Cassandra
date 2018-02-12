@@ -9,10 +9,13 @@ using Elders.Cronus.Sample.IdentityAndAccess.Accounts;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Events;
 using Elders.Cronus.IocContainer;
 using System;
-using Elders.Cronus.DomainModeling;
 using System.Configuration;
 using Elders.Cronus.Cluster.Config;
 using Elders.Cronus.AtomicAction.Config;
+using Elders.Cronus.Projections;
+using Elders.Cronus.Cluster;
+using System.Linq;
+using Elders.Cronus.Projections.Versioning;
 
 namespace Elders.Cronus.Sample.ApplicationService
 {
@@ -33,31 +36,47 @@ namespace Elders.Cronus.Sample.ApplicationService
         {
             var container = new Container();
             var cfg = new CronusSettings(container)
-                .UseCluster(cluster => cluster.UseAggregateRootAtomicAction(atomic => atomic.WithInMemory()))
-                .UseContractsFromAssemblies(new[] { Assembly.GetAssembly(typeof(AccountRegistered)), Assembly.GetAssembly(typeof(UserCreated)) });
+                .UseCluster(cluster =>
+                {
+                    cluster.ClusterName = "playground";
+                    cluster.CurrentNodeName = "node1";
+                    cluster.UseAggregateRootAtomicAction(atomic => atomic.WithInMemory());
+                })
+                .UseContractsFromAssemblies(new[] { Assembly.GetAssembly(typeof(AccountRegistered)), Assembly.GetAssembly(typeof(UserCreated)), Assembly.GetAssembly(typeof(ProjectionVersionManagerId)) });
+
+            string SYSTEM = "SYSTEM";
+            var SYSTEM_appServiceFactory = new ServiceLocator(container, SYSTEM);
+            cfg.UseCommandConsumer(SYSTEM, consumer => consumer
+                .UseRabbitMqTransport(x => x.Server = "docker-local.com")
+                .WithDefaultPublishers()
+                .UseCassandraEventStore(eventStore => eventStore
+                    .SetConnectionString(ConfigurationManager.ConnectionStrings["cronus_es"].ConnectionString)
+                    .SetAggregateStatesAssembly(typeof(ProjectionVersionManagerAppService)))
+                .UseSystemServices(cmdHandler => cmdHandler.RegisterHandlersInAssembly(new[] { typeof(ProjectionVersionManagerAppService).Assembly }, SYSTEM_appServiceFactory.Resolve))
+            );
 
             string IAA = "IAA";
-            var IAA_appServiceFactory = new ApplicationServiceFactory(container, IAA);
+            var IAA_appServiceFactory = new ServiceLocator(container, IAA);
             cfg.UseCommandConsumer(IAA, consumer => consumer
                 .UseRabbitMqTransport(x => x.Server = "docker-local.com")
-                .SetNumberOfConsumerThreads(1)
+                .SetNumberOfConsumerThreads(5)
                 .WithDefaultPublishers()
                 .UseCassandraEventStore(eventStore => eventStore
                     .SetConnectionString(ConfigurationManager.ConnectionStrings["cronus_es"].ConnectionString)
                     .SetAggregateStatesAssembly(typeof(AccountState)))
-                .UseApplicationServices(cmdHandler => cmdHandler.RegisterHandlersInAssembly(new[] { typeof(AccountAppService).Assembly }, IAA_appServiceFactory.Create))
+                .UseApplicationServices(cmdHandler => cmdHandler.RegisterHandlersInAssembly(new[] { typeof(AccountAppService).Assembly }, IAA_appServiceFactory.Resolve))
             );
 
             string COLL = "COLL";
-            var COLL_appServiceFactory = new ApplicationServiceFactory(container, COLL);
+            var COLL_appServiceFactory = new ServiceLocator(container, COLL);
             cfg.UseCommandConsumer(COLL, consumer => consumer
                 .UseRabbitMqTransport(x => x.Server = "docker-local.com")
-                .SetNumberOfConsumerThreads(1)
+                .SetNumberOfConsumerThreads(5)
                 .WithDefaultPublishers()
                 .UseCassandraEventStore(eventStore => eventStore
                     .SetConnectionString(ConfigurationManager.ConnectionStrings["cronus_es"].ConnectionString)
                     .SetAggregateStatesAssembly(typeof(UserState)))
-                .UseApplicationServices(cmdHandler => cmdHandler.RegisterHandlersInAssembly(new[] { typeof(UserAppService).Assembly }, COLL_appServiceFactory.Create))
+                .UseApplicationServices(cmdHandler => cmdHandler.RegisterHandlersInAssembly(new[] { typeof(UserAppService).Assembly }, COLL_appServiceFactory.Resolve))
             );
 
             (cfg as ISettingsBuilder).Build();
@@ -66,23 +85,27 @@ namespace Elders.Cronus.Sample.ApplicationService
         }
     }
 
-    public class ApplicationServiceFactory
+    public class ServiceLocator
     {
-        private readonly IContainer container;
+        IContainer container;
         private readonly string namedInstance;
 
-        public ApplicationServiceFactory(IContainer container, string namedInstance)
+        public ServiceLocator(IContainer container, string namedInstance = null)
         {
             this.container = container;
             this.namedInstance = namedInstance;
         }
 
-        public object Create(Type appServiceType)
+        public object Resolve(Type objectType)
         {
-            var appService = FastActivator
-                .CreateInstance(appServiceType)
-                .AssignPropertySafely<IAggregateRootApplicationService>(x => x.Repository = container.Resolve<IAggregateRepository>(namedInstance));
-            return appService;
+            var instance = FastActivator.CreateInstance(objectType);
+            var props = objectType.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).ToList();
+            var dependencies = props.Where(x => container.IsRegistered(x.PropertyType, namedInstance));
+            foreach (var item in dependencies)
+            {
+                item.SetValue(instance, container.Resolve(item.PropertyType, namedInstance));
+            }
+            return instance;
         }
     }
 

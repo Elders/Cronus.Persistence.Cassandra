@@ -1,4 +1,4 @@
-﻿using Elders.Cronus.DomainModeling;
+﻿using Elders.Cronus;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Commands;
 
 namespace Elders.Cronus.Sample.IdentityAndAccess.Accounts
@@ -28,12 +28,12 @@ namespace Elders.Cronus.Sample.IdentityAndAccess.Accounts
             //  Explicit
             var account = Repository.Load<Account>(command.Id);
             account.ChangeEmail(command.OldEmail, command.NewEmail);
-            Repository.Save(account);
+            //Repository.Save(account);
 
             //  OR
 
             //  Implicit
-            //Update(command.Id, user => user.ChangeEmail(command.OldEmail, command.NewEmail));
+            Update(command.Id, user => user.ChangeEmail(command.OldEmail, command.NewEmail));
         }
     }
 }

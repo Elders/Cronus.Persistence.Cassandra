@@ -1,3 +1,6 @@
+#### 4.0.1 - 20.02.2018
+* Targets netstandard2.0;net45;net451;net452;net46;net461;net462
+
 #### 4.0.0 - 12.02.2018
 * This release uses the official netstandard 2.0
 * BREAKING: configuration via app/web.config section is not supported anymore. Use Pandora.

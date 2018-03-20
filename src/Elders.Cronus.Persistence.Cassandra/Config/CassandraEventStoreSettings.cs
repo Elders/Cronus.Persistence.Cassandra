@@ -49,6 +49,18 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
             return self;
         }
 
+        ///// <summary>
+        ///// Set the connection string template for multitenancy.
+        ///// </summary>
+        ///// <typeparam name="T"></typeparam>
+        ///// <param name="self"></param>
+        ///// <param name="connectionString">A template that will be used build a connection string to connect to the cassandra cluster. {{tenant}} will be replaced with the actual tenant name.</param>
+        ///// <returns></returns>
+        //public static T SetConnectionStringForMultitenancy<T>(this T self, string connectionStringTemplate) where T : ICassandraEventStoreSettings
+        //{
+
+        //}
+
         /// <summary>
         /// Set the keyspace.
         /// </summary>
@@ -147,6 +159,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
         /// <param name="self"></param>
         /// <param name="aggregateStatesAssembly">Type that is contained in your Assembly with aggregate states.</param>
         /// <returns></returns>
+        [Obsolete("Use => SetBoundedContext(...)")]
         public static T SetAggregateStatesAssembly<T>(this T self, Type aggregateStatesAssembly) where T : ICassandraEventStoreSettings
         {
             return self.SetAggregateStatesAssembly(Assembly.GetAssembly(aggregateStatesAssembly));
@@ -159,6 +172,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
         /// <param name="self"></param>
         /// <param name="aggregateStatesAssembly">The Assembly with your aggregate states.</param>
         /// <returns></returns>
+        [Obsolete("Use => SetBoundedContext(...)")]
         public static T SetAggregateStatesAssembly<T>(this T self, Assembly aggregateStatesAssembly) where T : ICassandraEventStoreSettings
         {
             return self.SetAggregateStatesAssembly(aggregateStatesAssembly, aggregateStatesAssembly.GetAssemblyAttribute<BoundedContextAttribute>().BoundedContextName);
@@ -172,10 +186,21 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
         /// <param name="aggregateStatesAssembly">The Assembly with your aggregate states.</param>
         /// <param name="boundedContextName">The bounded context that will be used for the event store.</param>
         /// <returns></returns>
+        [Obsolete("Use => SetBoundedContext(...)")]
         public static T SetAggregateStatesAssembly<T>(this T self, Assembly aggregateStatesAssembly, string boundedContextName) where T : ICassandraEventStoreSettings
         {
             self.BoundedContext = boundedContextName;
             self.EventStoreTableNameStrategy = new TablePerBoundedContext(aggregateStatesAssembly);
+            return self;
+        }
+
+        /// <summary>
+        /// Set the bounded context
+        /// </summary>
+        public static T SetBoundedContext<T>(this T self, string boundedContextName) where T : ICassandraEventStoreSettings
+        {
+            self.BoundedContext = boundedContextName;
+            self.EventStoreTableNameStrategy = new TablePerBoundedContext(boundedContextName);
             return self;
         }
     }
@@ -191,6 +216,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
         DataStaxCassandra.IReconnectionPolicy ReconnectionPolicy { get; set; }
         ICassandraEventStoreTableNameStrategy EventStoreTableNameStrategy { get; set; }
         ICassandraReplicationStrategy ReplicationStrategy { get; set; }
+        ITenantList Tenants { get; set; }
     }
 
     public class CassandraEventStoreSettings : SettingsBuilder, ICassandraEventStoreSettings
@@ -202,32 +228,9 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
             var builder = this as ISettingsBuilder;
             ICassandraEventStoreSettings settings = this as ICassandraEventStoreSettings;
 
-            DataStaxCassandra.Cluster cluster = null;
-
-            if (ReferenceEquals(null, settings.Cluster))
-            {
-                cluster = DataStaxCassandra.Cluster
-                    .Builder()
-                    .WithReconnectionPolicy(settings.ReconnectionPolicy)
-                    .WithRetryPolicy(settings.RetryPolicy)
-                    .WithConnectionString(settings.ConnectionString)
-                    .Build();
-            }
-            else
-            {
-                cluster = settings.Cluster;
-            }
-
-            var session = cluster.Connect();
-            var storageManager = new CassandraEventStoreStorageManager(session, settings.Keyspace, settings.EventStoreTableNameStrategy, settings.ReplicationStrategy);
-            storageManager.CreateStorage();
-            session.ChangeKeyspace(settings.Keyspace);
-
-            var eventStore = new CassandraEventStore(session, settings.EventStoreTableNameStrategy, builder.Container.Resolve<ISerializer>(), settings.WriteConsistencyLevel, settings.ReadConsistencyLevel);
-            var player = new CassandraEventStorePlayer(session, settings.EventStoreTableNameStrategy, (this as IEventStoreSettings).BoundedContext, builder.Container.Resolve<ISerializer>());
-
-            builder.Container.RegisterSingleton<IEventStore>(() => eventStore, builder.Name);
-            builder.Container.RegisterSingleton<IEventStorePlayer>(() => player, builder.Name);
+            Func<IEventStoreFactory> factory = () => new CassandraEventStoreFactory(builder, settings);
+            Func<DefaultTenantResolver> tenantResolver = () => new DefaultTenantResolver();
+            builder.Container.RegisterSingleton<IEventStore>(() => new Elders.Cronus.EventStore.MultiTenantEventStore(factory(), tenantResolver()), builder.Name);
         }
 
         string IEventStoreSettings.BoundedContext { get; set; }
@@ -249,5 +252,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
         ICassandraEventStoreTableNameStrategy ICassandraEventStoreSettings.EventStoreTableNameStrategy { get; set; }
 
         ICassandraReplicationStrategy ICassandraEventStoreSettings.ReplicationStrategy { get; set; }
+
+        ITenantList ICassandraEventStoreSettings.Tenants { get; set; }
     }
 }

@@ -1,3 +1,6 @@
+#### 4.1.0-beta0001 - 20.03.2018
+* Multitenancy support
+
 #### 4.0.3 - 28.02.2018
 * Updates packages
 

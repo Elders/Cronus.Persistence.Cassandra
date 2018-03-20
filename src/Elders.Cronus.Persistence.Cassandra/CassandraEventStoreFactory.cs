@@ -53,7 +53,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             if (tenantStores.ContainsKey(registeredTenant) == false)
                 throw new Exception($"EventStore for tenant {tenant} is not registered. Make sure that the tenant is registered in ");
 
-            return tenantStores[tenant];
+            return tenantStores[registeredTenant];
         }
 
         public IEventStorePlayer GetEventStorePlayer(string tenant)
@@ -63,7 +63,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             if (tenantStores.ContainsKey(registeredTenant) == false)
                 throw new Exception($"EventStore for tenant {tenant} is not registered. Make sure that the tenant is registered in ");
 
-            return tenantPlayers[tenant];
+            return tenantPlayers[registeredTenant];
         }
 
         void InitializeTenant(string tenant)

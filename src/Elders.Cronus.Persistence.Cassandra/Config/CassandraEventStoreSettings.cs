@@ -4,7 +4,6 @@ using Elders.Cronus.EventStore;
 using Elders.Cronus.EventStore.Config;
 using Elders.Cronus.IocContainer;
 using Elders.Cronus.Pipeline.Config;
-using Elders.Cronus.Serializer;
 using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
 using DataStaxCassandra = Cassandra;
 

@@ -6,6 +6,7 @@ using Elders.Cronus.IocContainer;
 using Elders.Cronus.Pipeline.Config;
 using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
 using DataStaxCassandra = Cassandra;
+using Elders.Cronus.Multitenancy;
 
 namespace Elders.Cronus.Persistence.Cassandra.Config
 {
@@ -215,7 +216,6 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
         DataStaxCassandra.IReconnectionPolicy ReconnectionPolicy { get; set; }
         ICassandraEventStoreTableNameStrategy EventStoreTableNameStrategy { get; set; }
         ICassandraReplicationStrategy ReplicationStrategy { get; set; }
-        ITenantList Tenants { get; set; }
     }
 
     public class CassandraEventStoreSettings : SettingsBuilder, ICassandraEventStoreSettings
@@ -226,8 +226,8 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
         {
             var builder = this as ISettingsBuilder;
             ICassandraEventStoreSettings settings = this as ICassandraEventStoreSettings;
-
-            Func<IEventStoreFactory> factory = () => new CassandraEventStoreFactory(builder, settings);
+            Func<ITenantList> tenantList = () => builder.Container.Resolve<ITenantList>();
+            Func<IEventStoreFactory> factory = () => new CassandraEventStoreFactory(builder, settings, tenantList());
             Func<DefaultTenantResolver> tenantResolver = () => new DefaultTenantResolver();
             builder.Container.RegisterSingleton<IEventStore>(() => new Elders.Cronus.EventStore.MultiTenantEventStore(factory(), tenantResolver()), builder.Name);
         }
@@ -251,7 +251,5 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
         ICassandraEventStoreTableNameStrategy ICassandraEventStoreSettings.EventStoreTableNameStrategy { get; set; }
 
         ICassandraReplicationStrategy ICassandraEventStoreSettings.ReplicationStrategy { get; set; }
-
-        ITenantList ICassandraEventStoreSettings.Tenants { get; set; }
     }
 }

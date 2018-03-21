@@ -1,3 +1,6 @@
+#### 4.1.0-beta0003 - 21.03.2018
+* Updates Cronus
+
 #### 4.1.0-beta0002 - 21.03.2018
 * Properly looks for EventStore based on tenant
 * Updates Cronus

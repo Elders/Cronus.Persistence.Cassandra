@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.IocContainer;
+using Elders.Cronus.Multitenancy;
 using Elders.Cronus.Persistence.Cassandra.Config;
 using Elders.Cronus.Pipeline.Config;
 using Elders.Cronus.Serializer;
@@ -19,23 +20,24 @@ namespace Elders.Cronus.Persistence.Cassandra
         readonly ISettingsBuilder builder;
 
         readonly ICassandraEventStoreSettings settings;
-
+        private readonly ITenantList tenants;
         readonly bool hasTenantsDefined = false;
         const string NoTenantName = "notenant";
 
-        public CassandraEventStoreFactory(Pipeline.Config.ISettingsBuilder builder, ICassandraEventStoreSettings settings)
+        public CassandraEventStoreFactory(Pipeline.Config.ISettingsBuilder builder, ICassandraEventStoreSettings settings, ITenantList tenants)
         {
             if (ReferenceEquals(null, builder) == true) throw new ArgumentNullException(nameof(builder));
             if (ReferenceEquals(null, settings) == true) throw new ArgumentNullException(nameof(settings));
 
             this.settings = settings;
+            this.tenants = tenants;
             this.builder = builder;
             tenantStores = new Dictionary<string, IEventStore>();
             tenantPlayers = new Dictionary<string, IEventStorePlayer>();
-            hasTenantsDefined = settings.Tenants?.GetTenants()?.Count() > 0;
+            hasTenantsDefined = tenants.GetTenants().Count() > 1 || (tenants.GetTenants().Count() == 1 && tenants.GetTenants().Any(t => t.Equals(CronusAssembly.EldersTenant) == false));
             if (hasTenantsDefined)
             {
-                foreach (var tenant in settings.Tenants.GetTenants())
+                foreach (var tenant in tenants.GetTenants())
                 {
                     InitializeTenant(tenant);
                 }

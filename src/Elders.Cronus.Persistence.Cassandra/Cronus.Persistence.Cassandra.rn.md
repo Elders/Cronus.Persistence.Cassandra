@@ -1,3 +1,7 @@
+#### 4.1.0 - 22.03.2018
+* Updates Cronus
+* Multitenancy support
+
 #### 4.0.3 - 28.02.2018
 * Updates packages
 

@@ -36,7 +36,7 @@
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="LibLog" Version="4.2.6" />
-        <PackageReference Include="Cronus" Version="4.0.10" />
+        <PackageReference Include="Cronus" Version="4.1.0" />
         <PackageReference Include="CassandraCSharpDriver" Version="3.4.1" />
     </ItemGroup>
 </Project>

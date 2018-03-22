@@ -6,12 +6,15 @@ using Cassandra;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.Serializer;
 using Elders.Cronus.Persistence.Cassandra.Logging;
+using Elders.Cronus.Projections;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
     public class CassandraEventStore : IEventStore
     {
         static readonly ILog log = LogProvider.GetLogger(typeof(CassandraEventStore));
+
+        private readonly string boundedContext;
 
         private const string LoadAggregateEventsQueryTemplate = @"SELECT data FROM {0} WHERE id = ?;";
 
@@ -30,9 +33,17 @@ namespace Elders.Cronus.Persistence.Cassandra
         private readonly ConcurrentDictionary<string, PreparedStatement> persistAggregateEventsPreparedStatements;
         private readonly ConcurrentDictionary<string, PreparedStatement> loadAggregateEventsPreparedStatements;
 
-        public CassandraEventStore(ISession session, ICassandraEventStoreTableNameStrategy tableNameStrategy, ISerializer serializer, ConsistencyLevel writeConsistencyLevel, ConsistencyLevel readConsistencyLevel)
+        public CassandraEventStore(string boundedContext, ISession session, ICassandraEventStoreTableNameStrategy tableNameStrategy, ISerializer serializer, ConsistencyLevel writeConsistencyLevel, ConsistencyLevel readConsistencyLevel)
         {
+            if (string.IsNullOrEmpty(boundedContext)) throw new ArgumentNullException(nameof(boundedContext));
+            if (ReferenceEquals(null, session)) throw new ArgumentNullException(nameof(session));
+            if (ReferenceEquals(null, tableNameStrategy)) throw new ArgumentNullException(nameof(tableNameStrategy));
+            if (ReferenceEquals(null, serializer)) throw new ArgumentNullException(nameof(serializer));
+            if (ReferenceEquals(null, writeConsistencyLevel)) throw new ArgumentNullException(nameof(writeConsistencyLevel));
+            if (ReferenceEquals(null, readConsistencyLevel)) throw new ArgumentNullException(nameof(readConsistencyLevel));
+
             this.tableNameStrategy = tableNameStrategy;
+            this.boundedContext = boundedContext;
             this.session = session;
             this.serializer = serializer;
             this.writeConsistencyLevel = writeConsistencyLevel;
@@ -46,7 +57,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             PreparedStatement persistAggregatePreparedStatement;
             if (persistAggregateEventsPreparedStatements.TryGetValue(aggregateCommit.BoundedContext, out persistAggregatePreparedStatement) == false)
             {
-                string tableName = tableNameStrategy.GetEventsTableName(aggregateCommit);
+                string tableName = tableNameStrategy.GetEventsTableName(boundedContext);
                 persistAggregatePreparedStatement = session.Prepare(String.Format(InsertEventsQueryTemplate, tableName));
                 persistAggregateEventsPreparedStatements.TryAdd(aggregateCommit.BoundedContext, persistAggregatePreparedStatement);
             }
@@ -81,10 +92,27 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
+        [Obsolete("Use => EventStream Load(IAggregateRootId aggregateId)")]
         public EventStream Load(IAggregateRootId aggregateId, Func<IAggregateRootId, string> getBoundedContext)
         {
             List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
             string boundedContext = getBoundedContext(aggregateId);
+            BoundStatement bs = GetPreparedStatementToLoadAnAggregateCommit(boundedContext).Bind(Convert.ToBase64String(aggregateId.RawId));
+            var result = session.Execute(bs);
+            foreach (var row in result.GetRows())
+            {
+                var data = row.GetValue<byte[]>("data");
+                using (var stream = new MemoryStream(data))
+                {
+                    aggregateCommits.Add((AggregateCommit)serializer.Deserialize(stream));
+                }
+            }
+            return new EventStream(aggregateCommits);
+        }
+
+        public EventStream Load(IAggregateRootId aggregateId)
+        {
+            List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
             BoundStatement bs = GetPreparedStatementToLoadAnAggregateCommit(boundedContext).Bind(Convert.ToBase64String(aggregateId.RawId));
             var result = session.Execute(bs);
             foreach (var row in result.GetRows())

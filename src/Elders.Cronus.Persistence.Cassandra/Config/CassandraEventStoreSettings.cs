@@ -229,7 +229,8 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
             Func<ITenantList> tenantList = () => builder.Container.Resolve<ITenantList>();
             Func<IEventStoreFactory> factory = () => new CassandraEventStoreFactory(builder, settings, tenantList());
             Func<DefaultTenantResolver> tenantResolver = () => new DefaultTenantResolver();
-            builder.Container.RegisterSingleton<IEventStore>(() => new Elders.Cronus.EventStore.MultiTenantEventStore(factory(), tenantResolver()), builder.Name);
+            builder.Container.RegisterSingleton<IEventStoreFactory>(factory, builder.Name);
+            builder.Container.RegisterSingleton<IEventStore>(() => new MultiTenantEventStore(builder.Container.Resolve<IEventStoreFactory>(builder.Name), tenantResolver()), builder.Name);
         }
 
         string IEventStoreSettings.BoundedContext { get; set; }

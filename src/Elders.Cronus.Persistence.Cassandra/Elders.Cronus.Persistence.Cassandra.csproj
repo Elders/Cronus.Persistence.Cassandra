@@ -1,42 +1,42 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-    <PropertyGroup>
-        <TargetFrameworks>netstandard2.0;net45;net451;net452;net46;net461;net462</TargetFrameworks>
-    </PropertyGroup>
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net45;net451;net452;net46;net461;net462</TargetFrameworks>
+  </PropertyGroup>
 
-    <!--Nuget-->
-    <PropertyGroup>
-        <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-        <PackageId>Cronus.Persistence.Cassandra</PackageId>
-        <PackageLicenseUrl>https://github.com/Elders/Cronus/blob/master/LICENSE</PackageLicenseUrl>
-        <PackageProjectUrl>http://Elders.github.io/Cronus</PackageProjectUrl>
-        <PackageTags>CQRS DDD ES Event store sourcing</PackageTags>
-        <RepositoryUrl>https://github.com/Elders/Cronus</RepositoryUrl>
-        <PackageIconUrl>https://raw.githubusercontent.com/Elders/logo/master/cronus/frame.png</PackageIconUrl>
-        <RepositoryType>Framework</RepositoryType>
-        <Authors>Elders</Authors>
-    </PropertyGroup>
+  <!--Nuget-->
+  <PropertyGroup>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <PackageId>Cronus.Persistence.Cassandra</PackageId>
+    <PackageLicenseUrl>https://github.com/Elders/Cronus/blob/master/LICENSE</PackageLicenseUrl>
+    <PackageProjectUrl>http://Elders.github.io/Cronus</PackageProjectUrl>
+    <PackageTags>CQRS DDD ES Event store sourcing</PackageTags>
+    <RepositoryUrl>https://github.com/Elders/Cronus</RepositoryUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/Elders/logo/master/cronus/frame.png</PackageIconUrl>
+    <RepositoryType>Framework</RepositoryType>
+    <Authors>Elders</Authors>
+  </PropertyGroup>
 
-    <!--netstandard2.0-->
-    <PropertyGroup Condition="'$(TargetFramework)'=='netstandard2.0'">
-        <DefineConstants>TRACE;DEBUG;NETSTANDARD2_0;LIBLOG_PORTABLE</DefineConstants>
-    </PropertyGroup>
-    <ItemGroup Condition="'$(TargetFramework)'=='netstandard2.0'">
-        <PackageReference Include="Microsoft.CSharp" Version="4.4.1" />
-    </ItemGroup>
+  <!--netstandard2.0-->
+  <PropertyGroup Condition="'$(TargetFramework)'=='netstandard2.0'">
+    <DefineConstants>TRACE;DEBUG;NETSTANDARD2_0;LIBLOG_PORTABLE</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(TargetFramework)'=='netstandard2.0'">
+    <PackageReference Include="Microsoft.CSharp" Version="4.4.1" />
+  </ItemGroup>
 
-    <!--netstandard2.0 == false-->
-    <PropertyGroup Condition="'$(TargetFramework)'!='netstandard2.0'">
-        <DefineConstants>TRACE;DEBUG;LIBLOG_PORTABLE</DefineConstants>
-    </PropertyGroup>
-    <ItemGroup Condition="'$(TargetFramework)'!='netstandard2.0'">
-        <Reference Include="mscorlib" />
-        <Reference Include="System" />
-        <Reference Include="System.Core" />
-        <Reference Include="Microsoft.CSharp" />
-    </ItemGroup>
-    <ItemGroup>
-        <PackageReference Include="LibLog" Version="4.2.6" />
-        <PackageReference Include="Cronus" Version="4.1.0" />
-        <PackageReference Include="CassandraCSharpDriver" Version="3.4.1" />
-    </ItemGroup>
+  <!--netstandard2.0 == false-->
+  <PropertyGroup Condition="'$(TargetFramework)'!='netstandard2.0'">
+    <DefineConstants>TRACE;DEBUG;LIBLOG_PORTABLE</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(TargetFramework)'!='netstandard2.0'">
+    <Reference Include="mscorlib" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="Microsoft.CSharp" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="LibLog" Version="4.2.6" />
+    <PackageReference Include="Cronus" Version="4.1.2" />
+    <PackageReference Include="CassandraCSharpDriver" Version="3.4.1" />
+  </ItemGroup>
 </Project>

@@ -1,3 +1,6 @@
+#### 4.1.1 - 28.03.2018
+* Adds validation check
+
 #### 4.1.0 - 22.03.2018
 * Updates Cronus
 * Multitenancy support

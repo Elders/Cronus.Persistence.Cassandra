@@ -95,6 +95,8 @@ namespace Elders.Cronus.Persistence.Cassandra
         [Obsolete("Use => EventStream Load(IAggregateRootId aggregateId)")]
         public EventStream Load(IAggregateRootId aggregateId, Func<IAggregateRootId, string> getBoundedContext)
         {
+            if (ReferenceEquals(null, getBoundedContext)) throw new ArgumentNullException(nameof(getBoundedContext));
+
             List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
             string boundedContext = getBoundedContext(aggregateId);
             BoundStatement bs = GetPreparedStatementToLoadAnAggregateCommit(boundedContext).Bind(Convert.ToBase64String(aggregateId.RawId));

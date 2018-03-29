@@ -15,6 +15,7 @@ using Elders.Cronus.Sample.Collaboration.Users.Commands;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Commands;
 using Elders.Cronus.Serializer;
+using Elders.Cronus.Transport.AzureServiceBus;
 using Elders.Cronus.Transport.RabbitMQ;
 
 namespace Elders.Cronus.Sample.UI
@@ -28,7 +29,7 @@ namespace Elders.Cronus.Sample.UI
         static void Main(string[] args)
         {
             //Thread.Sleep(10000);
-
+            //var asd = new Microsoft.Azure.Management.ServiceBus.ServiceBusManagementClient((Microsoft.Rest.ServiceClientCredentials)null, (System.Net.Http.DelegatingHandler[])null);
             ConfigurePublisher();
             //commandPublisher.Publish(new ReplayProjection(new ProjectionArId("e588e9ee-ef50-4e02-ac83-189adca51a6c"), null));
 
@@ -53,7 +54,17 @@ namespace Elders.Cronus.Sample.UI
 
             var cfg = new CronusSettings(container)
                 .UseContractsFromAssemblies(new Assembly[] { Assembly.GetAssembly(typeof(RegisterAccount)), Assembly.GetAssembly(typeof(CreateUser)), Assembly.GetAssembly(typeof(ProjectionVersionManagerId)) })
-                .UseRabbitMqTransport(x => x.Server = "docker-local.com");
+                .UseAzureServiceBusTransport(x =>
+                {
+                    x.ClientId = "162af3b1-ed60-4382-8ce8-a1199e0b5c31";
+                    x.ClientSecret = "Jej7RF6wTtgTOoqhZokc+gROk2UovFaL+zG1YF2/ous=";
+                    x.ResourceGroup = "mvclientshared.integration.all";
+                    x.SubscriptionId = "b12a87ce-85b9-4780-afac-cc4295574db4";
+                    x.TenantId = "a43960df-8c6f-4854-8628-7f61120c33f8";
+                    x.ConnectionString = "Endpoint=sb://mvclientshared-integration-all-srvbus-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=BQNROS3Pw8i5YIsoAclpWbkgHrZvUdPqlJdS/RCVc9c=";
+                    x.Namespace = "mvclientshared-integration-all-srvbus-namespace";
+                });
+            //.UseRabbitMqTransport(x => x.Server = "docker-local.com");
 
             var collaborationProjections = typeof(Collaboration.Users.Projections.UserProjection).Assembly.GetTypes().Where(x => typeof(IProjectionDefinition).IsAssignableFrom(x));
             cfg.ConfigureCassandraProjectionsStore(x => x
@@ -63,7 +74,7 @@ namespace Elders.Cronus.Sample.UI
             (cfg as ISettingsBuilder).Build();
 
             var serializer = container.Resolve<ISerializer>();
-            commandPublisher = (container.Resolve<ITransport>() as RabbitMqTransport).GetPublisher<ICommand>(serializer);
+            commandPublisher = (container.Resolve<ITransport>() as AzureBusTransport).GetPublisher<ICommand>(serializer);
         }
 
         private static AccountId SingleCreationCommandFromUpstreamBC(int index)
@@ -116,6 +127,7 @@ namespace Elders.Cronus.Sample.UI
                     var theId = sentCommands.Dequeue();
                     var userId = new UserId(theId.Id);
                     var result = repo.Get<Collaboration.Users.Projections.UserProjection>(userId);
+
                     Console.WriteLine(result.Success + "     " + userId.ToString());
                 }
             }

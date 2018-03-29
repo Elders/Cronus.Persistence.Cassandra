@@ -14,6 +14,7 @@ using Elders.Cronus.Cluster.Config;
 using Elders.Cronus.Persistence.Cassandra.Config;
 using System.Configuration;
 using Elders.Cronus.Projections.Versioning;
+using Elders.Cronus.Transport.AzureServiceBus;
 
 namespace Elders.Cronus.Sample.Projections
 {
@@ -45,7 +46,17 @@ namespace Elders.Cronus.Sample.Projections
             cfg.UseProjectionConsumer("Projection", consumer => consumer
                  .WithDefaultPublishers()
                  .SetNumberOfConsumerThreads(5)
-                 .UseRabbitMqTransport(x => x.Server = "docker-local.com")
+                 .UseAzureServiceBusTransport(x =>
+                {
+                    x.ClientId = "162af3b1-ed60-4382-8ce8-a1199e0b5c31";
+                    x.ClientSecret = "Jej7RF6wTtgTOoqhZokc+gROk2UovFaL+zG1YF2/ous=";
+                    x.ResourceGroup = "mvclientshared.integration.all";
+                    x.SubscriptionId = "b12a87ce-85b9-4780-afac-cc4295574db4";
+                    x.TenantId = "a43960df-8c6f-4854-8628-7f61120c33f8";
+                    x.ConnectionString = "Endpoint=sb://mvclientshared-integration-all-srvbus-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=BQNROS3Pw8i5YIsoAclpWbkgHrZvUdPqlJdS/RCVc9c=";
+                    x.Namespace = "mvclientshared-integration-all-srvbus-namespace";
+                })
+                 //.UseRabbitMqTransport(x => x.Server = "docker-local.com")
                  .UseProjections(h => h
                      .RegisterHandlerTypes(systemProjections, projection_serviceLocator.Resolve)
                      .UseCassandraProjections(x => x
@@ -56,7 +67,17 @@ namespace Elders.Cronus.Sample.Projections
             var systemSaga_serviceLocator = new ServiceLocator(container, "SystemSaga");
             cfg.UseSagaConsumer("SystemSaga", consumer => consumer
                  .WithDefaultPublishers()
-                 .UseRabbitMqTransport(x => x.Server = "docker-local.com")
+                 .UseAzureServiceBusTransport(x =>
+                {
+                    x.ClientId = "162af3b1-ed60-4382-8ce8-a1199e0b5c31";
+                    x.ClientSecret = "Jej7RF6wTtgTOoqhZokc+gROk2UovFaL+zG1YF2/ous=";
+                    x.ResourceGroup = "mvclientshared.integration.all";
+                    x.SubscriptionId = "b12a87ce-85b9-4780-afac-cc4295574db4";
+                    x.TenantId = "a43960df-8c6f-4854-8628-7f61120c33f8";
+                    x.ConnectionString = "Endpoint=sb://mvclientshared-integration-all-srvbus-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=BQNROS3Pw8i5YIsoAclpWbkgHrZvUdPqlJdS/RCVc9c=";
+                    x.Namespace = "mvclientshared-integration-all-srvbus-namespace";
+                })
+                 //.UseRabbitMqTransport(x => x.Server = "docker-local.com")
                  .ConfigureCassandraProjectionsStore(proj => proj
                     .SetProjectionTypes(typeof(ProjectionBuilder).Assembly)
                     .SetProjectionsConnectionString("Contact Points=docker-local.com;Port=9042;Default Keyspace=cronus_sample_20180213"))

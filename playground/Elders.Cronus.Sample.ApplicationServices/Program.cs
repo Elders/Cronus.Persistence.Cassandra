@@ -16,6 +16,8 @@ using Elders.Cronus.Projections;
 using Elders.Cronus.Cluster;
 using System.Linq;
 using Elders.Cronus.Projections.Versioning;
+using RabbitMQ.Client;
+using Elders.Cronus.Transport.AzureServiceBus;
 
 namespace Elders.Cronus.Sample.ApplicationService
 {
@@ -24,6 +26,11 @@ namespace Elders.Cronus.Sample.ApplicationService
         static CronusHost host;
         static void Main(string[] args)
         {
+            //var connStr = @"amqps://RootManageSharedAccessKey:BQNROS3Pw8i5YIsoAclpWbkgHrZvUdPqlJdS%2FRCVc9c%3D@mvclientshared-integration-all-srvbus-namespace.servicebus.windows.net";
+            //var gg = new AmqpTcpEndpoint(connStr);
+
+            //var fact = new ConnectionFactory(){ }
+
             log4net.Config.XmlConfigurator.Configure();
             UseCronusHostWithCassandraEventStore();
             System.Console.WriteLine("Started command handlers");
@@ -47,7 +54,17 @@ namespace Elders.Cronus.Sample.ApplicationService
             string SYSTEM = "SYSTEM";
             var SYSTEM_appServiceFactory = new ServiceLocator(container, SYSTEM);
             cfg.UseCommandConsumer(SYSTEM, consumer => consumer
-                .UseRabbitMqTransport(x => x.Server = "docker-local.com")
+            .UseAzureServiceBusTransport(x =>
+                {
+                    x.ClientId = "162af3b1-ed60-4382-8ce8-a1199e0b5c31";
+                    x.ClientSecret = "Jej7RF6wTtgTOoqhZokc+gROk2UovFaL+zG1YF2/ous=";
+                    x.ResourceGroup = "mvclientshared.integration.all";
+                    x.SubscriptionId = "b12a87ce-85b9-4780-afac-cc4295574db4";
+                    x.TenantId = "a43960df-8c6f-4854-8628-7f61120c33f8";
+                    x.ConnectionString = "Endpoint=sb://mvclientshared-integration-all-srvbus-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=BQNROS3Pw8i5YIsoAclpWbkgHrZvUdPqlJdS/RCVc9c=";
+                    x.Namespace = "mvclientshared-integration-all-srvbus-namespace";
+                })
+                //.UseRabbitMqTransport(x => x.Server = "docker-local.com")
                 .WithDefaultPublishers()
                 .UseCassandraEventStore(eventStore => eventStore
                     .SetConnectionString(ConfigurationManager.ConnectionStrings["cronus_es"].ConnectionString)
@@ -55,10 +72,22 @@ namespace Elders.Cronus.Sample.ApplicationService
                 .UseSystemServices(cmdHandler => cmdHandler.RegisterHandlersInAssembly(new[] { typeof(ProjectionVersionManagerAppService).Assembly }, SYSTEM_appServiceFactory.Resolve))
             );
 
+            //Endpoint = sb://mvclientshared-integration-all-srvbus-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=BQNROS3Pw8i5YIsoAclpWbkgHrZvUdPqlJdS/RCVc9c=
             string IAA = "IAA";
             var IAA_appServiceFactory = new ServiceLocator(container, IAA);
             cfg.UseCommandConsumer(IAA, consumer => consumer
-                .UseRabbitMqTransport(x => x.Server = "docker-local.com")
+            .UseAzureServiceBusTransport(x =>
+                {
+                    x.ClientId = "162af3b1-ed60-4382-8ce8-a1199e0b5c31";
+                    x.ClientSecret = "Jej7RF6wTtgTOoqhZokc+gROk2UovFaL+zG1YF2/ous=";
+                    x.ResourceGroup = "mvclientshared.integration.all";
+                    x.SubscriptionId = "b12a87ce-85b9-4780-afac-cc4295574db4";
+                    x.TenantId = "a43960df-8c6f-4854-8628-7f61120c33f8";
+                    x.ConnectionString = "Endpoint=sb://mvclientshared-integration-all-srvbus-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=BQNROS3Pw8i5YIsoAclpWbkgHrZvUdPqlJdS/RCVc9c=";
+                    x.Namespace = "mvclientshared-integration-all-srvbus-namespace";
+                })
+                //.UseRabbitMqTransport(x => x.Server = "docker-local.com")
+                //.UseAzureServiceBus
                 .SetNumberOfConsumerThreads(5)
                 .WithDefaultPublishers()
                 .UseCassandraEventStore(eventStore => eventStore
@@ -70,7 +99,17 @@ namespace Elders.Cronus.Sample.ApplicationService
             string COLL = "COLL";
             var COLL_appServiceFactory = new ServiceLocator(container, COLL);
             cfg.UseCommandConsumer(COLL, consumer => consumer
-                .UseRabbitMqTransport(x => x.Server = "docker-local.com")
+            .UseAzureServiceBusTransport(x =>
+                {
+                    x.ClientId = "162af3b1-ed60-4382-8ce8-a1199e0b5c31";
+                    x.ClientSecret = "Jej7RF6wTtgTOoqhZokc+gROk2UovFaL+zG1YF2/ous=";
+                    x.ResourceGroup = "mvclientshared.integration.all";
+                    x.SubscriptionId = "b12a87ce-85b9-4780-afac-cc4295574db4";
+                    x.TenantId = "a43960df-8c6f-4854-8628-7f61120c33f8";
+                    x.ConnectionString = "Endpoint=sb://mvclientshared-integration-all-srvbus-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=BQNROS3Pw8i5YIsoAclpWbkgHrZvUdPqlJdS/RCVc9c=";
+                    x.Namespace = "mvclientshared-integration-all-srvbus-namespace";
+                })
+                //.UseRabbitMqTransport(x => x.Server = "docker-local.com")
                 .SetNumberOfConsumerThreads(5)
                 .WithDefaultPublishers()
                 .UseCassandraEventStore(eventStore => eventStore

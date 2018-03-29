@@ -11,6 +11,7 @@ using Elders.Cronus.Sample.Collaboration.Users.Commands;
 using Elders.Cronus.Sample.Collaboration.Users.Projections;
 using Elders.Cronus.Sample.IdentityAndAccess.Accounts.Commands;
 using Elders.Cronus.Serializer;
+using Elders.Cronus.Transport.AzureServiceBus;
 using Elders.Cronus.Transport.RabbitMQ;
 
 namespace Elders.Cronus.Sample.Ports
@@ -35,7 +36,17 @@ namespace Elders.Cronus.Sample.Ports
                 .UseRabbitMqTransport(x => x.Server = "docker-local.com")
                 .UsePortConsumer("Ports", consumable => consumable
                      .WithDefaultPublishers()
-                     .UseRabbitMqTransport(x => x.Server = "docker-local.com")
+                     .UseAzureServiceBusTransport(x =>
+                    {
+                        x.ClientId = "162af3b1-ed60-4382-8ce8-a1199e0b5c31";
+                        x.ClientSecret = "Jej7RF6wTtgTOoqhZokc+gROk2UovFaL+zG1YF2/ous=";
+                        x.ResourceGroup = "mvclientshared.integration.all";
+                        x.SubscriptionId = "b12a87ce-85b9-4780-afac-cc4295574db4";
+                        x.TenantId = "a43960df-8c6f-4854-8628-7f61120c33f8";
+                        x.ConnectionString = "Endpoint=sb://mvclientshared-integration-all-srvbus-namespace.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=BQNROS3Pw8i5YIsoAclpWbkgHrZvUdPqlJdS/RCVc9c=";
+                        x.Namespace = "mvclientshared-integration-all-srvbus-namespace";
+                    })
+                     //.UseRabbitMqTransport(x => x.Server = "docker-local.com")
                      .SetNumberOfConsumerThreads(5)
                      .UsePorts(c => c.RegisterHandlersInAssembly(new[] { Assembly.GetAssembly(typeof(UserProjection)) }, COLL_POOOOORTHandlerFactory.Create)));
 

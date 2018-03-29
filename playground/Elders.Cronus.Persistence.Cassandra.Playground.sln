@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.30723.0
+# Visual Studio 15
+VisualStudioVersion = 15.0.27004.2006
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "BCs", "BCs", "{C48EE418-2275-40E9-B8E8-AF9D7047ED47}"
 EndProject
@@ -35,7 +35,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Elders.Cronus.Sample.Projec
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Elders.Cronus.Sample.InMemoryServer", "Elders.Cronus.Sample.InMemoryServer\Elders.Cronus.Sample.InMemoryServer.csproj", "{0B495064-1425-465E-A2DC-36275A206F0B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Elders.Cronus.Persistence.Cassandra", "..\src\Elders.Cronus.Persistence.Cassandra\Elders.Cronus.Persistence.Cassandra.csproj", "{8A9AB214-7DF8-4CEC-B1EC-A4B0B0BAC185}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Elders.Cronus.Persistence.Cassandra", "..\src\Elders.Cronus.Persistence.Cassandra\Elders.Cronus.Persistence.Cassandra.csproj", "{8A9AB214-7DF8-4CEC-B1EC-A4B0B0BAC185}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -106,5 +106,8 @@ Global
 		{B332D877-A3C3-4609-A5EA-069AE3FC32CF} = {F500DEF9-297B-4BCB-AD06-AF60CE197CA2}
 		{DCB6988D-602C-43FD-A966-2D9446801E03} = {F500DEF9-297B-4BCB-AD06-AF60CE197CA2}
 		{0B495064-1425-465E-A2DC-36275A206F0B} = {E0B49807-D9E4-43CB-B6D6-929A17212D7E}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {D6A512CD-C1D1-46F0-9F8E-0645C935958E}
 	EndGlobalSection
 EndGlobal

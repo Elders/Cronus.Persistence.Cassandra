@@ -92,26 +92,6 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
-        [Obsolete("Use => EventStream Load(IAggregateRootId aggregateId)")]
-        public EventStream Load(IAggregateRootId aggregateId, Func<IAggregateRootId, string> getBoundedContext)
-        {
-            if (ReferenceEquals(null, getBoundedContext)) throw new ArgumentNullException(nameof(getBoundedContext));
-
-            List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
-            string boundedContext = getBoundedContext(aggregateId);
-            BoundStatement bs = GetPreparedStatementToLoadAnAggregateCommit(boundedContext).Bind(Convert.ToBase64String(aggregateId.RawId));
-            var result = session.Execute(bs);
-            foreach (var row in result.GetRows())
-            {
-                var data = row.GetValue<byte[]>("data");
-                using (var stream = new MemoryStream(data))
-                {
-                    aggregateCommits.Add((AggregateCommit)serializer.Deserialize(stream));
-                }
-            }
-            return new EventStream(aggregateCommits);
-        }
-
         public EventStream Load(IAggregateRootId aggregateId)
         {
             List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();

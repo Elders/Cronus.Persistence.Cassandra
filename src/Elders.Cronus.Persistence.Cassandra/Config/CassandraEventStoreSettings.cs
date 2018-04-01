@@ -153,48 +153,6 @@ namespace Elders.Cronus.Persistence.Cassandra.Config
         }
 
         /// <summary>
-        /// Set the aggregate states assembly.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="self"></param>
-        /// <param name="aggregateStatesAssembly">Type that is contained in your Assembly with aggregate states.</param>
-        /// <returns></returns>
-        [Obsolete("Use => SetBoundedContext(...)")]
-        public static T SetAggregateStatesAssembly<T>(this T self, Type aggregateStatesAssembly) where T : ICassandraEventStoreSettings
-        {
-            return self.SetAggregateStatesAssembly(Assembly.GetAssembly(aggregateStatesAssembly));
-        }
-
-        /// <summary>
-        /// Set the aggregate states assembly.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="self"></param>
-        /// <param name="aggregateStatesAssembly">The Assembly with your aggregate states.</param>
-        /// <returns></returns>
-        [Obsolete("Use => SetBoundedContext(...)")]
-        public static T SetAggregateStatesAssembly<T>(this T self, Assembly aggregateStatesAssembly) where T : ICassandraEventStoreSettings
-        {
-            return self.SetAggregateStatesAssembly(aggregateStatesAssembly, aggregateStatesAssembly.GetAssemblyAttribute<BoundedContextAttribute>().BoundedContextName);
-        }
-
-        /// <summary>
-        /// Set the aggregate states assembly.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="self"></param>
-        /// <param name="aggregateStatesAssembly">The Assembly with your aggregate states.</param>
-        /// <param name="boundedContextName">The bounded context that will be used for the event store.</param>
-        /// <returns></returns>
-        [Obsolete("Use => SetBoundedContext(...)")]
-        public static T SetAggregateStatesAssembly<T>(this T self, Assembly aggregateStatesAssembly, string boundedContextName) where T : ICassandraEventStoreSettings
-        {
-            self.BoundedContext = boundedContextName;
-            self.EventStoreTableNameStrategy = new TablePerBoundedContext(aggregateStatesAssembly);
-            return self;
-        }
-
-        /// <summary>
         /// Set the bounded context
         /// </summary>
         public static T SetBoundedContext<T>(this T self, string boundedContextName) where T : ICassandraEventStoreSettings

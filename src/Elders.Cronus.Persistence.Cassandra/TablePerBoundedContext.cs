@@ -36,7 +36,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             string tableName;
             if (!eventsTableName.TryGetValue(boundedContext, out tableName))
             {
-                tableName = String.Format("{0}Events", boundedContext).ToLowerInvariant();
+                tableName = String.Format("{0}Events", boundedContext).ToLower();
                 eventsTableName.TryAdd(boundedContext, tableName);
             }
             return tableName;

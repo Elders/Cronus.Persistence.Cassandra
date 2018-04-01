@@ -1,3 +1,6 @@
+#### 5.0.0-beta0001 - 01.04.2018
+* Removes obsolete code
+
 #### 4.1.1 - 28.03.2018
 * Adds validation check
 

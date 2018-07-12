@@ -21,7 +21,7 @@
     <DefineConstants>TRACE;DEBUG;NETSTANDARD2_0;LIBLOG_PORTABLE</DefineConstants>
   </PropertyGroup>
   <ItemGroup Condition="'$(TargetFramework)'=='netstandard2.0'">
-    <PackageReference Include="Microsoft.CSharp" Version="4.4.1" />
+    <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
   </ItemGroup>
 
   <!--netstandard2.0 == false-->
@@ -36,7 +36,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="LibLog" Version="4.2.6" />
-    <PackageReference Include="Cronus" Version="5.0.0-beta0002" />
-    <PackageReference Include="CassandraCSharpDriver" Version="3.4.1" />
+    <PackageReference Include="Cronus" Version="5.0.0-beta0026" />
+    <PackageReference Include="CassandraCSharpDriver" Version="3.6.0" />
   </ItemGroup>
 </Project>

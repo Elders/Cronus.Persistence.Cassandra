@@ -1,3 +1,6 @@
+#### 5.0.0-beta0002 - 12.07.2018
+* Update packages
+
 #### 5.0.0-beta0001 - 01.04.2018
 * Removes obsolete code
 

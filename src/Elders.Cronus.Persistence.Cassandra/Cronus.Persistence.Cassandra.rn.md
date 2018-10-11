@@ -1,3 +1,6 @@
+#### 5.0.0-discovery0001 - 11.10.2018
+* Updates packages
+
 #### 5.0.0-beta0002 - 12.07.2018
 * Update packages
 

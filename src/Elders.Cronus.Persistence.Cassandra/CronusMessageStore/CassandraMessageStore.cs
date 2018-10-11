@@ -1,6 +1,5 @@
 ﻿using Cassandra;
 using Elders.Cronus.Persistence.Cassandra.Logging;
-using Elders.Cronus.Serializer;
 using System;
 using System.Collections.Generic;
 using System.IO;

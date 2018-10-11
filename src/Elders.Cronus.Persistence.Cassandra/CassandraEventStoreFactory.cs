@@ -6,7 +6,6 @@ using Elders.Cronus.IocContainer;
 using Elders.Cronus.Multitenancy;
 using Elders.Cronus.Persistence.Cassandra.Config;
 using Elders.Cronus.Pipeline.Config;
-using Elders.Cronus.Serializer;
 using DataStaxCassandra = Cassandra;
 
 namespace Elders.Cronus.Persistence.Cassandra

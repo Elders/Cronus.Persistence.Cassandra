@@ -23,23 +23,25 @@ namespace Elders.Cronus.Persistence.Cassandra
             this.replicationStrategy = replicationStrategy;
         }
 
-        public void CreateEventsStorage()
+        public CassandraEventStoreStorageManager(ISession session, ICassandraEventStoreTableNameStrategy tableNameStrategy)
         {
-            foreach (var tableName in tableNameStrategy.GetAllTableNames())
-            {
-                var createEventsTable = String.Format(CreateEventsTableTemplate, tableName).ToLower();
-                session.Execute(createEventsTable);
-            }
+            this.session = session;
+            this.tableNameStrategy = tableNameStrategy;
         }
 
         public void CreateStorage()
         {
-            var createKeySpaceQuery = replicationStrategy.CreateKeySpaceTemplate(keyspace);
-            session.Execute(createKeySpaceQuery);
-            session.ChangeKeyspace(keyspace);
-
             CreateEventsStorage();
             CreateSnapshotsStorage();
+        }
+
+        public void CreateEventsStorage()
+        {
+            foreach (var tableName in tableNameStrategy.GetAllTableNames())
+            {
+                var createEventsTable = string.Format(CreateEventsTableTemplate, tableName).ToLower();
+                session.Execute(createEventsTable);
+            }
         }
 
         public void CreateSnapshotsStorage()

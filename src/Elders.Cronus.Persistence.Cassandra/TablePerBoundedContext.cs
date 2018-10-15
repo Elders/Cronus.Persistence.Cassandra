@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Reflection;
 using Elders.Cronus.EventStore;
+using Microsoft.Extensions.Configuration;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
@@ -9,6 +10,11 @@ namespace Elders.Cronus.Persistence.Cassandra
     {
         private readonly ConcurrentDictionary<string, string> eventsTableName = new ConcurrentDictionary<string, string>();
         private readonly string boundedContextName;
+
+        public TablePerBoundedContext(IConfiguration configuration)
+        {
+            boundedContextName = configuration["cronus_boundedcontext"];
+        }
 
         public TablePerBoundedContext(Assembly aggregatesAssemblies)
         {

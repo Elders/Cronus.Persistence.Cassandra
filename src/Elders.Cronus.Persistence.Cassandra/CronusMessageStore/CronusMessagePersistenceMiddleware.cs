@@ -1,6 +1,5 @@
 ﻿using Elders.Cronus.MessageProcessing;
 using Elders.Cronus.Middleware;
-using Elders.Cronus.Persistence.Cassandra.CronusMessageStore;
 using System;
 
 namespace Elders.Cronus.Persistence.Cassandra.CronusMessageStore

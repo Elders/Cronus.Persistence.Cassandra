@@ -4,6 +4,7 @@ using Elders.Cronus.Discoveries;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
@@ -11,16 +12,16 @@ namespace Elders.Cronus.Persistence.Cassandra
     {
         protected override DiscoveryResult<IEventStore> DiscoverFromAssemblies(DiscoveryContext context)
         {
-            var result = new DiscoveryResult<IEventStore>();
+            return new DiscoveryResult<IEventStore>(GetModels(context));
+        }
 
-            result.Models.Add(new DiscoveredModel(typeof(IEventStoreFactory), typeof(CassandraEventStoreFactory)));
-            result.Models.Add(new DiscoveredModel(typeof(IEventStore), typeof(MultiTenantEventStore)));
-            result.Models.Add(new DiscoveredModel(typeof(CassandraProviderForEventStore)));
-            result.Models.Add(new DiscoveredModel(typeof(ICassandraEventStoreTableNameStrategy), typeof(TablePerBoundedContext)));
-
-            result.Models.Add(new DiscoveredModel(typeof(ICassandraReplicationStrategy), typeof(ICassandraReplicationStrategy), GetReplicationStrategy(context.Configuration)));
-
-            return result;
+        IEnumerable<DiscoveredModel> GetModels(DiscoveryContext context)
+        {
+            yield return new DiscoveredModel(typeof(IEventStoreFactory), typeof(CassandraEventStoreFactory), ServiceLifetime.Transient);
+            yield return new DiscoveredModel(typeof(IEventStore), typeof(MultiTenantEventStore), ServiceLifetime.Transient);
+            yield return new DiscoveredModel(typeof(CassandraProviderForEventStore), typeof(CassandraProviderForEventStore), ServiceLifetime.Transient);
+            yield return new DiscoveredModel(typeof(ICassandraEventStoreTableNameStrategy), typeof(TablePerBoundedContext), ServiceLifetime.Transient);
+            yield return new DiscoveredModel(typeof(ICassandraReplicationStrategy), provider => GetReplicationStrategy(context.Configuration), ServiceLifetime.Transient);
         }
 
         int GetReplocationFactor(IConfiguration configuration)

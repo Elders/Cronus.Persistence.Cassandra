@@ -22,7 +22,7 @@ namespace Elders.Cronus.Persistence.Cassandra.CronusMessageStore
     public static class CronusMessagePersistenceMiddlewareConfig
     {
         /// <summary>
-        /// Allows to store every message which was routed trough the system. <see cref="CronusMessage" /> is the object stored there.
+        /// Allows to store every message which was routed through the system. <see cref="CronusMessage" /> is the object stored there.
         /// </summary>
         /// <param name="self">The current middleware</param>
         /// <param name="settings"></param>

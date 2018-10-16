@@ -1,4 +1,4 @@
-#### 5.0.0-discovery0001 - 11.10.2018
+#### 5.0.0-discovery0002 - 11.10.2018
 * Removes ISettingsBuilder configurations
 
 #### 5.0.0-discovery0001 - 11.10.2018

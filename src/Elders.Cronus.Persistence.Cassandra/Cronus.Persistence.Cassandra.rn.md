@@ -1,3 +1,6 @@
+#### 5.0.0-discovery0003 - 17.10.2018
+* Fixes the lifestyles of the objects
+
 #### 5.0.0-discovery0002 - 11.10.2018
 * Removes ISettingsBuilder configurations
 

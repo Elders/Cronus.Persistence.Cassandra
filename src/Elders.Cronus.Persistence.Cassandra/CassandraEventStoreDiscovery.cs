@@ -17,10 +17,10 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         IEnumerable<DiscoveredModel> GetModels(DiscoveryContext context)
         {
-            yield return new DiscoveredModel(typeof(IEventStoreFactory), typeof(CassandraEventStoreFactory), ServiceLifetime.Transient);
+            yield return new DiscoveredModel(typeof(IEventStoreFactory), typeof(CassandraEventStoreFactory), ServiceLifetime.Singleton);
             yield return new DiscoveredModel(typeof(IEventStore), typeof(MultiTenantEventStore), ServiceLifetime.Transient);
-            yield return new DiscoveredModel(typeof(CassandraProviderForEventStore), typeof(CassandraProviderForEventStore), ServiceLifetime.Transient);
-            yield return new DiscoveredModel(typeof(ICassandraEventStoreTableNameStrategy), typeof(TablePerBoundedContext), ServiceLifetime.Transient);
+            yield return new DiscoveredModel(typeof(CassandraProviderForEventStore), typeof(CassandraProviderForEventStore), ServiceLifetime.Singleton);
+            yield return new DiscoveredModel(typeof(ICassandraEventStoreTableNameStrategy), typeof(TablePerBoundedContext), ServiceLifetime.Singleton);
             yield return new DiscoveredModel(typeof(ICassandraReplicationStrategy), provider => GetReplicationStrategy(context.Configuration), ServiceLifetime.Transient);
         }
 

@@ -27,7 +27,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         int GetReplocationFactor(IConfiguration configuration)
         {
             var replFactorCfg = configuration["cronus_persistence_cassandra_replication_factor"];
-            return string.IsNullOrEmpty(replFactorCfg) ? 2 : int.Parse(replFactorCfg);
+            return string.IsNullOrEmpty(replFactorCfg) ? 1 : int.Parse(replFactorCfg);
         }
 
         ICassandraReplicationStrategy GetReplicationStrategy(IConfiguration configuration)
@@ -38,7 +38,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             ICassandraReplicationStrategy replicationStrategy = null;
             if (string.IsNullOrEmpty(replStratefyCfg))
             {
-                replicationStrategy = new SimpleReplicationStrategy(2);
+                replicationStrategy = new SimpleReplicationStrategy(1);
             }
             else if (replStratefyCfg.Equals("simple", StringComparison.OrdinalIgnoreCase))
             {

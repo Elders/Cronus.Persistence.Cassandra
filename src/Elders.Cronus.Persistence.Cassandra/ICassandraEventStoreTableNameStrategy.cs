@@ -6,6 +6,6 @@ namespace Elders.Cronus.Persistence.Cassandra
     {
         string GetEventsTableName(AggregateCommit aggregateCommit);
         string GetEventsTableName(string boundedContext);
-        string[] GetAllTableNames();
+        string[] GetAllTableNames(string boundedContext);
     }
 }

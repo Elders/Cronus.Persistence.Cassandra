@@ -5,7 +5,7 @@ using System.IO;
 using Cassandra;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.Persistence.Cassandra.Logging;
-using DataStaxCassandra = Cassandra;
+using Microsoft.Extensions.Configuration;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
@@ -20,7 +20,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         private const string InsertEventsQueryTemplate = @"INSERT INTO {0} (id,ts,rev,data) VALUES (?,?,?,?);";
 
         private readonly ISerializer serializer;
-
+        private readonly IConfiguration configuration;
         private readonly ISession session;
 
         private readonly ICassandraEventStoreTableNameStrategy tableNameStrategy;
@@ -28,8 +28,9 @@ namespace Elders.Cronus.Persistence.Cassandra
         private readonly ConcurrentDictionary<string, PreparedStatement> persistAggregateEventsPreparedStatements;
         private readonly ConcurrentDictionary<string, PreparedStatement> loadAggregateEventsPreparedStatements;
 
-        public CassandraEventStore(string boundedContext, ISession session, ICassandraEventStoreTableNameStrategy tableNameStrategy, ISerializer serializer)
+        public CassandraEventStore(IConfiguration configuration, ISession session, ICassandraEventStoreTableNameStrategy tableNameStrategy, ISerializer serializer)
         {
+            string boundedContext = configuration["cronus_boundedcontext"];
             if (string.IsNullOrEmpty(boundedContext)) throw new ArgumentNullException(nameof(boundedContext));
             if (ReferenceEquals(null, session)) throw new ArgumentNullException(nameof(session));
             if (ReferenceEquals(null, tableNameStrategy)) throw new ArgumentNullException(nameof(tableNameStrategy));
@@ -37,6 +38,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
             this.tableNameStrategy = tableNameStrategy;
             this.boundedContext = boundedContext;
+            this.configuration = configuration;
             this.session = session;
             this.serializer = serializer;
             this.persistAggregateEventsPreparedStatements = new ConcurrentDictionary<string, PreparedStatement>();

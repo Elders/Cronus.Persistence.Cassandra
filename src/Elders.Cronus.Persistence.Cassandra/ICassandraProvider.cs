@@ -1,38 +1,45 @@
 ﻿using System;
-using Elders.Cronus.Persistence.Cassandra.Config;
+using Elders.Cronus.MessageProcessing;
 using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
 using Microsoft.Extensions.Configuration;
-using DataStaxCassandra = Cassandra;
+using Cassandra;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
-    public class CassandraProviderForEventStore
+    public interface ICassandraProvider
     {
-        private readonly ICassandraReplicationStrategy replicationStrategy;
+        Cluster GetCluster();
+        ISession GetSession();
+    }
 
-        private DataStaxCassandra.Cluster cluster;
+    public class CassandraProvider : ICassandraProvider
+    {
+        private readonly CronusContext context;
+        private readonly ICassandraReplicationStrategy replicationStrategy;
+        private readonly ICassandraEventStoreTableNameStrategy tableNameStrategy;
+        private Cluster cluster;
 
         private readonly string baseConfigurationKeyspace;
+        public CassandraProvider(IConfiguration configuration, CronusContext context, ICassandraReplicationStrategy replicationStrategy, ICassandraEventStoreTableNameStrategy tableNameStrategy)
+            : this(configuration, context, replicationStrategy, tableNameStrategy, Cluster.Builder()) { }
 
-        public CassandraProviderForEventStore(IConfiguration configuration, ICassandraReplicationStrategy replicationStrategy) : this(configuration, replicationStrategy, DataStaxCassandra.Cluster.Builder()) { }
-
-        public CassandraProviderForEventStore(IConfiguration configuration, ICassandraReplicationStrategy replicationStrategy, DataStaxCassandra.IInitializer initializer)
+        protected CassandraProvider(IConfiguration configuration, CronusContext context, ICassandraReplicationStrategy replicationStrategy, ICassandraEventStoreTableNameStrategy tableNameStrategy, IInitializer initializer)
         {
             if (configuration is null) throw new ArgumentNullException(nameof(configuration));
             if (initializer is null) throw new ArgumentNullException(nameof(initializer));
 
-            DataStaxCassandra.Builder builder = initializer as DataStaxCassandra.Builder;
+            Builder builder = initializer as Builder;
             if (builder is null == false)
             {
                 //  TODO: check inside the `cfg` (var cfg = builder.GetConfiguration();) if we already have connectionString specified
 
                 string connectionString = configuration["cronus_persistence_cassandra_connectionstring"];
 
-                var hackyBuilder = new DataStaxCassandra.CassandraConnectionStringBuilder(connectionString);
+                var hackyBuilder = new CassandraConnectionStringBuilder(connectionString);
                 if (string.IsNullOrEmpty(hackyBuilder.DefaultKeyspace) == false)
                     connectionString = connectionString.Replace(hackyBuilder.DefaultKeyspace, "");
 
-                var connStrBuilder = new DataStaxCassandra.CassandraConnectionStringBuilder(connectionString);
+                var connStrBuilder = new CassandraConnectionStringBuilder(connectionString);
 
                 baseConfigurationKeyspace = hackyBuilder.DefaultKeyspace;
 
@@ -43,24 +50,29 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
             else
             {
-                cluster = DataStaxCassandra.Cluster.BuildFrom(initializer);
+                cluster = Cluster.BuildFrom(initializer);
             }
 
+            this.context = context;
             this.replicationStrategy = replicationStrategy;
+            this.tableNameStrategy = tableNameStrategy;
+
+            var storageManager = new CassandraEventStoreStorageManager(configuration, GetSession(), tableNameStrategy);
+            storageManager.CreateStorage();
         }
 
-        public DataStaxCassandra.Cluster GetCluster()
+        public Cluster GetCluster()
         {
             return cluster;
         }
 
-        public DataStaxCassandra.ISession GetSession(string tenant)
+        public ISession GetSession()
         {
-            string tenantPrefix = string.IsNullOrEmpty(tenant) ? string.Empty : $"{tenant}_";
+            string tenantPrefix = string.IsNullOrEmpty(context.Tenant) ? string.Empty : $"{context.Tenant}_";
             var keyspace = $"{tenantPrefix}{baseConfigurationKeyspace}";
             if (keyspace.Length > 48) throw new ArgumentException($"Cassandra keyspace exceeds maximum length of 48. Keyspace: {keyspace}");
 
-            DataStaxCassandra.ISession session = GetCluster().Connect();
+            ISession session = GetCluster().Connect();
             session.CreateKeyspace(keyspace, replicationStrategy);
 
             return session;

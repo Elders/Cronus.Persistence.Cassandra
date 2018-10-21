@@ -1,7 +1,7 @@
 ﻿using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
 using DataStaxCassandra = Cassandra;
 
-namespace Elders.Cronus.Persistence.Cassandra.Config
+namespace Elders.Cronus.Persistence.Cassandra
 {
     public static class CasssandraExtensions
     {

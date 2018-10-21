@@ -1,6 +1,6 @@
 ﻿using Cassandra;
 
-namespace Elders.Cronus.Persistence.Cassandra.Config
+namespace Elders.Cronus.Persistence.Cassandra
 {
     public class EventStoreNoHintedHandOff : IRetryPolicy
     {

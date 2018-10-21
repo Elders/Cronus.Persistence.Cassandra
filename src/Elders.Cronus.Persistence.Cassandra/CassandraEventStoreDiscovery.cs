@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using Cassandra;
 using Elders.Cronus.Discoveries;
 using Elders.Cronus.EventStore;
+using Elders.Cronus.EventStore.Index;
+using Elders.Cronus.MessageProcessing;
 using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,11 +20,24 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         IEnumerable<DiscoveredModel> GetModels(DiscoveryContext context)
         {
-            yield return new DiscoveredModel(typeof(IEventStoreFactory), typeof(CassandraEventStoreFactory), ServiceLifetime.Singleton);
-            yield return new DiscoveredModel(typeof(IEventStore), typeof(MultiTenantEventStore), ServiceLifetime.Transient);
-            yield return new DiscoveredModel(typeof(CassandraProviderForEventStore), typeof(CassandraProviderForEventStore), ServiceLifetime.Singleton);
+            yield return new DiscoveredModel(typeof(IEventStore), typeof(CassandraEventStore), ServiceLifetime.Transient);
+            yield return new DiscoveredModel(typeof(IEventStorePlayer), typeof(CassandraEventStorePlayer), ServiceLifetime.Transient);
+            yield return new DiscoveredModel(typeof(EventStoreIndex), typeof(EventStoreIndex), ServiceLifetime.Transient);
+
+            yield return new DiscoveredModel(typeof(CassandraProvider), typeof(CassandraProvider), ServiceLifetime.Transient);
+            yield return new DiscoveredModel(typeof(ICassandraProvider), provider =>
+            {
+                var cc = provider.GetRequiredService<CronusContext>();
+                var asd = provider.GetRequiredService<SingletonPerTenant<CassandraProvider>>();
+                return asd.Get();
+            }, ServiceLifetime.Transient);
+            yield return new DiscoveredModel(typeof(ISession), provider => provider.GetRequiredService<ICassandraProvider>().GetSession(), ServiceLifetime.Transient);
+
             yield return new DiscoveredModel(typeof(ICassandraEventStoreTableNameStrategy), typeof(TablePerBoundedContext), ServiceLifetime.Singleton);
             yield return new DiscoveredModel(typeof(ICassandraReplicationStrategy), provider => GetReplicationStrategy(context.Configuration), ServiceLifetime.Transient);
+
+            yield return new DiscoveredModel(typeof(IIndexStatusStore), typeof(CassandraIndexStatusStore), ServiceLifetime.Transient);
+            yield return new DiscoveredModel(typeof(IIndexStore), typeof(IndexByEventTypeStore), ServiceLifetime.Transient);
         }
 
         int GetReplocationFactor(IConfiguration configuration)

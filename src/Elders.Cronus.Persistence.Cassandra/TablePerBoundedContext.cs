@@ -1,30 +1,12 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Reflection;
 using Elders.Cronus.EventStore;
-using Microsoft.Extensions.Configuration;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
     public class TablePerBoundedContext : ICassandraEventStoreTableNameStrategy
     {
         private readonly ConcurrentDictionary<string, string> eventsTableName = new ConcurrentDictionary<string, string>();
-        private readonly string boundedContextName;
-
-        public TablePerBoundedContext(IConfiguration configuration)
-        {
-            boundedContextName = configuration["cronus_boundedcontext"];
-        }
-
-        public TablePerBoundedContext(Assembly aggregatesAssemblies)
-        {
-            this.boundedContextName = aggregatesAssemblies.GetBoundedContext().BoundedContextName;
-        }
-
-        public TablePerBoundedContext(string boundedContextName)
-        {
-            this.boundedContextName = boundedContextName;
-        }
 
         public string GetEventsTableName(AggregateCommit aggregateCommit)
         {
@@ -32,9 +14,9 @@ namespace Elders.Cronus.Persistence.Cassandra
             return GetEventsTableName(boundedContext);
         }
 
-        public string[] GetAllTableNames()
+        public string[] GetAllTableNames(string boundedContext)
         {
-            return (new System.Collections.Generic.List<string>() { GetEventsTableName(boundedContextName) }).ToArray();
+            return (new System.Collections.Generic.List<string>() { GetEventsTableName(boundedContext) }).ToArray();
         }
 
         public string GetEventsTableName(string boundedContext)

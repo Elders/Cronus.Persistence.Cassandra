@@ -28,18 +28,18 @@ namespace Elders.Cronus.Persistence.Cassandra
         private readonly ConcurrentDictionary<string, PreparedStatement> persistAggregateEventsPreparedStatements;
         private readonly ConcurrentDictionary<string, PreparedStatement> loadAggregateEventsPreparedStatements;
 
-        public CassandraEventStore(IConfiguration configuration, ISession session, ICassandraEventStoreTableNameStrategy tableNameStrategy, ISerializer serializer)
+        public CassandraEventStore(IConfiguration configuration, ICassandraProvider cassandraProvider, ICassandraEventStoreTableNameStrategy tableNameStrategy, ISerializer serializer)
         {
             string boundedContext = configuration["cronus_boundedcontext"];
             if (string.IsNullOrEmpty(boundedContext)) throw new ArgumentNullException(nameof(boundedContext));
-            if (ReferenceEquals(null, session)) throw new ArgumentNullException(nameof(session));
+            if (ReferenceEquals(null, cassandraProvider)) throw new ArgumentNullException(nameof(cassandraProvider));
             if (ReferenceEquals(null, tableNameStrategy)) throw new ArgumentNullException(nameof(tableNameStrategy));
             if (ReferenceEquals(null, serializer)) throw new ArgumentNullException(nameof(serializer));
 
             this.tableNameStrategy = tableNameStrategy;
             this.boundedContext = boundedContext;
             this.configuration = configuration;
-            this.session = session;
+            this.session = cassandraProvider.GetSession();
             this.serializer = serializer;
             this.persistAggregateEventsPreparedStatements = new ConcurrentDictionary<string, PreparedStatement>();
             this.loadAggregateEventsPreparedStatements = new ConcurrentDictionary<string, PreparedStatement>();

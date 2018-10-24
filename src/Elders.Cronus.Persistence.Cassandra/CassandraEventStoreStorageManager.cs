@@ -21,19 +21,19 @@ namespace Elders.Cronus.Persistence.Cassandra
         private const string INDEX_BY_EVENT_TYPE_TABLE_NAME = "index_by_eventtype";
 
         private readonly string boundedContext;
-        private readonly ISession session;
+        private readonly ISession schema;
         private readonly ICassandraEventStoreTableNameStrategy tableNameStrategy;
         private readonly ILock @lock;
         private readonly TimeSpan lockTtl;
 
-        public CassandraEventStoreStorageManager(IConfiguration configuration, ISession session, ICassandraEventStoreTableNameStrategy tableNameStrategy, ILock @lock)
+        public CassandraEventStoreStorageManager(IConfiguration configuration, ISession schemaSession, ICassandraEventStoreTableNameStrategy tableNameStrategy, ILock @lock)
         {
             if (configuration is null) throw new ArgumentNullException(nameof(configuration));
-            if (session is null) throw new ArgumentNullException(nameof(session));
+            if (schemaSession is null) throw new ArgumentNullException(nameof(schemaSession));
             if (tableNameStrategy is null) throw new ArgumentNullException(nameof(tableNameStrategy));
 
             this.boundedContext = configuration["cronus_boundedcontext"];
-            this.session = session;
+            this.schema = schemaSession;
             this.tableNameStrategy = tableNameStrategy;
             this.@lock = @lock;
             this.lockTtl = TimeSpan.FromSeconds(2);
@@ -74,12 +74,12 @@ namespace Elders.Cronus.Persistence.Cassandra
             {
                 try
                 {
-                    log.Info(() => $"[Event Store] Creating table `{tableName}` with `{session.Cluster.AllHosts().First().Address}` in keyspace `{session.Keyspace}`...");
+                    log.Info(() => $"[Event Store] Creating table `{tableName}` with `{schema.Cluster.AllHosts().First().Address}` in keyspace `{schema.Keyspace}`...");
 
                     var createEventsTable = string.Format(cqlQuery, tableName).ToLower();
-                    session.Execute(createEventsTable);
+                    schema.Execute(createEventsTable);
 
-                    log.Info(() => $"[Event Store] Created table `{tableName}` in keyspace `{session.Keyspace}`...");
+                    log.Info(() => $"[Event Store] Created table `{tableName}` in keyspace `{schema.Keyspace}`...");
                 }
                 catch (Exception)
                 {

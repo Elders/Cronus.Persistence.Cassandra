@@ -18,14 +18,14 @@ namespace Elders.Cronus.Persistence.Cassandra
         private readonly ISession session;
         private readonly PreparedStatement loadAggregateEventsPreparedStatement;
 
-        public CassandraEventStorePlayer(IConfiguration configuration, ISession session, ICassandraEventStoreTableNameStrategy tableNameStrategy, ISerializer serializer)
+        public CassandraEventStorePlayer(IConfiguration configuration, ICassandraProvider cassandraProvider, ICassandraEventStoreTableNameStrategy tableNameStrategy, ISerializer serializer)
         {
             string boundedContext = configuration["cronus_boundedcontext"];
             if (string.IsNullOrEmpty(boundedContext)) throw new ArgumentNullException(nameof(boundedContext));
 
             this.serializer = serializer;
             this.tableNameStrategy = tableNameStrategy;
-            this.session = session;
+            this.session = cassandraProvider.GetSession();
             this.loadAggregateEventsPreparedStatement = session.Prepare(String.Format(LoadAggregateEventsQueryTemplate, tableNameStrategy.GetEventsTableName(boundedContext)));
         }
 

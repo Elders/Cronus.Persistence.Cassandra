@@ -1,8 +1,4 @@
-﻿using System;
-using Elders.Cronus.MessageProcessing;
-using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
-using Microsoft.Extensions.Configuration;
-using Cassandra;
+﻿using Cassandra;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
@@ -10,5 +6,6 @@ namespace Elders.Cronus.Persistence.Cassandra
     {
         Cluster GetCluster();
         ISession GetSession();
+        ISession GetSchemaSession();
     }
 }

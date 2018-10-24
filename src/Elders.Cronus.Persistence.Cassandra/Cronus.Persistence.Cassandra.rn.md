@@ -1,3 +1,6 @@
+#### 5.0.0-discovery0006 - 24.10.2018
+* Code cleanup
+
 #### 5.0.0-discovery0005 - 21.10.2018
 * Adds event store index storage
 

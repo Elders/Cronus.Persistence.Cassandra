@@ -15,11 +15,11 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private readonly ISession session;
 
-        public IndexByEventTypeStore(ISession session)
+        public IndexByEventTypeStore(ICassandraProvider cassandraProvider)
         {
-            if (session is null) throw new ArgumentNullException(nameof(session));
+            if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
 
-            this.session = session;
+            this.session = cassandraProvider.GetSession();
         }
 
         public void Apend(IEnumerable<IndexRecord> indexRecords)
@@ -36,7 +36,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
             catch (WriteTimeoutException ex)
             {
-                log.WarnException("Write timeout while persisting in IndexByEventTypeStore", ex);
+                log.WarnException("[EventStore] Write timeout while persisting in IndexByEventTypeStore", ex);
             }
         }
 

@@ -3,9 +3,9 @@ using DataStaxCassandra = Cassandra;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
-    public static class CasssandraExtensions
+    static class CasssandraExtensions
     {
-        internal static void CreateKeyspace(this DataStaxCassandra.ISession session, string keyspace, ICassandraReplicationStrategy replicationStrategy)
+        public static void CreateKeyspace(this DataStaxCassandra.ISession session, string keyspace, ICassandraReplicationStrategy replicationStrategy)
         {
             var createKeySpaceQuery = replicationStrategy.CreateKeySpaceTemplate(keyspace);
             session.Execute(createKeySpaceQuery);

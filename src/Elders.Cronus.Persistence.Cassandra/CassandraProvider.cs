@@ -23,7 +23,10 @@ namespace Elders.Cronus.Persistence.Cassandra
         protected CassandraProvider(IConfiguration configuration, CronusContext context, ICassandraReplicationStrategy replicationStrategy, ICassandraEventStoreTableNameStrategy tableNameStrategy, IInitializer initializer, ILock @lock)
         {
             if (configuration is null) throw new ArgumentNullException(nameof(configuration));
+            if (replicationStrategy is null) throw new ArgumentNullException(nameof(replicationStrategy));
+            if (tableNameStrategy is null) throw new ArgumentNullException(nameof(tableNameStrategy));
             if (initializer is null) throw new ArgumentNullException(nameof(initializer));
+            if (@lock is null) throw new ArgumentNullException(nameof(@lock));
 
             Builder builder = initializer as Builder;
             if (builder is null == false)
@@ -54,7 +57,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             this.replicationStrategy = replicationStrategy;
             this.tableNameStrategy = tableNameStrategy;
             this.@lock = @lock;
-            var storageManager = new CassandraEventStoreStorageManager(configuration, GetSchemaSession(), tableNameStrategy, @lock);
+            var storageManager = new CassandraEventStoreSchema(configuration, GetSchemaSession(), tableNameStrategy, @lock);
             storageManager.CreateStorage();
         }
 

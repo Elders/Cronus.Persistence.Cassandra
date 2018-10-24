@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using Cassandra;
@@ -25,48 +24,22 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private readonly ICassandraEventStoreTableNameStrategy tableNameStrategy;
 
-        private readonly ConcurrentDictionary<string, PreparedStatement> persistAggregateEventsPreparedStatements;
-        private readonly ConcurrentDictionary<string, PreparedStatement> loadAggregateEventsPreparedStatements;
+        private PreparedStatement writeStatement;
+        private PreparedStatement readStatement;
 
         public CassandraEventStore(IConfiguration configuration, ICassandraProvider cassandraProvider, ICassandraEventStoreTableNameStrategy tableNameStrategy, ISerializer serializer)
         {
             string boundedContext = configuration["cronus_boundedcontext"];
-            if (string.IsNullOrEmpty(boundedContext)) throw new ArgumentNullException(nameof(boundedContext));
-            if (ReferenceEquals(null, cassandraProvider)) throw new ArgumentNullException(nameof(cassandraProvider));
-            if (ReferenceEquals(null, tableNameStrategy)) throw new ArgumentNullException(nameof(tableNameStrategy));
-            if (ReferenceEquals(null, serializer)) throw new ArgumentNullException(nameof(serializer));
+            if (string.IsNullOrEmpty(boundedContext)) throw new ArgumentException("Missing setting: cronus_boundedcontext");
+            if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
+            if (tableNameStrategy is null) throw new ArgumentNullException(nameof(tableNameStrategy));
+            if (serializer is null) throw new ArgumentNullException(nameof(serializer));
 
             this.tableNameStrategy = tableNameStrategy;
             this.boundedContext = boundedContext;
             this.configuration = configuration;
             this.session = cassandraProvider.GetSession();
             this.serializer = serializer;
-            this.persistAggregateEventsPreparedStatements = new ConcurrentDictionary<string, PreparedStatement>();
-            this.loadAggregateEventsPreparedStatements = new ConcurrentDictionary<string, PreparedStatement>();
-        }
-
-        private PreparedStatement GetPreparedStatementToPersistAnAggregateCommit(AggregateCommit aggregateCommit)
-        {
-            PreparedStatement persistAggregatePreparedStatement;
-            if (persistAggregateEventsPreparedStatements.TryGetValue(aggregateCommit.BoundedContext, out persistAggregatePreparedStatement) == false)
-            {
-                string tableName = tableNameStrategy.GetEventsTableName(boundedContext);
-                persistAggregatePreparedStatement = session.Prepare(string.Format(InsertEventsQueryTemplate, tableName));
-                persistAggregateEventsPreparedStatements.TryAdd(aggregateCommit.BoundedContext, persistAggregatePreparedStatement);
-            }
-
-            persistAggregatePreparedStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-
-            return persistAggregatePreparedStatement;
-        }
-
-        private byte[] SerializeEvent(AggregateCommit commit)
-        {
-            using (var stream = new MemoryStream())
-            {
-                serializer.Serialize(stream, commit);
-                return stream.ToArray();
-            }
         }
 
         public void Append(AggregateCommit aggregateCommit)
@@ -76,19 +49,19 @@ namespace Elders.Cronus.Persistence.Cassandra
             try
             {
                 session
-                    .Execute(GetPreparedStatementToPersistAnAggregateCommit(aggregateCommit)
+                    .Execute(GetWriteStatement()
                         .Bind(Convert.ToBase64String(aggregateCommit.AggregateRootId), aggregateCommit.Timestamp, aggregateCommit.Revision, data));
             }
             catch (WriteTimeoutException ex)
             {
-                log.WarnException("Write timeout while persisting an aggregate commit", ex);
+                log.WarnException("[EventStore] Write timeout while persisting an aggregate commit", ex);
             }
         }
 
         public EventStream Load(IAggregateRootId aggregateId)
         {
             List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
-            BoundStatement bs = GetPreparedStatementToLoadAnAggregateCommit(boundedContext).Bind(Convert.ToBase64String(aggregateId.RawId));
+            BoundStatement bs = GetReadStatement().Bind(Convert.ToBase64String(aggregateId.RawId));
             var result = session.Execute(bs);
             foreach (var row in result.GetRows())
             {
@@ -101,19 +74,37 @@ namespace Elders.Cronus.Persistence.Cassandra
             return new EventStream(aggregateCommits);
         }
 
-        private PreparedStatement GetPreparedStatementToLoadAnAggregateCommit(string boundedContext)
+        private byte[] SerializeEvent(AggregateCommit commit)
         {
-            PreparedStatement loadAggregatePreparedStatement;
-            if (loadAggregateEventsPreparedStatements.TryGetValue(boundedContext, out loadAggregatePreparedStatement) == false)
+            using (var stream = new MemoryStream())
+            {
+                serializer.Serialize(stream, commit);
+                return stream.ToArray();
+            }
+        }
+
+        private PreparedStatement GetWriteStatement()
+        {
+            if (writeStatement is null)
             {
                 string tableName = tableNameStrategy.GetEventsTableName(boundedContext);
-                loadAggregatePreparedStatement = session.Prepare(string.Format(LoadAggregateEventsQueryTemplate, tableName));
-                loadAggregateEventsPreparedStatements.TryAdd(boundedContext, loadAggregatePreparedStatement);
+                writeStatement = session.Prepare(string.Format(InsertEventsQueryTemplate, tableName));
+                writeStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
             }
 
-            loadAggregatePreparedStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            return writeStatement;
+        }
 
-            return loadAggregatePreparedStatement;
+        private PreparedStatement GetReadStatement()
+        {
+            if (readStatement is null)
+            {
+                string tableName = tableNameStrategy.GetEventsTableName(boundedContext);
+                readStatement = session.Prepare(string.Format(LoadAggregateEventsQueryTemplate, tableName));
+                readStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
+
+            return readStatement;
         }
     }
 }

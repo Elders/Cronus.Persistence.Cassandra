@@ -15,11 +15,11 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private readonly ISession session;
 
-        public CassandraIndexStatusStore(ISession session)
+        public CassandraIndexStatusStore(ICassandraProvider session)
         {
             if (session is null) throw new ArgumentNullException(nameof(session));
 
-            this.session = session;
+            this.session = session.GetSession();
         }
 
         public IndexStatus Get(string indexId)
@@ -38,7 +38,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
             catch (WriteTimeoutException ex)
             {
-                log.WarnException("Write timeout while persisting in CassandraIndexStatusStore", ex);
+                log.WarnException("[EventStore] Write timeout while persisting in CassandraIndexStatusStore", ex);
             }
         }
     }

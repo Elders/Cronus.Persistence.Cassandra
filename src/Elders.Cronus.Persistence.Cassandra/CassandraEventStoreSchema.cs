@@ -8,13 +8,13 @@ using Microsoft.Extensions.Configuration;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
-    public class CassandraEventStoreStorageManager : IEventStoreStorageManager
+    public class CassandraEventStoreSchema : IEventStoreStorageManager
     {
-        static ILog log = LogProvider.GetLogger(typeof(CassandraEventStoreStorageManager));
+        static ILog log = LogProvider.GetLogger(typeof(CassandraEventStoreSchema));
 
         private const string CREATE_EVENTS_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id text, ts bigint, rev int, data blob, PRIMARY KEY (id,rev,ts)) WITH CLUSTERING ORDER BY (rev ASC);";
         private const string CREATE_INDEX_STATUS_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id text, status text, PRIMARY KEY (id));";
-        private const string CREATE_INDEX_BY_EVENT_TYPE_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (et text, aid text, PRIMARY KEY (et));";
+        private const string CREATE_INDEX_BY_EVENT_TYPE_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (et text, aid text, PRIMARY KEY (et,aid));";
         //private const string CreateSnapshotsTableTemplate = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id uuid, ver int, ts bigint, data blob, PRIMARY KEY (id,ver));";
 
         private const string INDEX_STATUS_TABLE_NAME = "index_status";
@@ -26,13 +26,14 @@ namespace Elders.Cronus.Persistence.Cassandra
         private readonly ILock @lock;
         private readonly TimeSpan lockTtl;
 
-        public CassandraEventStoreStorageManager(IConfiguration configuration, ISession schemaSession, ICassandraEventStoreTableNameStrategy tableNameStrategy, ILock @lock)
+        public CassandraEventStoreSchema(IConfiguration configuration, ISession schemaSession, ICassandraEventStoreTableNameStrategy tableNameStrategy, ILock @lock)
         {
             if (configuration is null) throw new ArgumentNullException(nameof(configuration));
+            boundedContext = configuration["cronus_boundedcontext"];
+            if (string.IsNullOrEmpty(boundedContext)) throw new ArgumentException("Missing setting: cronus_boundedcontext");
             if (schemaSession is null) throw new ArgumentNullException(nameof(schemaSession));
             if (tableNameStrategy is null) throw new ArgumentNullException(nameof(tableNameStrategy));
 
-            this.boundedContext = configuration["cronus_boundedcontext"];
             this.schema = schemaSession;
             this.tableNameStrategy = tableNameStrategy;
             this.@lock = @lock;
@@ -49,10 +50,8 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public void CreateEventsStorage()
         {
-            foreach (var tableName in tableNameStrategy.GetAllTableNames(boundedContext))
-            {
-                CreateTable(CREATE_EVENTS_TABLE_TEMPLATE, tableName);
-            }
+            string tableName = tableNameStrategy.GetEventsTableName(boundedContext);
+            CreateTable(CREATE_EVENTS_TABLE_TEMPLATE, tableName);
         }
 
         public void CreateSnapshotsStorage()
@@ -67,19 +66,18 @@ namespace Elders.Cronus.Persistence.Cassandra
             CreateTable(CREATE_INDEX_BY_EVENT_TYPE_TABLE_TEMPLATE, INDEX_BY_EVENT_TYPE_TABLE_NAME);
         }
 
-
         void CreateTable(string cqlQuery, string tableName)
         {
             if (@lock.Lock(tableName, lockTtl))
             {
                 try
                 {
-                    log.Info(() => $"[Event Store] Creating table `{tableName}` with `{schema.Cluster.AllHosts().First().Address}` in keyspace `{schema.Keyspace}`...");
+                    log.Debug(() => $"[EventStore] Creating table `{tableName}` with `{schema.Cluster.AllHosts().First().Address}` in keyspace `{schema.Keyspace}`...");
 
                     var createEventsTable = string.Format(cqlQuery, tableName).ToLower();
                     schema.Execute(createEventsTable);
 
-                    log.Info(() => $"[Event Store] Created table `{tableName}` in keyspace `{schema.Keyspace}`...");
+                    log.Debug(() => $"[EventStore] Created table `{tableName}` in keyspace `{schema.Keyspace}`...");
                 }
                 catch (Exception)
                 {
@@ -92,7 +90,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
             else
             {
-                log.Info($"[Event Store] Could not acquire lock for `{tableName}` to create table.");
+                log.Warn($"[EventStore] Could not acquire lock for `{tableName}` to create table.");
             }
         }
     }

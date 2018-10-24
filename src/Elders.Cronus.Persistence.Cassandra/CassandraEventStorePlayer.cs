@@ -20,8 +20,12 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public CassandraEventStorePlayer(IConfiguration configuration, ICassandraProvider cassandraProvider, ICassandraEventStoreTableNameStrategy tableNameStrategy, ISerializer serializer)
         {
+            if (configuration is null) throw new ArgumentNullException(nameof(configuration));
             string boundedContext = configuration["cronus_boundedcontext"];
-            if (string.IsNullOrEmpty(boundedContext)) throw new ArgumentNullException(nameof(boundedContext));
+            if (string.IsNullOrEmpty(boundedContext)) throw new ArgumentException("Missing setting: cronus_boundedcontext");
+            if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
+            if (tableNameStrategy is null) throw new ArgumentNullException(nameof(tableNameStrategy));
+            if (serializer is null) throw new ArgumentNullException(nameof(serializer));
 
             this.serializer = serializer;
             this.tableNameStrategy = tableNameStrategy;
@@ -45,7 +49,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                     }
                     catch (Exception ex)
                     {
-                        string error = "Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
+                        string error = "[EventStore] Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
                         log.ErrorException(error, ex);
                         continue;
                     }

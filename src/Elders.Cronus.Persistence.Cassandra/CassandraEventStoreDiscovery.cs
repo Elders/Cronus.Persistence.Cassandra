@@ -4,7 +4,6 @@ using Cassandra;
 using Elders.Cronus.Discoveries;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.EventStore.Index;
-using Elders.Cronus.MessageProcessing;
 using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,12 +24,8 @@ namespace Elders.Cronus.Persistence.Cassandra
             yield return new DiscoveredModel(typeof(EventStoreIndex), typeof(EventStoreIndex), ServiceLifetime.Transient);
 
             yield return new DiscoveredModel(typeof(CassandraProvider), typeof(CassandraProvider), ServiceLifetime.Transient);
-            yield return new DiscoveredModel(typeof(ICassandraProvider), provider =>
-            {
-                var cc = provider.GetRequiredService<CronusContext>();
-                var asd = provider.GetRequiredService<SingletonPerTenant<CassandraProvider>>();
-                return asd.Get();
-            }, ServiceLifetime.Transient);
+            yield return new DiscoveredModel(typeof(ICassandraProvider), provider => provider.GetRequiredService<SingletonPerTenant<CassandraProvider>>().Get(), ServiceLifetime.Transient);
+
             yield return new DiscoveredModel(typeof(ISession), provider => provider.GetRequiredService<ICassandraProvider>().GetSession(), ServiceLifetime.Transient);
 
             yield return new DiscoveredModel(typeof(ICassandraEventStoreTableNameStrategy), typeof(TablePerBoundedContext), ServiceLifetime.Singleton);
@@ -38,6 +33,8 @@ namespace Elders.Cronus.Persistence.Cassandra
 
             yield return new DiscoveredModel(typeof(IIndexStatusStore), typeof(CassandraIndexStatusStore), ServiceLifetime.Transient);
             yield return new DiscoveredModel(typeof(IIndexStore), typeof(IndexByEventTypeStore), ServiceLifetime.Transient);
+
+            yield return new DiscoveredModel(typeof(CassandraEventStoreSchema), ServiceLifetime.Transient);
         }
 
         int GetReplocationFactor(IConfiguration configuration)

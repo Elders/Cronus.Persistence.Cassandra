@@ -6,6 +6,5 @@ namespace Elders.Cronus.Persistence.Cassandra
     {
         Cluster GetCluster();
         ISession GetSession();
-        ISession GetSchemaSession();
     }
 }

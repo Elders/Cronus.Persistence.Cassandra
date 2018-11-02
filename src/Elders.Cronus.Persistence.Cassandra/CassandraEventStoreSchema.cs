@@ -8,7 +8,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
-    public class CassandraEventStoreSchema : IEventStoreStorageManager
+    public class CassandraEventStoreSchema
     {
         static ILog log = LogProvider.GetLogger(typeof(CassandraEventStoreSchema));
 

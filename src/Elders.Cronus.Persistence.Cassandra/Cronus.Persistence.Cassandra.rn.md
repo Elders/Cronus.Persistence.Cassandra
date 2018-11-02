@@ -1,3 +1,7 @@
+#### 5.0.0-discovery0009 - 02.11.2018
+* Bumps Cronus
+* Reworks the CassandraProvider
+
 #### 5.0.0-discovery0008 - 02.11.2018
 * Bumps Cronus
 * Reworks the CassandraProvider

@@ -22,7 +22,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private string baseConfigurationKeyspace;
 
-        protected CassandraProvider(IConfiguration configuration, CronusContext context, ICassandraReplicationStrategy replicationStrategy, ICassandraEventStoreTableNameStrategy tableNameStrategy, IInitializer initializer, ILock @lock)
+        protected CassandraProvider(IConfiguration configuration, CronusContext context, ICassandraReplicationStrategy replicationStrategy, ICassandraEventStoreTableNameStrategy tableNameStrategy, IInitializer initializer = null)
         {
             if (configuration is null) throw new ArgumentNullException(nameof(configuration));
             if (replicationStrategy is null) throw new ArgumentNullException(nameof(replicationStrategy));
@@ -45,7 +45,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                 builder = Cluster.Builder();
                 //  TODO: check inside the `cfg` (var cfg = builder.GetConfiguration();) if we already have connectionString specified
 
-                string connectionString = configuration[ConnectionStringSettingKey];
+                string connectionString = configuration.GetRequired(ConnectionStringSettingKey);
 
                 var hackyBuilder = new CassandraConnectionStringBuilder(connectionString);
                 if (string.IsNullOrEmpty(hackyBuilder.DefaultKeyspace) == false)
@@ -55,6 +55,8 @@ namespace Elders.Cronus.Persistence.Cassandra
                 var connStrBuilder = new CassandraConnectionStringBuilder(connectionString);
                 cluster = connStrBuilder
                     .ApplyToBuilder(builder)
+                    .WithReconnectionPolicy(new ExponentialReconnectionPolicy(100, 100000))
+                    .WithRetryPolicy(new NoHintedHandOffRetryPolicy())
                     .Build();
             }
 
@@ -91,6 +93,29 @@ namespace Elders.Cronus.Persistence.Cassandra
             var createKeySpaceQuery = replicationStrategy.CreateKeySpaceTemplate(keyspace);
             session.Execute(createKeySpaceQuery);
             session.ChangeKeyspace(keyspace);
+        }
+    }
+
+    class NoHintedHandOffRetryPolicy : IRetryPolicy
+    {
+        public RetryDecision OnReadTimeout(IStatement query, ConsistencyLevel cl, int requiredResponses, int receivedResponses, bool dataRetrieved, int nbRetry)
+        {
+            if (nbRetry != 0)
+                return RetryDecision.Rethrow();
+
+            return receivedResponses >= requiredResponses && !dataRetrieved
+                       ? RetryDecision.Retry(cl)
+                       : RetryDecision.Rethrow();
+        }
+
+        public RetryDecision OnUnavailable(IStatement query, ConsistencyLevel cl, int requiredReplica, int aliveReplica, int nbRetry)
+        {
+            return RetryDecision.Rethrow();
+        }
+
+        public RetryDecision OnWriteTimeout(IStatement query, ConsistencyLevel cl, string writeType, int requiredAcks, int receivedAcks, int nbRetry)
+        {
+            return RetryDecision.Rethrow();
         }
     }
 }

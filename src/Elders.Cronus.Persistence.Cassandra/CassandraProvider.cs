@@ -22,7 +22,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private string baseConfigurationKeyspace;
 
-        protected CassandraProvider(IConfiguration configuration, CronusContext context, ICassandraReplicationStrategy replicationStrategy, ICassandraEventStoreTableNameStrategy tableNameStrategy, IInitializer initializer = null)
+        public CassandraProvider(IConfiguration configuration, CronusContext context, ICassandraReplicationStrategy replicationStrategy, ICassandraEventStoreTableNameStrategy tableNameStrategy, IInitializer initializer = null)
         {
             if (configuration is null) throw new ArgumentNullException(nameof(configuration));
             if (replicationStrategy is null) throw new ArgumentNullException(nameof(replicationStrategy));

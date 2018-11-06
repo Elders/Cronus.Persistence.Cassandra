@@ -1,3 +1,6 @@
+#### 5.0.0-discovery0011 - 06.11.2018
+* Fixes the ctor of the CassandraProvider
+
 #### 5.0.0-discovery0010 - 02.11.2018
 * Fixes the CassandraEventStoreSchema discovery registration
 

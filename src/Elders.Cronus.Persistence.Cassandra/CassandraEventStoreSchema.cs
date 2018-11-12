@@ -2,9 +2,7 @@ using System;
 using System.Linq;
 using Cassandra;
 using Elders.Cronus.AtomicAction;
-using Elders.Cronus.EventStore;
 using Elders.Cronus.Persistence.Cassandra.Logging;
-using Microsoft.Extensions.Configuration;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
@@ -20,23 +18,21 @@ namespace Elders.Cronus.Persistence.Cassandra
         private const string INDEX_STATUS_TABLE_NAME = "index_status";
         private const string INDEX_BY_EVENT_TYPE_TABLE_NAME = "index_by_eventtype";
 
-        private readonly string boundedContext;
+        private readonly BoundedContext boundedContext;
         private readonly ISession session;
         private readonly ICassandraEventStoreTableNameStrategy tableNameStrategy;
         private readonly ILock @lock;
         private readonly TimeSpan lockTtl;
 
-        public CassandraEventStoreSchema(IConfiguration configuration, CassandraProvider cassandraProvider, ICassandraEventStoreTableNameStrategy tableNameStrategy, ILock @lock)
+        public CassandraEventStoreSchema(BoundedContext boundedContext, CassandraProvider cassandraProvider, ICassandraEventStoreTableNameStrategy tableNameStrategy, ILock @lock)
         {
-            if (configuration is null) throw new ArgumentNullException(nameof(configuration));
-            boundedContext = configuration["cronus_boundedcontext"];
-            if (string.IsNullOrEmpty(boundedContext)) throw new ArgumentException("Missing setting: cronus_boundedcontext");
             if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
-            if (tableNameStrategy is null) throw new ArgumentNullException(nameof(tableNameStrategy));
 
+            this.boundedContext = boundedContext ?? throw new ArgumentNullException(nameof(boundedContext));
             this.session = cassandraProvider.GetSession();
-            this.tableNameStrategy = tableNameStrategy;
+            this.tableNameStrategy = tableNameStrategy ?? throw new ArgumentNullException(nameof(tableNameStrategy));
             this.@lock = @lock;
+
             this.lockTtl = TimeSpan.FromSeconds(2);
             if (lockTtl == TimeSpan.Zero) throw new ArgumentException("Lock ttl must be more than 0", nameof(lockTtl));
         }
@@ -50,7 +46,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public void CreateEventsStorage()
         {
-            string tableName = tableNameStrategy.GetEventsTableName(boundedContext);
+            string tableName = tableNameStrategy.GetEventsTableName(boundedContext.Name);
             CreateTable(CREATE_EVENTS_TABLE_TEMPLATE, tableName);
         }
 

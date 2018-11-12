@@ -46,7 +46,6 @@ namespace Elders.Cronus.Persistence.Cassandra
         ICassandraReplicationStrategy GetReplicationStrategy(IConfiguration configuration)
         {
             var replStratefyCfg = configuration["cronus_persistence_cassandra_replication_strategy"];
-            var replFactorCfg = configuration["cronus_persistence_cassandra_replication_factor"];
 
             ICassandraReplicationStrategy replicationStrategy = null;
             if (string.IsNullOrEmpty(replStratefyCfg))

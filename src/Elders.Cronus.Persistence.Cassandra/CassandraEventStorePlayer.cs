@@ -4,7 +4,6 @@ using System.IO;
 using Cassandra;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.Persistence.Cassandra.Logging;
-using Microsoft.Extensions.Configuration;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
@@ -18,19 +17,15 @@ namespace Elders.Cronus.Persistence.Cassandra
         private readonly ISession session;
         private readonly PreparedStatement loadAggregateEventsPreparedStatement;
 
-        public CassandraEventStorePlayer(IConfiguration configuration, ICassandraProvider cassandraProvider, ICassandraEventStoreTableNameStrategy tableNameStrategy, ISerializer serializer)
+        public CassandraEventStorePlayer(BoundedContext boundedContext, ICassandraProvider cassandraProvider, ICassandraEventStoreTableNameStrategy tableNameStrategy, ISerializer serializer)
         {
-            if (configuration is null) throw new ArgumentNullException(nameof(configuration));
-            string boundedContext = configuration["cronus_boundedcontext"];
-            if (string.IsNullOrEmpty(boundedContext)) throw new ArgumentException("Missing setting: cronus_boundedcontext");
+            if (boundedContext is null) throw new ArgumentNullException(nameof(boundedContext));
             if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
-            if (tableNameStrategy is null) throw new ArgumentNullException(nameof(tableNameStrategy));
-            if (serializer is null) throw new ArgumentNullException(nameof(serializer));
 
-            this.serializer = serializer;
-            this.tableNameStrategy = tableNameStrategy;
+            this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
+            this.tableNameStrategy = tableNameStrategy ?? throw new ArgumentNullException(nameof(tableNameStrategy)); ;
             this.session = cassandraProvider.GetSession();
-            this.loadAggregateEventsPreparedStatement = session.Prepare(String.Format(LoadAggregateEventsQueryTemplate, tableNameStrategy.GetEventsTableName(boundedContext)));
+            this.loadAggregateEventsPreparedStatement = session.Prepare(string.Format(LoadAggregateEventsQueryTemplate, tableNameStrategy.GetEventsTableName(boundedContext.Name)));
         }
 
         public IEnumerable<AggregateCommit> LoadAggregateCommits(int batchSize)

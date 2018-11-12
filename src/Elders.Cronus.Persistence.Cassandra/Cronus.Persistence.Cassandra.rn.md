@@ -1,3 +1,6 @@
+#### 5.0.0-discovery0012 - 06.11.2018
+* Uses `BoundedContext` instead of IConfiguration for capturing the cronus_boundedcontext value_
+
 #### 5.0.0-discovery0011 - 06.11.2018
 * Fixes the ctor of the CassandraProvider
 

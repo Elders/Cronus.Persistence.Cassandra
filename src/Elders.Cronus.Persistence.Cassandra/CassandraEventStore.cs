@@ -7,6 +7,30 @@ using Elders.Cronus.Persistence.Cassandra.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
+    public class CassandraEventStoreSettings : ICassandraEventStoreSettings
+    {
+        public CassandraEventStoreSettings(BoundedContext boundedContext, ICassandraProvider cassandraProvider, ICassandraEventStoreTableNameStrategy tableNameStrategy, ISerializer serializer)
+        {
+            BoundedContext = boundedContext;
+            CassandraProvider = cassandraProvider;
+            TableNameStrategy = tableNameStrategy;
+            Serializer = serializer;
+        }
+
+        public BoundedContext BoundedContext { get; }
+        public ICassandraProvider CassandraProvider { get; }
+        public ICassandraEventStoreTableNameStrategy TableNameStrategy { get; }
+        public ISerializer Serializer { get; }
+    }
+
+    public class CassandraEventStore<TSettings> : CassandraEventStore, IEventStorePlayer<TSettings> where TSettings : class, ICassandraEventStoreSettings
+    {
+        public CassandraEventStore(CassandraEventStoreSettings settings)
+            : base(settings.BoundedContext, settings.CassandraProvider, settings.TableNameStrategy, settings.Serializer)
+        {
+        }
+    }
+
     public class CassandraEventStore : IEventStore, IEventStorePlayer
     {
         private static readonly ILog log = LogProvider.GetLogger(typeof(CassandraEventStore));

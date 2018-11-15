@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Cassandra;
 using Elders.Cronus.Discoveries;
 using Elders.Cronus.EventStore;
@@ -20,7 +21,18 @@ namespace Elders.Cronus.Persistence.Cassandra
         IEnumerable<DiscoveredModel> GetModels(DiscoveryContext context)
         {
             yield return new DiscoveredModel(typeof(IEventStore), typeof(CassandraEventStore), ServiceLifetime.Transient);
+            yield return new DiscoveredModel(typeof(IEventStore<>), typeof(CassandraEventStore<>), ServiceLifetime.Transient);
+
             yield return new DiscoveredModel(typeof(IEventStorePlayer), typeof(CassandraEventStore), ServiceLifetime.Transient);
+            yield return new DiscoveredModel(typeof(IEventStorePlayer<>), typeof(CassandraEventStore<>), ServiceLifetime.Transient);
+
+            var cassandraSettings = context.Assemblies.SelectMany(asm => asm.GetLoadableTypes())
+                .Where(type => type.IsAbstract == false && type.IsInterface == false && typeof(ICassandraEventStoreSettings).IsAssignableFrom(type));
+            foreach (var setting in cassandraSettings)
+            {
+                yield return new DiscoveredModel(setting, setting, ServiceLifetime.Transient);
+            }
+
             yield return new DiscoveredModel(typeof(EventStoreIndex), typeof(EventStoreIndex), ServiceLifetime.Transient);
 
             yield return new DiscoveredModel(typeof(CassandraProvider), typeof(CassandraProvider), ServiceLifetime.Transient);

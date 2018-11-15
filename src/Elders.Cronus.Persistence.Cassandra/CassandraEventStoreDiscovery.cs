@@ -20,7 +20,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         IEnumerable<DiscoveredModel> GetModels(DiscoveryContext context)
         {
             yield return new DiscoveredModel(typeof(IEventStore), typeof(CassandraEventStore), ServiceLifetime.Transient);
-            yield return new DiscoveredModel(typeof(IEventStorePlayer), typeof(CassandraEventStorePlayer), ServiceLifetime.Transient);
+            yield return new DiscoveredModel(typeof(IEventStorePlayer), typeof(CassandraEventStore), ServiceLifetime.Transient);
             yield return new DiscoveredModel(typeof(EventStoreIndex), typeof(EventStoreIndex), ServiceLifetime.Transient);
 
             yield return new DiscoveredModel(typeof(CassandraProvider), typeof(CassandraProvider), ServiceLifetime.Transient);

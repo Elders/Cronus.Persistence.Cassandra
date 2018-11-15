@@ -7,12 +7,13 @@ using Elders.Cronus.Persistence.Cassandra.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
-    public class CassandraEventStore : IEventStore
+    public class CassandraEventStore : IEventStore, IEventStorePlayer
     {
         private static readonly ILog log = LogProvider.GetLogger(typeof(CassandraEventStore));
 
         private const string LoadAggregateEventsQueryTemplate = @"SELECT data FROM {0} WHERE id = ?;";
         private const string InsertEventsQueryTemplate = @"INSERT INTO {0} (id,ts,rev,data) VALUES (?,?,?,?);";
+        private const string LoadAggregateCommitsQueryTemplate = @"SELECT data FROM {0};";
 
         private readonly BoundedContext boundedContext;
         private readonly ISerializer serializer;
@@ -21,6 +22,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private PreparedStatement writeStatement;
         private PreparedStatement readStatement;
+        private PreparedStatement replayStatement;
 
         public CassandraEventStore(BoundedContext boundedContext, ICassandraProvider cassandraProvider, ICassandraEventStoreTableNameStrategy tableNameStrategy, ISerializer serializer)
         {
@@ -61,7 +63,33 @@ namespace Elders.Cronus.Persistence.Cassandra
                     aggregateCommits.Add((AggregateCommit)serializer.Deserialize(stream));
                 }
             }
+
             return new EventStream(aggregateCommits);
+        }
+
+        public IEnumerable<AggregateCommit> LoadAggregateCommits(int batchSize)
+        {
+            var queryStatement = GetReplayStatement().Bind().SetPageSize(batchSize);
+            var result = session.Execute(queryStatement);
+            foreach (var row in result.GetRows())
+            {
+                var data = row.GetValue<byte[]>("data");
+                using (var stream = new MemoryStream(data))
+                {
+                    AggregateCommit commit;
+                    try
+                    {
+                        commit = (AggregateCommit)serializer.Deserialize(stream);
+                    }
+                    catch (Exception ex)
+                    {
+                        string error = "[EventStore] Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
+                        log.ErrorException(error, ex);
+                        continue;
+                    }
+                    yield return commit;
+                }
+            }
         }
 
         private byte[] SerializeEvent(AggregateCommit commit)
@@ -95,6 +123,18 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
 
             return readStatement;
+        }
+
+        private PreparedStatement GetReplayStatement()
+        {
+            if (replayStatement is null)
+            {
+                string tableName = tableNameStrategy.GetEventsTableName(boundedContext.Name);
+                replayStatement = session.Prepare(string.Format(LoadAggregateCommitsQueryTemplate, tableName));
+                replayStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
+
+            return replayStatement;
         }
     }
 }

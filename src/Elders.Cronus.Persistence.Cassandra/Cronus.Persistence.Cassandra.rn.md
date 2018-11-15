@@ -1,3 +1,6 @@
+#### 5.0.0-migrations0002 - 15.11.2018
+* Adds EventStore support for generic types
+
 #### 5.0.0-migrations0001 - 15.11.2018
 * Implements the generic interfaces for EventStore and EventStorePlayer
 

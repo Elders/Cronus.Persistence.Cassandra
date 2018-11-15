@@ -1,40 +1,8 @@
-#### 5.0.0-discovery0012 - 06.11.2018
+#### 5.0.0-beta0003 - 15.11.2018
 * Uses `BoundedContext` instead of IConfiguration for capturing the cronus_boundedcontext value_
-
-#### 5.0.0-discovery0011 - 06.11.2018
-* Fixes the ctor of the CassandraProvider
-
-#### 5.0.0-discovery0010 - 02.11.2018
 * Fixes the CassandraEventStoreSchema discovery registration
-
-#### 5.0.0-discovery0009 - 02.11.2018
-* Bumps Cronus
-* Reworks the CassandraProvider
-
-#### 5.0.0-discovery0008 - 02.11.2018
-* Bumps Cronus
-* Reworks the CassandraProvider
-
-#### 5.0.0-discovery0007 - 28.10.2018
-* Bumps Cronus
-
-#### 5.0.0-discovery0006 - 24.10.2018
-* Code cleanup
-
-#### 5.0.0-discovery0005 - 21.10.2018
 * Adds event store index storage
-
-#### 5.0.0-discovery0004 - 18.10.2018
-* Fixes the lifestyles of the objects
-
-#### 5.0.0-discovery0003 - 17.10.2018
-* Fixes the lifestyles of the objects
-
-#### 5.0.0-discovery0002 - 11.10.2018
 * Removes ISettingsBuilder configurations
-
-#### 5.0.0-discovery0001 - 11.10.2018
-* Updates packages
 
 #### 5.0.0-beta0002 - 12.07.2018
 * Update packages

@@ -45,7 +45,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                 builder = Cluster.Builder();
                 //  TODO: check inside the `cfg` (var cfg = builder.GetConfiguration();) if we already have connectionString specified
 
-                string connectionString = configuration.GetRequired(ConnectionStringSettingKey);
+                string connectionString = configuration.GetRequired(GetConnectionStringSettingKey());
 
                 var hackyBuilder = new CassandraConnectionStringBuilder(connectionString);
                 if (string.IsNullOrEmpty(hackyBuilder.DefaultKeyspace) == false)
@@ -66,6 +66,11 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
 
             return cluster;
+        }
+
+        protected virtual string GetConnectionStringSettingKey()
+        {
+            return ConnectionStringSettingKey;
         }
 
         protected virtual string GetKeyspace()

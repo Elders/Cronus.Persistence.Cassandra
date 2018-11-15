@@ -20,11 +20,11 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         IEnumerable<DiscoveredModel> GetModels(DiscoveryContext context)
         {
-            yield return new DiscoveredModel(typeof(IEventStore), typeof(CassandraEventStore), ServiceLifetime.Transient);
             yield return new DiscoveredModel(typeof(IEventStore<>), typeof(CassandraEventStore<>), ServiceLifetime.Transient);
+            yield return new DiscoveredModel(typeof(IEventStore), typeof(CassandraEventStore), ServiceLifetime.Transient);
 
-            yield return new DiscoveredModel(typeof(IEventStorePlayer), typeof(CassandraEventStore), ServiceLifetime.Transient);
             yield return new DiscoveredModel(typeof(IEventStorePlayer<>), typeof(CassandraEventStore<>), ServiceLifetime.Transient);
+            yield return new DiscoveredModel(typeof(IEventStorePlayer), typeof(CassandraEventStore), ServiceLifetime.Transient);
 
             var cassandraSettings = context.Assemblies.SelectMany(asm => asm.GetLoadableTypes())
                 .Where(type => type.IsAbstract == false && type.IsInterface == false && typeof(ICassandraEventStoreSettings).IsAssignableFrom(type));

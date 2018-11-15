@@ -1,3 +1,6 @@
+#### 5.0.0-migrations0001 - 15.11.2018
+* Implements the generic interfaces for EventStore and EventStorePlayer
+
 #### 5.0.0-beta0003 - 15.11.2018
 * Uses `BoundedContext` instead of IConfiguration for capturing the cronus_boundedcontext value_
 * Fixes the CassandraEventStoreSchema discovery registration

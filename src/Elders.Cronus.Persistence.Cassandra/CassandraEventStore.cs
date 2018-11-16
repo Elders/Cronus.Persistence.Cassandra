@@ -36,7 +36,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private const string LoadAggregateEventsQueryTemplate = @"SELECT data FROM {0} WHERE id = ?;";
         private const string InsertEventsQueryTemplate = @"INSERT INTO {0} (id,ts,rev,data) VALUES (?,?,?,?);";
-        private const string LoadAggregateCommitsQueryTemplate = @"SELECT data FROM {0};";
+        private const string LoadAggregateCommitsQueryTemplate = @"SELECT id,ts,rev,data FROM {0};";
 
         private readonly ISerializer serializer;
         private readonly ISession session;

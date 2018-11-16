@@ -1,3 +1,6 @@
+#### 5.0.0-migrations0004 - 16.11.2018
+* Fixes EventStorePlayer query
+
 #### 5.0.0-migrations0003 - 16.11.2018
 * Adds support for AggregateCommitRaw in the CassandraEventStore
 

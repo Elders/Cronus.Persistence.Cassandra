@@ -2,9 +2,8 @@
 {
     public interface ICassandraEventStoreSettings
     {
-        BoundedContext BoundedContext { get; }
         ICassandraProvider CassandraProvider { get; }
         ISerializer Serializer { get; }
-        ICassandraEventStoreTableNameStrategy TableNameStrategy { get; }
+        ITableNamingStrategy TableNameStrategy { get; }
     }
 }

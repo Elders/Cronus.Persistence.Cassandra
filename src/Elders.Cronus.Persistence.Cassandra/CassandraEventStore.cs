@@ -9,24 +9,23 @@ namespace Elders.Cronus.Persistence.Cassandra
 {
     public class CassandraEventStoreSettings : ICassandraEventStoreSettings
     {
-        public CassandraEventStoreSettings(BoundedContext boundedContext, ICassandraProvider cassandraProvider, ICassandraEventStoreTableNameStrategy tableNameStrategy, ISerializer serializer)
+        public CassandraEventStoreSettings(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ISerializer serializer)
         {
-            BoundedContext = boundedContext;
             CassandraProvider = cassandraProvider;
             TableNameStrategy = tableNameStrategy;
             Serializer = serializer;
         }
 
-        public BoundedContext BoundedContext { get; }
         public ICassandraProvider CassandraProvider { get; }
-        public ICassandraEventStoreTableNameStrategy TableNameStrategy { get; }
+        public ITableNamingStrategy TableNameStrategy { get; }
         public ISerializer Serializer { get; }
     }
 
-    public class CassandraEventStore<TSettings> : CassandraEventStore, IEventStorePlayer<TSettings> where TSettings : class, ICassandraEventStoreSettings
+    public class CassandraEventStore<TSettings> : CassandraEventStore, IEventStorePlayer<TSettings>
+        where TSettings : class, ICassandraEventStoreSettings
     {
         public CassandraEventStore(TSettings settings)
-            : base(settings.BoundedContext, settings.CassandraProvider, settings.TableNameStrategy, settings.Serializer)
+            : base(settings.CassandraProvider, settings.TableNameStrategy, settings.Serializer)
         {
         }
     }
@@ -39,16 +38,15 @@ namespace Elders.Cronus.Persistence.Cassandra
         private const string InsertEventsQueryTemplate = @"INSERT INTO {0} (id,ts,rev,data) VALUES (?,?,?,?);";
         private const string LoadAggregateCommitsQueryTemplate = @"SELECT data FROM {0};";
 
-        private readonly BoundedContext boundedContext;
         private readonly ISerializer serializer;
         private readonly ISession session;
-        private readonly ICassandraEventStoreTableNameStrategy tableNameStrategy;
+        private readonly ITableNamingStrategy tableNameStrategy;
 
         private PreparedStatement writeStatement;
         private PreparedStatement readStatement;
         private PreparedStatement replayStatement;
 
-        public CassandraEventStore(BoundedContext boundedContext, ICassandraProvider cassandraProvider, ICassandraEventStoreTableNameStrategy tableNameStrategy, ISerializer serializer)
+        public CassandraEventStore(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ISerializer serializer)
         {
             if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
 
@@ -129,7 +127,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             if (writeStatement is null)
             {
-                string tableName = tableNameStrategy.GetEventsTableName(boundedContext.Name);
+                string tableName = tableNameStrategy.GetName();
                 writeStatement = session.Prepare(string.Format(InsertEventsQueryTemplate, tableName));
                 writeStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
             }
@@ -141,7 +139,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             if (readStatement is null)
             {
-                string tableName = tableNameStrategy.GetEventsTableName(boundedContext.Name);
+                string tableName = tableNameStrategy.GetName();
                 readStatement = session.Prepare(string.Format(LoadAggregateEventsQueryTemplate, tableName));
                 readStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
             }
@@ -153,7 +151,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             if (replayStatement is null)
             {
-                string tableName = tableNameStrategy.GetEventsTableName(boundedContext.Name);
+                string tableName = tableNameStrategy.GetName();
                 replayStatement = session.Prepare(string.Format(LoadAggregateCommitsQueryTemplate, tableName));
                 replayStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
             }

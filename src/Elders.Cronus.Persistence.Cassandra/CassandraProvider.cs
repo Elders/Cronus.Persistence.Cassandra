@@ -1,9 +1,7 @@
 ﻿using System;
-using Elders.Cronus.MessageProcessing;
+using Cassandra;
 using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
 using Microsoft.Extensions.Configuration;
-using Cassandra;
-using Elders.Cronus.AtomicAction;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
@@ -12,9 +10,8 @@ namespace Elders.Cronus.Persistence.Cassandra
         public const string ConnectionStringSettingKey = "cronus_persistence_cassandra_connectionstring";
 
         private readonly IConfiguration configuration;
-        protected readonly CronusContext context;
+        protected readonly IKeyspaceNamingStrategy keyspaceNamingStrategy;
         protected readonly ICassandraReplicationStrategy replicationStrategy;
-        protected readonly ICassandraEventStoreTableNameStrategy tableNameStrategy;
         protected readonly IInitializer initializer;
 
         protected Cluster cluster;
@@ -22,16 +19,14 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private string baseConfigurationKeyspace;
 
-        public CassandraProvider(IConfiguration configuration, CronusContext context, ICassandraReplicationStrategy replicationStrategy, ICassandraEventStoreTableNameStrategy tableNameStrategy, IInitializer initializer = null)
+        public CassandraProvider(IConfiguration configuration, IKeyspaceNamingStrategy keyspaceNamingStrategy, ICassandraReplicationStrategy replicationStrategy, IInitializer initializer = null)
         {
             if (configuration is null) throw new ArgumentNullException(nameof(configuration));
             if (replicationStrategy is null) throw new ArgumentNullException(nameof(replicationStrategy));
-            if (tableNameStrategy is null) throw new ArgumentNullException(nameof(tableNameStrategy));
 
             this.configuration = configuration;
-            this.context = context;
+            this.keyspaceNamingStrategy = keyspaceNamingStrategy;
             this.replicationStrategy = replicationStrategy;
-            this.tableNameStrategy = tableNameStrategy;
         }
 
         public Cluster GetCluster()
@@ -75,11 +70,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         protected virtual string GetKeyspace()
         {
-            string tenantPrefix = string.IsNullOrEmpty(context.Tenant) ? string.Empty : $"{context.Tenant}_";
-            var keyspace = $"{tenantPrefix}{baseConfigurationKeyspace}";
-            if (keyspace.Length > 48) throw new ArgumentException($"Cassandra keyspace exceeds maximum length of 48. Keyspace: {keyspace}");
-
-            return keyspace;
+            return keyspaceNamingStrategy.GetName(baseConfigurationKeyspace).ToLower();
         }
 
         public ISession GetSession()

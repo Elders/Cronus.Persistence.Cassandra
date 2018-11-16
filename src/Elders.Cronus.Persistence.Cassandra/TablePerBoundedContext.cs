@@ -1,21 +1,20 @@
 ﻿using System;
-using System.Collections.Concurrent;
+using Elders.Cronus.MessageProcessing;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
-    public class TablePerBoundedContext : ICassandraEventStoreTableNameStrategy
+    public sealed class TablePerBoundedContext : ITableNamingStrategy
     {
-        private readonly ConcurrentDictionary<string, string> eventsTableName = new ConcurrentDictionary<string, string>();
+        private readonly BoundedContext boundedContext;
 
-        public string GetEventsTableName(string boundedContext)
+        public TablePerBoundedContext(BoundedContext boundedContext)
         {
-            string tableName;
-            if (!eventsTableName.TryGetValue(boundedContext, out tableName))
-            {
-                tableName = String.Format("{0}Events", boundedContext).ToLower();
-                eventsTableName.TryAdd(boundedContext, tableName);
-            }
-            return tableName;
+            this.boundedContext = boundedContext;
+        }
+
+        public string GetName()
+        {
+            return $"{boundedContext.Name}Events".ToLower();
         }
     }
 }

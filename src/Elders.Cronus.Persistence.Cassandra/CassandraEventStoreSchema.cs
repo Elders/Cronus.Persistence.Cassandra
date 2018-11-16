@@ -20,11 +20,11 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private readonly BoundedContext boundedContext;
         private readonly ISession session;
-        private readonly ICassandraEventStoreTableNameStrategy tableNameStrategy;
+        private readonly ITableNamingStrategy tableNameStrategy;
         private readonly ILock @lock;
         private readonly TimeSpan lockTtl;
 
-        public CassandraEventStoreSchema(BoundedContext boundedContext, CassandraProvider cassandraProvider, ICassandraEventStoreTableNameStrategy tableNameStrategy, ILock @lock)
+        public CassandraEventStoreSchema(BoundedContext boundedContext, CassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ILock @lock)
         {
             if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
 
@@ -46,7 +46,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public void CreateEventsStorage()
         {
-            string tableName = tableNameStrategy.GetEventsTableName(boundedContext.Name);
+            string tableName = tableNameStrategy.GetName();
             CreateTable(CREATE_EVENTS_TABLE_TEMPLATE, tableName);
         }
 

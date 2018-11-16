@@ -1,3 +1,6 @@
+#### 5.0.0-migrations0003 - 16.11.2018
+* Adds support for AggregateCommitRaw in the CassandraEventStore
+
 #### 5.0.0-migrations0002 - 15.11.2018
 * Adds EventStore support for generic types
 

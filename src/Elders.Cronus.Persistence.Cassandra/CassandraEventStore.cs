@@ -51,7 +51,6 @@ namespace Elders.Cronus.Persistence.Cassandra
             if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
 
             this.tableNameStrategy = tableNameStrategy ?? throw new ArgumentNullException(nameof(tableNameStrategy));
-            this.boundedContext = boundedContext ?? throw new ArgumentNullException(nameof(boundedContext));
             this.session = cassandraProvider.GetSession();
             this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer)); ;
         }
@@ -114,6 +113,26 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
+        public IEnumerable<AggregateCommitRaw> LoadAggregateCommitsRaw(int batchSize = 5000)
+        {
+            var queryStatement = GetReplayStatement().Bind().SetPageSize(batchSize);
+            var result = session.Execute(queryStatement);
+            foreach (var row in result.GetRows())
+            {
+                string id = row.GetValue<string>("id");
+                byte[] data = row.GetValue<byte[]>("data");
+                int revision = row.GetValue<int>("rev");
+                long timestamp = row.GetValue<long>("ts");
+
+                using (var stream = new MemoryStream(data))
+                {
+                    AggregateCommitRaw commitRaw = new AggregateCommitRaw(id, data, revision, timestamp);
+
+                    yield return commitRaw;
+                }
+            }
+        }
+
         private byte[] SerializeEvent(AggregateCommit commit)
         {
             using (var stream = new MemoryStream())
@@ -157,6 +176,20 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
 
             return replayStatement;
+        }
+
+        public void Append(AggregateCommitRaw aggregateCommitRaw)
+        {
+            try
+            {
+                session
+                    .Execute(GetWriteStatement()
+                        .Bind(aggregateCommitRaw.AggregateRootId, aggregateCommitRaw.Timestamp, aggregateCommitRaw.Revision, aggregateCommitRaw.Data));
+            }
+            catch (WriteTimeoutException ex)
+            {
+                log.WarnException("[EventStore] Write timeout while persisting an aggregate commit", ex);
+            }
         }
     }
 }

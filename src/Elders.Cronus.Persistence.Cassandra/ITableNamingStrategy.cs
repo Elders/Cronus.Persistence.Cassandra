@@ -4,9 +4,4 @@ namespace Elders.Cronus.Persistence.Cassandra
     {
         string GetName();
     }
-
-    public interface IKeyspaceNamingStrategy
-    {
-        string GetName(string baseConfigurationKeyspace);
-    }
 }

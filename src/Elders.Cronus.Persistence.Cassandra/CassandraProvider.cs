@@ -22,11 +22,13 @@ namespace Elders.Cronus.Persistence.Cassandra
         public CassandraProvider(IConfiguration configuration, IKeyspaceNamingStrategy keyspaceNamingStrategy, ICassandraReplicationStrategy replicationStrategy, IInitializer initializer = null)
         {
             if (configuration is null) throw new ArgumentNullException(nameof(configuration));
+            if (keyspaceNamingStrategy is null) throw new ArgumentNullException(nameof(keyspaceNamingStrategy));
             if (replicationStrategy is null) throw new ArgumentNullException(nameof(replicationStrategy));
 
             this.configuration = configuration;
             this.keyspaceNamingStrategy = keyspaceNamingStrategy;
             this.replicationStrategy = replicationStrategy;
+            this.initializer = initializer;
         }
 
         public Cluster GetCluster()

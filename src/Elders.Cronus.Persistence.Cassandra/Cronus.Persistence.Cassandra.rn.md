@@ -1,3 +1,6 @@
+#### 5.0.0-discovery0005 - 21.11.2018
+* Various fixes and improvements
+
 #### 5.0.0-migrations0004 - 16.11.2018
 * Fixes EventStorePlayer query
 

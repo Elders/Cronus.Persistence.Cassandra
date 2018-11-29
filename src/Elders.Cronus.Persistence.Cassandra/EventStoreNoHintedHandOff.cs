@@ -1,8 +1,8 @@
 ﻿using Cassandra;
 
-namespace Elders.Cronus.Persistence.Cassandra.Config
+namespace Elders.Cronus.Persistence.Cassandra
 {
-    public class EventStoreNoHintedHandOff : IRetryPolicy
+    class EventStoreNoHintedHandOff : IRetryPolicy
     {
         public RetryDecision OnReadTimeout(IStatement query, ConsistencyLevel cl, int requiredResponses, int receivedResponses, bool dataRetrieved, int nbRetry)
         {

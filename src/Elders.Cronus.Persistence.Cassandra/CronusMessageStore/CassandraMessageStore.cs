@@ -1,6 +1,5 @@
 ﻿using Cassandra;
 using Elders.Cronus.Persistence.Cassandra.Logging;
-using Elders.Cronus.Serializer;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -15,11 +14,11 @@ namespace Elders.Cronus.Persistence.Cassandra.CronusMessageStore
 
     public class CassandraMessageStore : ICronusMessageStore
     {
+        private static readonly ILog log = LogProvider.GetLogger(typeof(CassandraMessageStore));
+
         private const string MESSAGE_STORE_TABLE_NAME = "Message_Store";
         private const string INSERT_MESSAGE_QUERY_TEMPLATE = @"INSERT INTO ""{0}"" (date,ts,data) VALUES (?,?,?);";
         private const string LOAD_MESSAGES_QUERY_TEMPLATE = @"SELECT data FROM {0};";
-
-        private readonly ILog log;
 
         private readonly ISerializer serializer;
         private readonly ISession session;
@@ -28,7 +27,6 @@ namespace Elders.Cronus.Persistence.Cassandra.CronusMessageStore
         {
             this.session = session;
             this.serializer = serializer;
-            this.log = LogProvider.GetLogger(typeof(CassandraEventStorePlayer));
         }
 
         public void Append(CronusMessage msg)

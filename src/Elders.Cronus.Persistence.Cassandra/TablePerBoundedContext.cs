@@ -1,45 +1,20 @@
 ﻿using System;
-using System.Collections.Concurrent;
-using System.Reflection;
-using Elders.Cronus.EventStore;
+using Elders.Cronus.MessageProcessing;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
-    public class TablePerBoundedContext : ICassandraEventStoreTableNameStrategy
+    public sealed class TablePerBoundedContext : ITableNamingStrategy
     {
-        private readonly ConcurrentDictionary<string, string> eventsTableName = new ConcurrentDictionary<string, string>();
-        private readonly string boundedContextName;
+        private readonly BoundedContext boundedContext;
 
-        public TablePerBoundedContext(Assembly aggregatesAssemblies)
+        public TablePerBoundedContext(BoundedContext boundedContext)
         {
-            this.boundedContextName = aggregatesAssemblies.GetBoundedContext().BoundedContextName;
+            this.boundedContext = boundedContext;
         }
 
-        public TablePerBoundedContext(string boundedContextName)
+        public string GetName()
         {
-            this.boundedContextName = boundedContextName;
-        }
-
-        public string GetEventsTableName(AggregateCommit aggregateCommit)
-        {
-            var boundedContext = aggregateCommit.BoundedContext;
-            return GetEventsTableName(boundedContext);
-        }
-
-        public string[] GetAllTableNames()
-        {
-            return (new System.Collections.Generic.List<string>() { GetEventsTableName(boundedContextName) }).ToArray();
-        }
-
-        public string GetEventsTableName(string boundedContext)
-        {
-            string tableName;
-            if (!eventsTableName.TryGetValue(boundedContext, out tableName))
-            {
-                tableName = String.Format("{0}Events", boundedContext).ToLowerInvariant();
-                eventsTableName.TryAdd(boundedContext, tableName);
-            }
-            return tableName;
+            return $"{boundedContext.Name}Events".ToLower();
         }
     }
 }

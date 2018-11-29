@@ -8,7 +8,7 @@ namespace Elders.Cronus.Persistence.Cassandra.ReplicationStrategies
 
         public SimpleReplicationStrategy(int replicationFactor)
         {
-            if (replicationFactor < 1) throw new ArgumentException("Replication factor should be at least '1'", nameof(replicationFactor));
+            if (replicationFactor < 1) throw new ArgumentException("Replication factor should be at least '1'. Default is 1", nameof(replicationFactor));
 
             ReplicationFactor = replicationFactor;
         }

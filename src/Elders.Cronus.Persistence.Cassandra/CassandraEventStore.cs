@@ -1,70 +1,136 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using Cassandra;
 using Elders.Cronus.EventStore;
-using Elders.Cronus.Serializer;
 using Elders.Cronus.Persistence.Cassandra.Logging;
-using Elders.Cronus.Projections;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
-    public class CassandraEventStore : IEventStore
+    public class CassandraEventStoreSettings : ICassandraEventStoreSettings
     {
-        static readonly ILog log = LogProvider.GetLogger(typeof(CassandraEventStore));
-
-        private readonly string boundedContext;
-
-        private const string LoadAggregateEventsQueryTemplate = @"SELECT data FROM {0} WHERE id = ?;";
-
-        private const string InsertEventsQueryTemplate = @"INSERT INTO {0} (id,ts,rev,data) VALUES (?,?,?,?);";
-
-        private readonly ISerializer serializer;
-
-        private readonly ISession session;
-
-        private readonly ICassandraEventStoreTableNameStrategy tableNameStrategy;
-
-        private readonly ConsistencyLevel writeConsistencyLevel;
-
-        private readonly ConsistencyLevel readConsistencyLevel;
-
-        private readonly ConcurrentDictionary<string, PreparedStatement> persistAggregateEventsPreparedStatements;
-        private readonly ConcurrentDictionary<string, PreparedStatement> loadAggregateEventsPreparedStatements;
-
-        public CassandraEventStore(string boundedContext, ISession session, ICassandraEventStoreTableNameStrategy tableNameStrategy, ISerializer serializer, ConsistencyLevel writeConsistencyLevel, ConsistencyLevel readConsistencyLevel)
+        public CassandraEventStoreSettings(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ISerializer serializer)
         {
-            if (string.IsNullOrEmpty(boundedContext)) throw new ArgumentNullException(nameof(boundedContext));
-            if (ReferenceEquals(null, session)) throw new ArgumentNullException(nameof(session));
-            if (ReferenceEquals(null, tableNameStrategy)) throw new ArgumentNullException(nameof(tableNameStrategy));
-            if (ReferenceEquals(null, serializer)) throw new ArgumentNullException(nameof(serializer));
-            if (ReferenceEquals(null, writeConsistencyLevel)) throw new ArgumentNullException(nameof(writeConsistencyLevel));
-            if (ReferenceEquals(null, readConsistencyLevel)) throw new ArgumentNullException(nameof(readConsistencyLevel));
-
-            this.tableNameStrategy = tableNameStrategy;
-            this.boundedContext = boundedContext;
-            this.session = session;
-            this.serializer = serializer;
-            this.writeConsistencyLevel = writeConsistencyLevel;
-            this.readConsistencyLevel = readConsistencyLevel;
-            this.persistAggregateEventsPreparedStatements = new ConcurrentDictionary<string, PreparedStatement>();
-            this.loadAggregateEventsPreparedStatements = new ConcurrentDictionary<string, PreparedStatement>();
+            CassandraProvider = cassandraProvider;
+            TableNameStrategy = tableNameStrategy;
+            Serializer = serializer;
         }
 
-        private PreparedStatement GetPreparedStatementToPersistAnAggregateCommit(AggregateCommit aggregateCommit)
+        public ICassandraProvider CassandraProvider { get; }
+        public ITableNamingStrategy TableNameStrategy { get; }
+        public ISerializer Serializer { get; }
+    }
+
+    public class CassandraEventStore<TSettings> : CassandraEventStore, IEventStorePlayer<TSettings>
+        where TSettings : class, ICassandraEventStoreSettings
+    {
+        public CassandraEventStore(TSettings settings)
+            : base(settings.CassandraProvider, settings.TableNameStrategy, settings.Serializer)
         {
-            PreparedStatement persistAggregatePreparedStatement;
-            if (persistAggregateEventsPreparedStatements.TryGetValue(aggregateCommit.BoundedContext, out persistAggregatePreparedStatement) == false)
+        }
+    }
+
+    public class CassandraEventStore : IEventStore, IEventStorePlayer
+    {
+        private static readonly ILog log = LogProvider.GetLogger(typeof(CassandraEventStore));
+
+        private const string LoadAggregateEventsQueryTemplate = @"SELECT data FROM {0} WHERE id = ?;";
+        private const string InsertEventsQueryTemplate = @"INSERT INTO {0} (id,ts,rev,data) VALUES (?,?,?,?);";
+        private const string LoadAggregateCommitsQueryTemplate = @"SELECT id,ts,rev,data FROM {0};";
+
+        private readonly ISerializer serializer;
+        private readonly ISession session;
+        private readonly ITableNamingStrategy tableNameStrategy;
+
+        private PreparedStatement writeStatement;
+        private PreparedStatement readStatement;
+        private PreparedStatement replayStatement;
+
+        public CassandraEventStore(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ISerializer serializer)
+        {
+            if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
+
+            this.tableNameStrategy = tableNameStrategy ?? throw new ArgumentNullException(nameof(tableNameStrategy));
+            this.session = cassandraProvider.GetSession();
+            this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer)); ;
+        }
+
+        public void Append(AggregateCommit aggregateCommit)
+        {
+            byte[] data = SerializeEvent(aggregateCommit);
+
+            try
             {
-                string tableName = tableNameStrategy.GetEventsTableName(boundedContext);
-                persistAggregatePreparedStatement = session.Prepare(String.Format(InsertEventsQueryTemplate, tableName));
-                persistAggregateEventsPreparedStatements.TryAdd(aggregateCommit.BoundedContext, persistAggregatePreparedStatement);
+                session
+                    .Execute(GetWriteStatement()
+                        .Bind(Convert.ToBase64String(aggregateCommit.AggregateRootId), aggregateCommit.Timestamp, aggregateCommit.Revision, data));
+            }
+            catch (WriteTimeoutException ex)
+            {
+                log.WarnException("[EventStore] Write timeout while persisting an aggregate commit", ex);
+            }
+        }
+
+        public EventStream Load(IAggregateRootId aggregateId)
+        {
+            List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
+            BoundStatement bs = GetReadStatement().Bind(Convert.ToBase64String(aggregateId.RawId));
+            var result = session.Execute(bs);
+            foreach (var row in result.GetRows())
+            {
+                var data = row.GetValue<byte[]>("data");
+                using (var stream = new MemoryStream(data))
+                {
+                    aggregateCommits.Add((AggregateCommit)serializer.Deserialize(stream));
+                }
             }
 
-            persistAggregatePreparedStatement.SetConsistencyLevel(writeConsistencyLevel);
+            return new EventStream(aggregateCommits);
+        }
 
-            return persistAggregatePreparedStatement;
+        public IEnumerable<AggregateCommit> LoadAggregateCommits(int batchSize)
+        {
+            var queryStatement = GetReplayStatement().Bind().SetPageSize(batchSize);
+            var result = session.Execute(queryStatement);
+            foreach (var row in result.GetRows())
+            {
+                var data = row.GetValue<byte[]>("data");
+                using (var stream = new MemoryStream(data))
+                {
+                    AggregateCommit commit;
+                    try
+                    {
+                        commit = (AggregateCommit)serializer.Deserialize(stream);
+                    }
+                    catch (Exception ex)
+                    {
+                        string error = "[EventStore] Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
+                        log.ErrorException(error, ex);
+                        continue;
+                    }
+                    yield return commit;
+                }
+            }
+        }
+
+        public IEnumerable<AggregateCommitRaw> LoadAggregateCommitsRaw(int batchSize = 5000)
+        {
+            var queryStatement = GetReplayStatement().Bind().SetPageSize(batchSize);
+            var result = session.Execute(queryStatement);
+            foreach (var row in result.GetRows())
+            {
+                string id = row.GetValue<string>("id");
+                byte[] data = row.GetValue<byte[]>("data");
+                int revision = row.GetValue<int>("rev");
+                long timestamp = row.GetValue<long>("ts");
+
+                using (var stream = new MemoryStream(data))
+                {
+                    AggregateCommitRaw commitRaw = new AggregateCommitRaw(id, data, revision, timestamp);
+
+                    yield return commitRaw;
+                }
+            }
         }
 
         private byte[] SerializeEvent(AggregateCommit commit)
@@ -76,71 +142,54 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
-        public void Append(AggregateCommit aggregateCommit)
+        private PreparedStatement GetWriteStatement()
         {
-            byte[] data = SerializeEvent(aggregateCommit);
+            if (writeStatement is null)
+            {
+                string tableName = tableNameStrategy.GetName();
+                writeStatement = session.Prepare(string.Format(InsertEventsQueryTemplate, tableName));
+                writeStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
 
+            return writeStatement;
+        }
+
+        private PreparedStatement GetReadStatement()
+        {
+            if (readStatement is null)
+            {
+                string tableName = tableNameStrategy.GetName();
+                readStatement = session.Prepare(string.Format(LoadAggregateEventsQueryTemplate, tableName));
+                readStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
+
+            return readStatement;
+        }
+
+        private PreparedStatement GetReplayStatement()
+        {
+            if (replayStatement is null)
+            {
+                string tableName = tableNameStrategy.GetName();
+                replayStatement = session.Prepare(string.Format(LoadAggregateCommitsQueryTemplate, tableName));
+                replayStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
+
+            return replayStatement;
+        }
+
+        public void Append(AggregateCommitRaw aggregateCommitRaw)
+        {
             try
             {
                 session
-                    .Execute(GetPreparedStatementToPersistAnAggregateCommit(aggregateCommit)
-                        .Bind(Convert.ToBase64String(aggregateCommit.AggregateRootId), aggregateCommit.Timestamp, aggregateCommit.Revision, data));
+                    .Execute(GetWriteStatement()
+                        .Bind(aggregateCommitRaw.AggregateRootId, aggregateCommitRaw.Timestamp, aggregateCommitRaw.Revision, aggregateCommitRaw.Data));
             }
             catch (WriteTimeoutException ex)
             {
-                log.WarnException("Write timeout while persisting an aggregate commit", ex);
+                log.WarnException("[EventStore] Write timeout while persisting an aggregate commit", ex);
             }
-        }
-
-        [Obsolete("Use => EventStream Load(IAggregateRootId aggregateId)")]
-        public EventStream Load(IAggregateRootId aggregateId, Func<IAggregateRootId, string> getBoundedContext)
-        {
-            if (ReferenceEquals(null, getBoundedContext)) throw new ArgumentNullException(nameof(getBoundedContext));
-
-            List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
-            string boundedContext = getBoundedContext(aggregateId);
-            BoundStatement bs = GetPreparedStatementToLoadAnAggregateCommit(boundedContext).Bind(Convert.ToBase64String(aggregateId.RawId));
-            var result = session.Execute(bs);
-            foreach (var row in result.GetRows())
-            {
-                var data = row.GetValue<byte[]>("data");
-                using (var stream = new MemoryStream(data))
-                {
-                    aggregateCommits.Add((AggregateCommit)serializer.Deserialize(stream));
-                }
-            }
-            return new EventStream(aggregateCommits);
-        }
-
-        public EventStream Load(IAggregateRootId aggregateId)
-        {
-            List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
-            BoundStatement bs = GetPreparedStatementToLoadAnAggregateCommit(boundedContext).Bind(Convert.ToBase64String(aggregateId.RawId));
-            var result = session.Execute(bs);
-            foreach (var row in result.GetRows())
-            {
-                var data = row.GetValue<byte[]>("data");
-                using (var stream = new MemoryStream(data))
-                {
-                    aggregateCommits.Add((AggregateCommit)serializer.Deserialize(stream));
-                }
-            }
-            return new EventStream(aggregateCommits);
-        }
-
-        private PreparedStatement GetPreparedStatementToLoadAnAggregateCommit(string boundedContext)
-        {
-            PreparedStatement loadAggregatePreparedStatement;
-            if (loadAggregateEventsPreparedStatements.TryGetValue(boundedContext, out loadAggregatePreparedStatement) == false)
-            {
-                string tableName = tableNameStrategy.GetEventsTableName(boundedContext);
-                loadAggregatePreparedStatement = session.Prepare(String.Format(LoadAggregateEventsQueryTemplate, tableName));
-                loadAggregateEventsPreparedStatements.TryAdd(boundedContext, loadAggregatePreparedStatement);
-            }
-
-            loadAggregatePreparedStatement.SetConsistencyLevel(readConsistencyLevel);
-
-            return loadAggregatePreparedStatement;
         }
     }
 }

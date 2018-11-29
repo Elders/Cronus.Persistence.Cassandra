@@ -1,29 +1,13 @@
-#### 5.0.0-migrations0005 - 21.11.2018
+#### 5.0.0 - 29.11.2018
 * Various fixes and improvements
-
-#### 5.0.0-migrations0004 - 16.11.2018
 * Fixes EventStorePlayer query
-
-#### 5.0.0-migrations0003 - 16.11.2018
 * Adds support for AggregateCommitRaw in the CassandraEventStore
-
-#### 5.0.0-migrations0002 - 15.11.2018
 * Adds EventStore support for generic types
-
-#### 5.0.0-migrations0001 - 15.11.2018
 * Implements the generic interfaces for EventStore and EventStorePlayer
-
-#### 5.0.0-beta0003 - 15.11.2018
 * Uses `BoundedContext` instead of IConfiguration for capturing the cronus_boundedcontext value_
 * Fixes the CassandraEventStoreSchema discovery registration
 * Adds event store index storage
 * Removes ISettingsBuilder configurations
-
-#### 5.0.0-beta0002 - 12.07.2018
-* Update packages
-
-#### 5.0.0-beta0001 - 01.04.2018
-* Removes obsolete code
 
 #### 4.1.1 - 28.03.2018
 * Adds validation check

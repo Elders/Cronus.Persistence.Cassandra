@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using Cassandra;
 using Elders.Cronus.Discoveries;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.EventStore.Index;
@@ -11,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
-    public class CassandraEventStoreDiscovery : DiscoveryBasedOnExecutingDirAssemblies<IEventStore>
+    public class CassandraEventStoreDiscovery : DiscoveryBase<IEventStore>
     {
         protected override DiscoveryResult<IEventStore> DiscoverFromAssemblies(DiscoveryContext context)
         {

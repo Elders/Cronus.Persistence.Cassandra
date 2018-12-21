@@ -32,7 +32,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Cronus" Version="5.2.0-beta0002" />
+    <PackageReference Include="Cronus" Version="5.2.0-beta0005" />
     <PackageReference Include="CassandraCSharpDriver" Version="3.7.0" />
     <PackageReference Include="LibLog" Version="5.0.3">
       <PrivateAssets>all</PrivateAssets>

@@ -1,3 +1,6 @@
+#### 5.2.0-beta0002 - 21.12.2018
+* Marks CronusCassandraEventStoreStartup with [CronusStartup(Bootstraps.ExternalResource)]
+
 #### 5.2.0-beta0001 - 12.12.2018
 * Adds CronusCassandraEventStoreStartup for creating the initial database
 

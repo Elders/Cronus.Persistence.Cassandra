@@ -1,11 +1,11 @@
-﻿using Elders.Cronus.Hosting;
-using Elders.Cronus.MessageProcessing;
+﻿using Elders.Cronus.MessageProcessing;
 using Elders.Cronus.Multitenancy;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
+    [CronusStartup(Bootstraps.ExternalResource)]
     public class CronusCassandraEventStoreStartup : ICronusStartup
     {
         private readonly IServiceProvider serviceProvider;

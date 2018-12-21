@@ -1,3 +1,6 @@
+#### 5.2.0-beta0003 - 21.12.2018
+* Updates Cronus Package
+
 #### 5.2.0-beta0002 - 21.12.2018
 * Marks CronusCassandraEventStoreStartup with [CronusStartup(Bootstraps.ExternalResource)]
 

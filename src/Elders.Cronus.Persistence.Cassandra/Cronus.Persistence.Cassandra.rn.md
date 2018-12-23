@@ -1,3 +1,6 @@
+#### 5.2.0-beta0004 - 23.12.2018
+* Abstracted CassandraEventStoreSchema for integration testing purposes
+
 #### 5.2.0-beta0003 - 21.12.2018
 * Updates Cronus Package
 

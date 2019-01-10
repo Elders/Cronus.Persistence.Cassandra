@@ -1,13 +1,6 @@
-#### 5.2.0-beta0004 - 23.12.2018
+#### 5.2.0 - 10.01.2019
 * Abstracted CassandraEventStoreSchema for integration testing purposes
-
-#### 5.2.0-beta0003 - 21.12.2018
-* Updates Cronus Package
-
-#### 5.2.0-beta0002 - 21.12.2018
 * Marks CronusCassandraEventStoreStartup with [CronusStartup(Bootstraps.ExternalResource)]
-
-#### 5.2.0-beta0001 - 12.12.2018
 * Adds CronusCassandraEventStoreStartup for creating the initial database
 
 #### 5.1.0 - 10.12.2018

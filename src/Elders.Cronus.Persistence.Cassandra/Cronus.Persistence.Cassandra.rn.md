@@ -1,3 +1,8 @@
+#### 5.2.0 - 10.01.2019
+* Abstracted CassandraEventStoreSchema for integration testing purposes
+* Marks CronusCassandraEventStoreStartup with [CronusStartup(Bootstraps.ExternalResource)]
+* Adds CronusCassandraEventStoreStartup for creating the initial database
+
 #### 5.1.0 - 10.12.2018
 * Updates to DNC 2.2
 

@@ -6,7 +6,7 @@ using Elders.Cronus.Persistence.Cassandra.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
-    public class CassandraEventStoreSchema
+    public class CassandraEventStoreSchema : ICassandraEventStoreSchema
     {
         static ILog log = LogProvider.GetLogger(typeof(CassandraEventStoreSchema));
 

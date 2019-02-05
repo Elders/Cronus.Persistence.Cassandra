@@ -24,7 +24,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         private readonly ILock @lock;
         private readonly TimeSpan lockTtl;
 
-        public CassandraEventStoreSchema(BoundedContext boundedContext, CassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ILock @lock)
+        public CassandraEventStoreSchema(BoundedContext boundedContext, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ILock @lock)
         {
             if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
 

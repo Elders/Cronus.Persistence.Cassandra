@@ -1,3 +1,7 @@
+#### 5.3.0 - 05.02.2019
+* Updated Cronus to 5.3.0
+* Replaced CassandraProvider to ICassandraProvider in CassandraEventStoreSchema so that it can be implemented in Client Projects
+
 #### 5.2.0 - 10.01.2019
 * Abstracted CassandraEventStoreSchema for integration testing purposes
 * Marks CronusCassandraEventStoreStartup with [CronusStartup(Bootstraps.ExternalResource)]

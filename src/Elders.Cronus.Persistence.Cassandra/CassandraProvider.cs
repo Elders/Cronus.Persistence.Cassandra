@@ -1,7 +1,7 @@
 ﻿using System;
 using Cassandra;
 using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
@@ -9,7 +9,10 @@ namespace Elders.Cronus.Persistence.Cassandra
     {
         public const string ConnectionStringSettingKey = "cronus_persistence_cassandra_connectionstring";
 
-        private readonly IConfiguration configuration;
+        private bool optionsHasChanged = true;
+
+        protected CassandraProviderOptions options;
+
         protected readonly IKeyspaceNamingStrategy keyspaceNamingStrategy;
         protected readonly ICassandraReplicationStrategy replicationStrategy;
         protected readonly IInitializer initializer;
@@ -19,13 +22,15 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private string baseConfigurationKeyspace;
 
-        public CassandraProvider(IConfiguration configuration, IKeyspaceNamingStrategy keyspaceNamingStrategy, ICassandraReplicationStrategy replicationStrategy, IInitializer initializer = null)
+        public CassandraProvider(IOptionsMonitor<CassandraProviderOptions> optionsMonitor, IKeyspaceNamingStrategy keyspaceNamingStrategy, ICassandraReplicationStrategy replicationStrategy, IInitializer initializer = null)
         {
-            if (configuration is null) throw new ArgumentNullException(nameof(configuration));
+            if (optionsMonitor is null) throw new ArgumentNullException(nameof(optionsMonitor));
             if (keyspaceNamingStrategy is null) throw new ArgumentNullException(nameof(keyspaceNamingStrategy));
             if (replicationStrategy is null) throw new ArgumentNullException(nameof(replicationStrategy));
 
-            this.configuration = configuration;
+            this.options = optionsMonitor.CurrentValue;
+            optionsMonitor.OnChange(Changed);
+
             this.keyspaceNamingStrategy = keyspaceNamingStrategy;
             this.replicationStrategy = replicationStrategy;
             this.initializer = initializer;
@@ -33,7 +38,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public Cluster GetCluster()
         {
-            if (cluster is null == false)
+            if (cluster is null == false && optionsHasChanged == false)
                 return cluster;
 
             Builder builder = initializer as Builder;
@@ -42,14 +47,16 @@ namespace Elders.Cronus.Persistence.Cassandra
                 builder = Cluster.Builder();
                 //  TODO: check inside the `cfg` (var cfg = builder.GetConfiguration();) if we already have connectionString specified
 
-                string connectionString = configuration.GetRequired(GetConnectionStringSettingKey());
+                string connectionString = options.ConnectionString;
 
                 var hackyBuilder = new CassandraConnectionStringBuilder(connectionString);
                 if (string.IsNullOrEmpty(hackyBuilder.DefaultKeyspace) == false)
-                    connectionString = connectionString.Replace(hackyBuilder.DefaultKeyspace, "");
+                    connectionString = connectionString.Replace(hackyBuilder.DefaultKeyspace, string.Empty);
                 baseConfigurationKeyspace = hackyBuilder.DefaultKeyspace;
 
                 var connStrBuilder = new CassandraConnectionStringBuilder(connectionString);
+
+                cluster?.Shutdown(30000);
                 cluster = connStrBuilder
                     .ApplyToBuilder(builder)
                     .WithReconnectionPolicy(new ExponentialReconnectionPolicy(100, 100000))
@@ -61,6 +68,8 @@ namespace Elders.Cronus.Persistence.Cassandra
             {
                 cluster = Cluster.BuildFrom(initializer);
             }
+
+            optionsHasChanged = false;
 
             return cluster;
         }
@@ -77,8 +86,9 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public ISession GetSession()
         {
-            if (session is null)
+            if (session is null || session.IsDisposed || optionsHasChanged)
             {
+                session?.Dispose();
                 session = GetCluster().Connect();
                 CreateKeyspace(GetKeyspace(), replicationStrategy);
             }
@@ -91,6 +101,15 @@ namespace Elders.Cronus.Persistence.Cassandra
             var createKeySpaceQuery = replicationStrategy.CreateKeySpaceTemplate(keyspace);
             session.Execute(createKeySpaceQuery);
             session.ChangeKeyspace(keyspace);
+        }
+
+        private void Changed(CassandraProviderOptions newOptions)
+        {
+            if (options != newOptions)
+            {
+                options = newOptions;
+                optionsHasChanged = true;
+            }
         }
     }
 

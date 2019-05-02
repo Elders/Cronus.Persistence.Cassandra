@@ -1,3 +1,6 @@
+#### 5.3.1 - 02.05.2019
+* Fixes a memory leak due to TCP Socket management
+
 #### 5.3.0 - 05.02.2019
 * Updated Cronus to 5.3.0
 * Replaced CassandraProvider to ICassandraProvider in CassandraEventStoreSchema so that it can be implemented in Client Projects

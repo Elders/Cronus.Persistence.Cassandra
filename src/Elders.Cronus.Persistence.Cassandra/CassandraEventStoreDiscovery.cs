@@ -4,12 +4,24 @@ using System.Linq;
 using Elders.Cronus.Discoveries;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.EventStore.Index;
+using Elders.Cronus.Hosting;
 using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
+    public class CassandraProviderOptionsProvider : CronusOptionsProviderBase<CassandraProviderOptions>
+    {
+        public CassandraProviderOptionsProvider(IConfiguration configuration) : base(configuration) { }
+
+        public override void Configure(CassandraProviderOptions options)
+        {
+            options.ConnectionString = configuration["cronus_persistence_cassandra_connectionstring"];
+        }
+    }
+
     public class CassandraEventStoreDiscovery : DiscoveryBase<IEventStore>
     {
         protected override DiscoveryResult<IEventStore> DiscoverFromAssemblies(DiscoveryContext context)
@@ -19,6 +31,11 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         IEnumerable<DiscoveredModel> GetModels(DiscoveryContext context)
         {
+            // options
+            yield return new DiscoveredModel(typeof(IConfigureOptions<CassandraProviderOptions>), typeof(CassandraProviderOptionsProvider), ServiceLifetime.Singleton);
+            yield return new DiscoveredModel(typeof(IOptionsChangeTokenSource<CassandraProviderOptions>), typeof(CassandraProviderOptionsProvider), ServiceLifetime.Singleton);
+            yield return new DiscoveredModel(typeof(IOptionsFactory<CassandraProviderOptions>), typeof(CassandraProviderOptionsProvider), ServiceLifetime.Singleton);
+
             yield return new DiscoveredModel(typeof(IEventStore<>), typeof(CassandraEventStore<>), ServiceLifetime.Transient);
             yield return new DiscoveredModel(typeof(IEventStore), typeof(CassandraEventStore), ServiceLifetime.Transient);
 

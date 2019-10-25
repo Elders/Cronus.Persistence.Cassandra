@@ -1,3 +1,8 @@
+#### 6.0.0-beta0001 - 02.05.2019
+* Targets netcoreapp3.0
+* Updates packages
+* Configures AppVeyor
+
 #### 5.3.1 - 02.05.2019
 * Fixes a memory leak due to TCP Socket management
 

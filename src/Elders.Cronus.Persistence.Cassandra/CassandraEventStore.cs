@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using Cassandra;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.Persistence.Cassandra.Logging;
@@ -88,10 +89,46 @@ namespace Elders.Cronus.Persistence.Cassandra
             return new EventStream(aggregateCommits);
         }
 
+        public LoadAggregateCommitsResult LoadAggregateCommits(string paginationToken, int batchSize = 5000)
+        {
+            List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
+
+            byte[] pagingState = Convert.FromBase64String(paginationToken);
+            var queryStatement = GetReplayStatement().Bind().SetPageSize(batchSize).SetPagingState(pagingState);
+
+            RowSet result = session.Execute(queryStatement);
+            foreach (var row in result.GetRows())
+            {
+                var data = row.GetValue<byte[]>("data");
+                using (var stream = new MemoryStream(data))
+                {
+                    AggregateCommit commit;
+                    try
+                    {
+                        commit = (AggregateCommit)serializer.Deserialize(stream);
+                    }
+                    catch (Exception ex)
+                    {
+                        string error = "[EventStore] Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
+                        log.ErrorException(error, ex);
+                        continue;
+                    }
+                    aggregateCommits.Add(commit);
+                }
+            }
+
+            string newPaginationToken = Convert.ToBase64String(result.PagingState);
+            return new LoadAggregateCommitsResult()
+            {
+                Commits = aggregateCommits,
+                PaginationToken = newPaginationToken
+            };
+        }
+
         public IEnumerable<AggregateCommit> LoadAggregateCommits(int batchSize)
         {
             var queryStatement = GetReplayStatement().Bind().SetPageSize(batchSize);
-            var result = session.Execute(queryStatement);
+            RowSet result = session.Execute(queryStatement);
             foreach (var row in result.GetRows())
             {
                 var data = row.GetValue<byte[]>("data");

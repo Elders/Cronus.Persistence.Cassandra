@@ -2,6 +2,7 @@
 using Cassandra;
 using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
 using Microsoft.Extensions.Options;
+using DataStax = Cassandra;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
@@ -17,7 +18,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         protected readonly ICassandraReplicationStrategy replicationStrategy;
         protected readonly IInitializer initializer;
 
-        protected Cluster cluster;
+        protected ICluster cluster;
         protected ISession session;
 
         private string baseConfigurationKeyspace;
@@ -36,7 +37,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             this.initializer = initializer;
         }
 
-        public Cluster GetCluster()
+        public ICluster GetCluster()
         {
             if (cluster is null == false && optionsHasChanged == false)
                 return cluster;
@@ -44,7 +45,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             Builder builder = initializer as Builder;
             if (builder is null)
             {
-                builder = Cluster.Builder();
+                builder = DataStax.Cluster.Builder();
                 //  TODO: check inside the `cfg` (var cfg = builder.GetConfiguration();) if we already have connectionString specified
 
                 string connectionString = options.ConnectionString;
@@ -66,7 +67,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
             else
             {
-                cluster = Cluster.BuildFrom(initializer);
+                cluster = DataStax.Cluster.BuildFrom(initializer);
             }
 
             optionsHasChanged = false;

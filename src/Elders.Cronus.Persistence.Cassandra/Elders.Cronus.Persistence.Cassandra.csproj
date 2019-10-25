@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net472</TargetFrameworks>
+    <OutputType>Library</OutputType>
+    <TargetFramework>netcoreapp3.0</TargetFramework>
   </PropertyGroup>
 
   <!--Nuget-->
@@ -9,7 +10,7 @@
     <Product>Cronus</Product>
     <Title>Cronus</Title>
     <Authors>Elders OSS</Authors>
-    <Copyright>Copyright © Elders OSS 2013</Copyright>
+    <Copyright>Copyright © Elders OSS 2013-2020</Copyright>
     <Description>Cronus is a lightweight framework for building event driven systems with DDD/CQRS in mind</Description>
     <PackageTags>CQRS DDD ES Event store sourcing</PackageTags>
     <PackageLicenseUrl>https://github.com/Elders/Cronus/blob/master/LICENSE</PackageLicenseUrl>
@@ -17,28 +18,20 @@
     <RepositoryUrl>https://github.com/Elders/Cronus.Persistence.Cassandra.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageIconUrl>https://raw.githubusercontent.com/Elders/logo/master/cronus/frame.png</PackageIconUrl>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <AssemblyName>Elders.Cronus.Persistence.Cassandra</AssemblyName>
     <NeutralLanguage>en-US</NeutralLanguage>
     <RootNamespace>Elders.Cronus.Persistence.Cassandra</RootNamespace>
   </PropertyGroup>
 
-  <PropertyGroup>
-    <DefineConstants>TRACE;DEBUG</DefineConstants>
-  </PropertyGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)'=='netstandard2.0'">
-    <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
-  </ItemGroup>
-
   <ItemGroup>
-    <PackageReference Include="Cronus" Version="5.3.1" />
-    <PackageReference Include="CassandraCSharpDriver" Version="3.7.0" />
+    <PackageReference Include="Cronus" Version="6.0.0-beta0002" />
+    <PackageReference Include="CassandraCSharpDriver" Version="3.11.0" />
     <PackageReference Include="LibLog" Version="5.0.5">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="2.2.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="3.0.0" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -18,17 +18,15 @@ namespace Elders.Cronus.Persistence.Cassandra
         private const string INDEX_STATUS_TABLE_NAME = "index_status";
         private const string INDEX_BY_EVENT_TYPE_TABLE_NAME = "index_by_eventtype";
 
-        private readonly BoundedContext boundedContext;
         private readonly ISession session;
         private readonly ITableNamingStrategy tableNameStrategy;
         private readonly ILock @lock;
         private readonly TimeSpan lockTtl;
 
-        public CassandraEventStoreSchema(BoundedContext boundedContext, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ILock @lock)
+        public CassandraEventStoreSchema(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ILock @lock)
         {
             if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
 
-            this.boundedContext = boundedContext ?? throw new ArgumentNullException(nameof(boundedContext));
             this.session = cassandraProvider.GetSession();
             this.tableNameStrategy = tableNameStrategy ?? throw new ArgumentNullException(nameof(tableNameStrategy));
             this.@lock = @lock;

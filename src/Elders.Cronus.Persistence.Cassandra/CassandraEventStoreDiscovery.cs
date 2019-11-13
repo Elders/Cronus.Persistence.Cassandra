@@ -22,11 +22,12 @@ namespace Elders.Cronus.Persistence.Cassandra
         }
     }
 
-    public class CassandraEventStoreDiscovery : DiscoveryBase<IEventStore>
+    public class CassandraEventStoreDiscovery : EventStoreDiscoveryBase
     {
         protected override DiscoveryResult<IEventStore> DiscoverFromAssemblies(DiscoveryContext context)
         {
-            return new DiscoveryResult<IEventStore>(GetModels(context));
+            IEnumerable<DiscoveredModel> models = base.DiscoverFromAssemblies(context).Models.Concat(GetModels(context));
+            return new DiscoveryResult<IEventStore>(models);
         }
 
         IEnumerable<DiscoveredModel> GetModels(DiscoveryContext context)

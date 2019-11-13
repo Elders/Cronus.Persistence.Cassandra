@@ -1,4 +1,8 @@
-#### 6.0.0-beta0001 - 02.05.2019
+#### 6.0.0-beta0002 - 13.11.2019
+* Updates packages
+* Adds manual paging of the event store
+
+#### 6.0.0-beta0001 - 2.05.2019
 * Targets netcoreapp3.0
 * Updates packages
 * Configures AppVeyor

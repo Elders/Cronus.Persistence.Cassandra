@@ -23,8 +23,9 @@ namespace Elders.Cronus.Persistence.Cassandra
             {
                 using (var scope = serviceProvider.CreateScope())
                 {
-                    CronusContext context = scope.ServiceProvider.GetRequiredService<CronusContext>();
-                    context.Initialize(tenant, scope.ServiceProvider);
+                    CronusContextFactory contextFactory = scope.ServiceProvider.GetRequiredService<CronusContextFactory>();
+                    CronusContext context = contextFactory.GetContext(tenant, scope.ServiceProvider);
+
                     scope.ServiceProvider.GetRequiredService<ICassandraEventStoreSchema>().CreateStorage();
                 }
             }

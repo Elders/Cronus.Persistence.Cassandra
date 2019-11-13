@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Text.Json;
 using Cassandra;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.Persistence.Cassandra.Logging;
@@ -89,12 +90,28 @@ namespace Elders.Cronus.Persistence.Cassandra
             return new EventStream(aggregateCommits);
         }
 
+        private PagingInfo GetPagingInfo(string paginationToken)
+        {
+            PagingInfo pagingInfo = new PagingInfo();
+            if (string.IsNullOrEmpty(paginationToken) == false)
+            {
+                string paginationJson = Encoding.UTF8.GetString(Convert.FromBase64String(paginationToken));
+                pagingInfo = JsonSerializer.Deserialize<PagingInfo>(paginationJson);
+            }
+            return pagingInfo;
+        }
+
         public LoadAggregateCommitsResult LoadAggregateCommits(string paginationToken, int batchSize = 5000)
         {
             List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
 
-            byte[] pagingState = Convert.FromBase64String(paginationToken);
-            var queryStatement = GetReplayStatement().Bind().SetPageSize(batchSize).SetPagingState(pagingState);
+            IStatement queryStatement = GetReplayStatement().Bind().SetPageSize(batchSize);
+            PagingInfo pagingInfo = GetPagingInfo(paginationToken);
+            if (pagingInfo.IsFullyFetched)
+                return new LoadAggregateCommitsResult() { PaginationToken = pagingInfo.ToString() };
+
+            if (pagingInfo.HasToken())
+                queryStatement.SetPagingState(pagingInfo.Token);
 
             RowSet result = session.Execute(queryStatement);
             foreach (var row in result.GetRows())
@@ -117,11 +134,10 @@ namespace Elders.Cronus.Persistence.Cassandra
                 }
             }
 
-            string newPaginationToken = Convert.ToBase64String(result.PagingState);
             return new LoadAggregateCommitsResult()
             {
                 Commits = aggregateCommits,
-                PaginationToken = newPaginationToken
+                PaginationToken = PagingInfo.From(result).ToString()
             };
         }
 
@@ -227,6 +243,29 @@ namespace Elders.Cronus.Persistence.Cassandra
             {
                 log.WarnException("[EventStore] Write timeout while persisting an aggregate commit", ex);
             }
+        }
+    }
+
+    public class PagingInfo
+    {
+        public byte[] Token { get; set; }
+
+        public bool IsFullyFetched { get; set; }
+
+        public bool HasToken() => Token is null == false;
+
+        public static PagingInfo From(RowSet result)
+        {
+            return new PagingInfo()
+            {
+                IsFullyFetched = result.IsFullyFetched,
+                Token = result.PagingState
+            };
+        }
+
+        public override string ToString()
+        {
+            return Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(this)));
         }
     }
 }

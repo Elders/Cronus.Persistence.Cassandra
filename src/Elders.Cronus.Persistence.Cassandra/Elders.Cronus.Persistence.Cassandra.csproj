@@ -26,7 +26,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Cronus" Version="6.0.0-beta0006" />
+    <PackageReference Include="Cronus" Version="6.0.0-beta0007" />
     <PackageReference Include="CassandraCSharpDriver" Version="3.12.0" />
     <PackageReference Include="LibLog" Version="5.0.6">
       <PrivateAssets>all</PrivateAssets>

@@ -1,3 +1,6 @@
+#### 6.0.0-beta0003 - 11.12.2019
+* Updates packages
+
 #### 6.0.0-beta0002 - 13.11.2019
 * Updates packages
 * Adds manual paging of the event store

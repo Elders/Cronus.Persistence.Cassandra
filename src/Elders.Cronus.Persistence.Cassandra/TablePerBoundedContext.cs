@@ -1,5 +1,4 @@
-﻿using System;
-using Elders.Cronus.MessageProcessing;
+﻿using Microsoft.Extensions.Options;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
@@ -7,9 +6,9 @@ namespace Elders.Cronus.Persistence.Cassandra
     {
         private readonly BoundedContext boundedContext;
 
-        public TablePerBoundedContext(BoundedContext boundedContext)
+        public TablePerBoundedContext(IOptionsMonitor<BoundedContext> boundedContext)
         {
-            this.boundedContext = boundedContext;
+            this.boundedContext = boundedContext.CurrentValue;
         }
 
         public string GetName()

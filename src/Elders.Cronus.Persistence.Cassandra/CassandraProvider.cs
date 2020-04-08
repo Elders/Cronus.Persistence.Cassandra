@@ -8,8 +8,6 @@ namespace Elders.Cronus.Persistence.Cassandra
 {
     public class CassandraProvider : ICassandraProvider
     {
-        public const string ConnectionStringSettingKey = "cronus_persistence_cassandra_connectionstring";
-
         private bool optionsHasChanged = true;
 
         protected CassandraProviderOptions options;
@@ -73,11 +71,6 @@ namespace Elders.Cronus.Persistence.Cassandra
             optionsHasChanged = false;
 
             return cluster;
-        }
-
-        protected virtual string GetConnectionStringSettingKey()
-        {
-            return ConnectionStringSettingKey;
         }
 
         protected virtual string GetKeyspace()

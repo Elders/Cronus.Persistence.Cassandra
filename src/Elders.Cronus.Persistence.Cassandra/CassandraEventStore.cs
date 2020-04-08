@@ -9,20 +9,6 @@ using Elders.Cronus.Persistence.Cassandra.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
-    public class CassandraEventStoreSettings : ICassandraEventStoreSettings
-    {
-        public CassandraEventStoreSettings(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ISerializer serializer)
-        {
-            CassandraProvider = cassandraProvider;
-            TableNameStrategy = tableNameStrategy;
-            Serializer = serializer;
-        }
-
-        public ICassandraProvider CassandraProvider { get; }
-        public ITableNamingStrategy TableNameStrategy { get; }
-        public ISerializer Serializer { get; }
-    }
-
     public class CassandraEventStore<TSettings> : CassandraEventStore, IEventStorePlayer<TSettings>
         where TSettings : class, ICassandraEventStoreSettings
     {
@@ -246,7 +232,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         }
     }
 
-    public class PagingInfo
+    class PagingInfo
     {
         public byte[] Token { get; set; }
 

@@ -1,6 +1,7 @@
 ﻿using Elders.Cronus.MessageProcessing;
 using Elders.Cronus.Multitenancy;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using System;
 
 namespace Elders.Cronus.Persistence.Cassandra
@@ -9,17 +10,17 @@ namespace Elders.Cronus.Persistence.Cassandra
     public class CronusCassandraEventStoreStartup : ICronusStartup
     {
         private readonly IServiceProvider serviceProvider;
-        private readonly ITenantList tenants;
+        private TenantsOptions tenants;
 
-        public CronusCassandraEventStoreStartup(IServiceProvider serviceProvider, ITenantList tenants)
+        public CronusCassandraEventStoreStartup(IServiceProvider serviceProvider, IOptionsMonitor<TenantsOptions> tenantsOptions)
         {
             this.serviceProvider = serviceProvider;
-            this.tenants = tenants;
+            this.tenants = tenantsOptions.CurrentValue;
         }
 
         public void Bootstrap()
         {
-            foreach (var tenant in tenants.GetTenants())
+            foreach (var tenant in tenants.Tenants)
             {
                 using (var scope = serviceProvider.CreateScope())
                 {

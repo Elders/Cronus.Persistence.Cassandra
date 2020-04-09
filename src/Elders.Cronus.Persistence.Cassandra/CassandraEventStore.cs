@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
 using Cassandra;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.Persistence.Cassandra.Logging;
@@ -152,9 +153,30 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
-        public IAsyncEnumerable<AggregateCommit> LoadAggregateCommitsAsync()
+        public async IAsyncEnumerable<AggregateCommit> LoadAggregateCommitsAsync()
         {
-            throw new NotImplementedException();
+            var queryStatement = GetReplayStatement().Bind();
+            RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
+            foreach (var row in result.GetRows())
+            {
+                var data = row.GetValue<byte[]>("data");
+                using (var stream = new MemoryStream(data))
+                {
+                    AggregateCommit commit;
+                    try
+                    {
+                        commit = (AggregateCommit)serializer.Deserialize(stream);
+                    }
+                    catch (Exception ex)
+                    {
+                        string error = "[EventStore] Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
+                        log.ErrorException(error, ex);
+                        continue;
+                    }
+
+                    yield return commit;
+                }
+            }
         }
 
         public IEnumerable<AggregateCommitRaw> LoadAggregateCommitsRaw(int batchSize = 5000)
@@ -177,9 +199,24 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
-        public IAsyncEnumerable<AggregateCommitRaw> LoadAggregateCommitsRawAsync()
+        public async IAsyncEnumerable<AggregateCommitRaw> LoadAggregateCommitsRawAsync()
         {
-            throw new NotImplementedException();
+            var queryStatement = GetReplayStatement().Bind();
+            var result = await session.ExecuteAsync(queryStatement);
+            foreach (var row in result.GetRows())
+            {
+                string id = row.GetValue<string>("id");
+                byte[] data = row.GetValue<byte[]>("data");
+                int revision = row.GetValue<int>("rev");
+                long timestamp = row.GetValue<long>("ts");
+
+                using (var stream = new MemoryStream(data))
+                {
+                    AggregateCommitRaw commitRaw = new AggregateCommitRaw(id, data, revision, timestamp);
+
+                    yield return commitRaw;
+                }
+            }
         }
 
         private byte[] SerializeEvent(AggregateCommit commit)

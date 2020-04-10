@@ -9,6 +9,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".build", ".build", "{925781
 	ProjectSection(SolutionItems) = preProject
 		..\appveyor.yml = ..\appveyor.yml
 		..\build.cmd = ..\build.cmd
+		Elders.Cronus.Persistence.Cassandra\Cronus.Persistence.Cassandra.rn.md = Elders.Cronus.Persistence.Cassandra\Cronus.Persistence.Cassandra.rn.md
 	EndProjectSection
 EndProject
 Global

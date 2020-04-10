@@ -129,7 +129,28 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public IEnumerable<AggregateCommit> LoadAggregateCommits(int batchSize)
         {
-            return LoadAggregateCommitsAsync().Wait().Result;
+            var queryStatement = GetReplayStatement().Bind().SetPageSize(batchSize);
+            RowSet result = session.Execute(queryStatement);
+            foreach (var row in result.GetRows())
+            {
+                var data = row.GetValue<byte[]>("data");
+                using (var stream = new MemoryStream(data))
+                {
+                    AggregateCommit commit;
+                    try
+                    {
+                        commit = (AggregateCommit)serializer.Deserialize(stream);
+                    }
+                    catch (Exception ex)
+                    {
+                        string error = "[EventStore] Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
+                        log.ErrorException(error, ex);
+                        continue;
+                    }
+
+                    yield return commit;
+                }
+            }
         }
 
         public async IAsyncEnumerable<AggregateCommit> LoadAggregateCommitsAsync()
@@ -160,7 +181,22 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public IEnumerable<AggregateCommitRaw> LoadAggregateCommitsRaw(int batchSize = 5000)
         {
-            return LoadAggregateCommitsRawAsync().Wait().Result;
+            var queryStatement = GetReplayStatement().Bind().SetPageSize(batchSize);
+            var result = session.Execute(queryStatement);
+            foreach (var row in result.GetRows())
+            {
+                string id = row.GetValue<string>("id");
+                byte[] data = row.GetValue<byte[]>("data");
+                int revision = row.GetValue<int>("rev");
+                long timestamp = row.GetValue<long>("ts");
+
+                using (var stream = new MemoryStream(data))
+                {
+                    AggregateCommitRaw commitRaw = new AggregateCommitRaw(id, data, revision, timestamp);
+
+                    yield return commitRaw;
+                }
+            }
         }
 
         public async IAsyncEnumerable<AggregateCommitRaw> LoadAggregateCommitsRawAsync()

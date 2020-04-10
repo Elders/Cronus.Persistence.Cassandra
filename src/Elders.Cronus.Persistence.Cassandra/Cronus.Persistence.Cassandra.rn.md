@@ -1,3 +1,6 @@
+#### 6.0.0-beta0006 - 10.04.2020
+* Support for async loading of aggregate commits
+
 #### 6.0.0-beta0005 - 08.04.2020
 * Rework the CassandraProvideroptions to use options pattern
 

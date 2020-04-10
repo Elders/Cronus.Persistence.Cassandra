@@ -152,6 +152,11 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
+        public IAsyncEnumerable<AggregateCommit> LoadAggregateCommitsAsync()
+        {
+            throw new NotImplementedException();
+        }
+
         public IEnumerable<AggregateCommitRaw> LoadAggregateCommitsRaw(int batchSize = 5000)
         {
             var queryStatement = GetReplayStatement().Bind().SetPageSize(batchSize);
@@ -170,6 +175,11 @@ namespace Elders.Cronus.Persistence.Cassandra
                     yield return commitRaw;
                 }
             }
+        }
+
+        public IAsyncEnumerable<AggregateCommitRaw> LoadAggregateCommitsRawAsync()
+        {
+            throw new NotImplementedException();
         }
 
         private byte[] SerializeEvent(AggregateCommit commit)

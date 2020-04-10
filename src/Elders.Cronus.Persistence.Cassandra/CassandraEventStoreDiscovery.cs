@@ -4,13 +4,10 @@ using Elders.Cronus.Discoveries;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.EventStore.Index;
 using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
-
-
     public class CassandraEventStoreDiscovery : EventStoreDiscoveryBase
     {
         protected override DiscoveryResult<IEventStore> DiscoverFromAssemblies(DiscoveryContext context)

@@ -1,5 +1,5 @@
 ﻿using Cassandra;
-using Elders.Cronus.Persistence.Cassandra.Logging;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -14,7 +14,7 @@ namespace Elders.Cronus.Persistence.Cassandra.CronusMessageStore
 
     public class CassandraMessageStore : ICronusMessageStore
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof(CassandraMessageStore));
+        private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(CassandraMessageStore));
 
         private const string MESSAGE_STORE_TABLE_NAME = "Message_Store";
         private const string INSERT_MESSAGE_QUERY_TEMPLATE = @"INSERT INTO ""{0}"" (date,ts,data) VALUES (?,?,?);";
@@ -70,7 +70,7 @@ namespace Elders.Cronus.Persistence.Cassandra.CronusMessageStore
                     catch (Exception ex)
                     {
                         string error = "Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
-                        log.ErrorException(error, ex);
+                        logger.ErrorException(error, ex);
                         continue;
                     }
                     yield return commit;

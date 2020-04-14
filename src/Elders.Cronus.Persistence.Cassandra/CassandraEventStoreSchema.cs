@@ -2,13 +2,13 @@ using System;
 using System.Linq;
 using Cassandra;
 using Elders.Cronus.AtomicAction;
-using Elders.Cronus.Persistence.Cassandra.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
     public class CassandraEventStoreSchema : ICassandraEventStoreSchema
     {
-        static ILog log = LogProvider.GetLogger(typeof(CassandraEventStoreSchema));
+        private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(CassandraEventStoreSchema));
 
         private const string CREATE_EVENTS_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id text, ts bigint, rev int, data blob, PRIMARY KEY (id,rev,ts)) WITH CLUSTERING ORDER BY (rev ASC);";
         private const string CREATE_INDEX_STATUS_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id text, status text, PRIMARY KEY (id));";
@@ -66,12 +66,12 @@ namespace Elders.Cronus.Persistence.Cassandra
             {
                 try
                 {
-                    log.Debug(() => $"[EventStore] Creating table `{tableName}` with `{session.Cluster.AllHosts().First().Address}` in keyspace `{session.Keyspace}`...");
+                    logger.Debug(() => $"[EventStore] Creating table `{tableName}` with `{session.Cluster.AllHosts().First().Address}` in keyspace `{session.Keyspace}`...");
 
                     var createEventsTable = string.Format(cqlQuery, tableName).ToLower();
                     session.Execute(createEventsTable);
 
-                    log.Debug(() => $"[EventStore] Created table `{tableName}` in keyspace `{session.Keyspace}`...");
+                    logger.Debug(() => $"[EventStore] Created table `{tableName}` in keyspace `{session.Keyspace}`...");
                 }
                 catch (Exception)
                 {
@@ -84,7 +84,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
             else
             {
-                log.Warn($"[EventStore] Could not acquire lock for `{tableName}` to create table.");
+                logger.Warn($"[EventStore] Could not acquire lock for `{tableName}` to create table.");
             }
         }
     }

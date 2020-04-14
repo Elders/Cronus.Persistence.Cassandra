@@ -5,7 +5,7 @@ using System.Text;
 using System.Text.Json;
 using Cassandra;
 using Elders.Cronus.EventStore;
-using Elders.Cronus.Persistence.Cassandra.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
@@ -20,7 +20,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
     public class CassandraEventStore : IEventStore, IEventStorePlayer
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof(CassandraEventStore));
+        private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(CassandraEventStore));
 
         private const string LoadAggregateEventsQueryTemplate = @"SELECT data FROM {0} WHERE id = ?;";
         private const string InsertEventsQueryTemplate = @"INSERT INTO {0} (id,ts,rev,data) VALUES (?,?,?,?);";
@@ -55,7 +55,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
             catch (WriteTimeoutException ex)
             {
-                log.WarnException("[EventStore] Write timeout while persisting an aggregate commit", ex);
+                logger.WarnException("[EventStore] Write timeout while persisting an aggregate commit", ex);
             }
         }
 
@@ -113,7 +113,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                     catch (Exception ex)
                     {
                         string error = "[EventStore] Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
-                        log.ErrorException(error, ex);
+                        logger.ErrorException(error, ex);
                         continue;
                     }
                     aggregateCommits.Add(commit);
@@ -144,7 +144,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                     catch (Exception ex)
                     {
                         string error = "[EventStore] Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
-                        log.ErrorException(error, ex);
+                        logger.ErrorException(error, ex);
                         continue;
                     }
 
@@ -170,7 +170,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                     catch (Exception ex)
                     {
                         string error = "[EventStore] Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
-                        log.ErrorException(error, ex);
+                        logger.ErrorException(error, ex);
                         continue;
                     }
 
@@ -274,7 +274,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
             catch (WriteTimeoutException ex)
             {
-                log.WarnException("[EventStore] Write timeout while persisting an aggregate commit", ex);
+                logger.WarnException("[EventStore] Write timeout while persisting an aggregate commit", ex);
             }
         }
     }

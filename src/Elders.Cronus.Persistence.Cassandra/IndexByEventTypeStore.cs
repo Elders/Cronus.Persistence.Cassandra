@@ -2,13 +2,13 @@
 using System.Collections.Generic;
 using Cassandra;
 using Elders.Cronus.EventStore.Index;
-using Elders.Cronus.Persistence.Cassandra.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
     public class IndexByEventTypeStore : IIndexStore
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof(IndexByEventTypeStore));
+        private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(IndexByEventTypeStore));
 
         private const string Read = @"SELECT aid FROM index_by_eventtype WHERE et = ?;";
         private const string Write = @"INSERT INTO index_by_eventtype (et,aid) VALUES (?,?);";
@@ -36,7 +36,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
             catch (WriteTimeoutException ex)
             {
-                log.WarnException("[EventStore] Write timeout while persisting in IndexByEventTypeStore", ex);
+                logger.WarnException("[EventStore] Write timeout while persisting in IndexByEventTypeStore", ex);
             }
         }
 

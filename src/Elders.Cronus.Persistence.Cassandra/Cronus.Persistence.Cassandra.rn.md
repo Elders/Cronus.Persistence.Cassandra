@@ -1,28 +1,8 @@
-#### 6.0.0-beta0008 - 15.04.2020
-* Updates packages
-
-#### 6.0.0-beta0007 - 15.04.2020
-* Updates packages
-
-#### 6.0.0-beta0006 - 10.04.2020
+#### 6.0.0 - 16.04.2020
 * Support for async loading of aggregate commits
-
-#### 6.0.0-beta0005 - 08.04.2020
 * Rework the CassandraProvideroptions to use options pattern
-
-#### 6.0.0-beta0004 - 26.03.2020
-* Updates packages
-
-#### 6.0.0-beta0003 - 11.12.2019
-* Updates packages
-
-#### 6.0.0-beta0002 - 13.11.2019
-* Updates packages
 * Adds manual paging of the event store
-
-#### 6.0.0-beta0001 - 2.05.2019
-* Targets netcoreapp3.0
-* Updates packages
+* Targets netcoreapp3.1
 * Configures AppVeyor
 
 #### 5.3.1 - 02.05.2019

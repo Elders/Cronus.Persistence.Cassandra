@@ -1,36 +1,33 @@
-﻿using System;
+﻿using Microsoft.Extensions.Configuration;
 using System.Collections.Generic;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
-    public class CassandraProviderOptions : IEquatable<CassandraProviderOptions>
+    public class CassandraProviderOptions
     {
+        public CassandraProviderOptions()
+        {
+            Datacenters = new List<string>();
+        }
+
         public string ConnectionString { get; set; }
 
-        public override bool Equals(object obj)
-        {
-            return Equals(obj as CassandraProviderOptions);
-        }
+        public string ReplicationStrategy { get; set; } = "simple";
 
-        public bool Equals(CassandraProviderOptions other)
-        {
-            return other != null &&
-                   ConnectionString == other.ConnectionString;
-        }
+        public int ReplicationFactor { get; set; } = 1;
 
-        public override int GetHashCode()
-        {
-            return -887524364 + EqualityComparer<string>.Default.GetHashCode(ConnectionString);
-        }
+        public List<string> Datacenters { get; set; }
+    }
 
-        public static bool operator ==(CassandraProviderOptions left, CassandraProviderOptions right)
-        {
-            return EqualityComparer<CassandraProviderOptions>.Default.Equals(left, right);
-        }
+    public class CassandraProviderOptionsProvider : CronusOptionsProviderBase<CassandraProviderOptions>
+    {
+        public const string SettingKey = "cronus:persistence:cassandra";
 
-        public static bool operator !=(CassandraProviderOptions left, CassandraProviderOptions right)
+        public CassandraProviderOptionsProvider(IConfiguration configuration) : base(configuration) { }
+
+        public override void Configure(CassandraProviderOptions options)
         {
-            return !(left == right);
+            configuration.GetSection(SettingKey).Bind(options);
         }
     }
 }

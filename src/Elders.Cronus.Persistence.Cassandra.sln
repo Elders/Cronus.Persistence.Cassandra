@@ -1,13 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27004.2006
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29318.209
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Elders.Cronus.Persistence.Cassandra", "Elders.Cronus.Persistence.Cassandra\Elders.Cronus.Persistence.Cassandra.csproj", "{8A9AB214-7DF8-4CEC-B1EC-A4B0B0BAC185}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".build", ".build", "{9257813A-7E73-4EED-B364-336110B3A790}"
 	ProjectSection(SolutionItems) = preProject
+		..\appveyor.yml = ..\appveyor.yml
 		..\build.cmd = ..\build.cmd
+		Elders.Cronus.Persistence.Cassandra\Cronus.Persistence.Cassandra.rn.md = Elders.Cronus.Persistence.Cassandra\Cronus.Persistence.Cassandra.rn.md
 	EndProjectSection
 EndProject
 Global

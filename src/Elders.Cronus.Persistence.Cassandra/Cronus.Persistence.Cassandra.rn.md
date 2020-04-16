@@ -1,3 +1,10 @@
+#### 6.0.0 - 16.04.2020
+* Support for async loading of aggregate commits
+* Rework the CassandraProvideroptions to use options pattern
+* Adds manual paging of the event store
+* Targets netcoreapp3.1
+* Configures AppVeyor
+
 #### 5.3.1 - 02.05.2019
 * Fixes a memory leak due to TCP Socket management
 

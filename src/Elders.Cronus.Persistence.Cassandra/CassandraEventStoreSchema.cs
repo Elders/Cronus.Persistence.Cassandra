@@ -2,13 +2,13 @@ using System;
 using System.Linq;
 using Cassandra;
 using Elders.Cronus.AtomicAction;
-using Elders.Cronus.Persistence.Cassandra.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
     public class CassandraEventStoreSchema : ICassandraEventStoreSchema
     {
-        static ILog log = LogProvider.GetLogger(typeof(CassandraEventStoreSchema));
+        private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(CassandraEventStoreSchema));
 
         private const string CREATE_EVENTS_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id text, ts bigint, rev int, data blob, PRIMARY KEY (id,rev,ts)) WITH CLUSTERING ORDER BY (rev ASC);";
         private const string CREATE_INDEX_STATUS_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id text, status text, PRIMARY KEY (id));";
@@ -18,17 +18,15 @@ namespace Elders.Cronus.Persistence.Cassandra
         private const string INDEX_STATUS_TABLE_NAME = "index_status";
         private const string INDEX_BY_EVENT_TYPE_TABLE_NAME = "index_by_eventtype";
 
-        private readonly BoundedContext boundedContext;
         private readonly ISession session;
         private readonly ITableNamingStrategy tableNameStrategy;
         private readonly ILock @lock;
         private readonly TimeSpan lockTtl;
 
-        public CassandraEventStoreSchema(BoundedContext boundedContext, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ILock @lock)
+        public CassandraEventStoreSchema(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ILock @lock)
         {
             if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
 
-            this.boundedContext = boundedContext ?? throw new ArgumentNullException(nameof(boundedContext));
             this.session = cassandraProvider.GetSession();
             this.tableNameStrategy = tableNameStrategy ?? throw new ArgumentNullException(nameof(tableNameStrategy));
             this.@lock = @lock;
@@ -68,12 +66,12 @@ namespace Elders.Cronus.Persistence.Cassandra
             {
                 try
                 {
-                    log.Debug(() => $"[EventStore] Creating table `{tableName}` with `{session.Cluster.AllHosts().First().Address}` in keyspace `{session.Keyspace}`...");
+                    logger.Debug(() => $"[EventStore] Creating table `{tableName}` with `{session.Cluster.AllHosts().First().Address}` in keyspace `{session.Keyspace}`...");
 
                     var createEventsTable = string.Format(cqlQuery, tableName).ToLower();
                     session.Execute(createEventsTable);
 
-                    log.Debug(() => $"[EventStore] Created table `{tableName}` in keyspace `{session.Keyspace}`...");
+                    logger.Debug(() => $"[EventStore] Created table `{tableName}` in keyspace `{session.Keyspace}`...");
                 }
                 catch (Exception)
                 {
@@ -86,7 +84,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
             else
             {
-                log.Warn($"[EventStore] Could not acquire lock for `{tableName}` to create table.");
+                logger.Warn($"[EventStore] Could not acquire lock for `{tableName}` to create table.");
             }
         }
     }

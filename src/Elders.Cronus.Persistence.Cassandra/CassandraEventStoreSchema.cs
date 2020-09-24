@@ -18,16 +18,18 @@ namespace Elders.Cronus.Persistence.Cassandra
         private const string INDEX_STATUS_TABLE_NAME = "index_status";
         private const string INDEX_BY_EVENT_TYPE_TABLE_NAME = "index_by_eventtype";
 
-        private readonly ISession session;
+        private readonly ICassandraProvider cassandraProvider;
         private readonly ITableNamingStrategy tableNameStrategy;
         private readonly ILock @lock;
         private readonly TimeSpan lockTtl;
+
+        private ISession GetSession() => cassandraProvider.GetSession(); // In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
 
         public CassandraEventStoreSchema(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ILock @lock)
         {
             if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
 
-            this.session = cassandraProvider.GetSession();
+            this.cassandraProvider = cassandraProvider;
             this.tableNameStrategy = tableNameStrategy ?? throw new ArgumentNullException(nameof(tableNameStrategy));
             this.@lock = @lock;
 
@@ -66,12 +68,12 @@ namespace Elders.Cronus.Persistence.Cassandra
             {
                 try
                 {
-                    logger.Debug(() => $"[EventStore] Creating table `{tableName}` with `{session.Cluster.AllHosts().First().Address}` in keyspace `{session.Keyspace}`...");
+                    logger.Debug(() => $"[EventStore] Creating table `{tableName}` with `{GetSession().Cluster.AllHosts().First().Address}` in keyspace `{GetSession().Keyspace}`...");
 
                     var createEventsTable = string.Format(cqlQuery, tableName).ToLower();
-                    session.Execute(createEventsTable);
+                    GetSession().Execute(createEventsTable);
 
-                    logger.Debug(() => $"[EventStore] Created table `{tableName}` in keyspace `{session.Keyspace}`...");
+                    logger.Debug(() => $"[EventStore] Created table `{tableName}` in keyspace `{GetSession().Keyspace}`...");
                 }
                 catch (Exception)
                 {

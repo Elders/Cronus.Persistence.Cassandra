@@ -13,19 +13,21 @@ namespace Elders.Cronus.Persistence.Cassandra
         private const string Read = @"SELECT status FROM index_status WHERE id = ?;";
         private const string Write = @"INSERT INTO index_status (id,status) VALUES (?,?);";
 
-        private readonly ISession session;
+        private readonly ICassandraProvider cassandraProvider;
 
-        public CassandraIndexStatusStore(ICassandraProvider session)
+        private ISession GetSession() => cassandraProvider.GetSession(); // In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
+
+        public CassandraIndexStatusStore(ICassandraProvider cassandraProvider)
         {
-            if (session is null) throw new ArgumentNullException(nameof(session));
+            if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
 
-            this.session = session.GetSession();
+            this.cassandraProvider = cassandraProvider;
         }
 
         public IndexStatus Get(string indexId)
         {
-            BoundStatement bs = session.Prepare(Read).Bind(indexId);
-            var row = session.Execute(bs).GetRows().SingleOrDefault();
+            BoundStatement bs = GetSession().Prepare(Read).Bind(indexId);
+            var row = GetSession().Execute(bs).GetRows().SingleOrDefault();
             return IndexStatus.Parse(row?.GetValue<string>("status"));
         }
 
@@ -33,8 +35,8 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             try
             {
-                PreparedStatement statement = session.Prepare(Write);
-                session.Execute(statement.Bind(indexId, status.ToString()));
+                PreparedStatement statement = GetSession().Prepare(Write);
+                GetSession().Execute(statement.Bind(indexId, status.ToString()));
             }
             catch (WriteTimeoutException ex)
             {

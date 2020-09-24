@@ -1,3 +1,6 @@
+#### 6.1.1 - 24.09.2020
+* Starts using GetSession from CassandraProvider instead of local copies for connections
+
 #### 6.1.0 - 24.08.2020
 * Updates packages
 

@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text;
+using System.Text.Json;
 using Cassandra;
 using Elders.Cronus.EventStore.Index;
 using Microsoft.Extensions.Logging;
@@ -38,19 +40,55 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
             catch (WriteTimeoutException ex)
             {
-                logger.WarnException("[EventStore] Write timeout while persisting in IndexByEventTypeStore", ex);
+                logger.WarnException(ex, () => "Write timeout while persisting in IndexByEventTypeStore");
             }
         }
 
         public IEnumerable<IndexRecord> Get(string indexRecordId)
         {
-            List<IndexRecord> indexRecords = new List<IndexRecord>();
             BoundStatement bs = GetSession().Prepare(Read).Bind(indexRecordId);
             var result = GetSession().Execute(bs);
             foreach (var row in result.GetRows())
             {
                 yield return new IndexRecord(indexRecordId, Convert.FromBase64String(row.GetValue<string>("aid")));
             }
+        }
+
+        public LoadIndexRecordsResult Get(string indexRecordId, string paginationToken, int pageSize)
+        {
+            List<IndexRecord> indexRecords = new List<IndexRecord>();
+
+            IStatement queryStatement = GetSession().Prepare(Read).Bind(indexRecordId).SetPageSize(pageSize);
+            PagingInfo pagingInfo = GetPagingInfo(paginationToken);
+            if (pagingInfo.IsFullyFetched)
+                return new LoadIndexRecordsResult() { PaginationToken = pagingInfo.ToString() };
+
+            if (pagingInfo.HasToken())
+                queryStatement.SetPagingState(pagingInfo.Token);
+
+            RowSet result = GetSession().Execute(queryStatement);
+            foreach (var row in result.GetRows())
+            {
+                var indexRecord = new IndexRecord(indexRecordId, Convert.FromBase64String(row.GetValue<string>("aid")));
+                indexRecords.Add(indexRecord);
+            }
+
+            return new LoadIndexRecordsResult()
+            {
+                Records = indexRecords,
+                PaginationToken = PagingInfo.From(result).ToString()
+            };
+        }
+
+        private PagingInfo GetPagingInfo(string paginationToken)
+        {
+            PagingInfo pagingInfo = new PagingInfo();
+            if (string.IsNullOrEmpty(paginationToken) == false)
+            {
+                string paginationJson = Encoding.UTF8.GetString(Convert.FromBase64String(paginationToken));
+                pagingInfo = JsonSerializer.Deserialize<PagingInfo>(paginationJson);
+            }
+            return pagingInfo;
         }
     }
 }

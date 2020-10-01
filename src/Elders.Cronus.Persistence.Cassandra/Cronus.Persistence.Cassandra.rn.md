@@ -1,3 +1,7 @@
+#### 6.2.0 - 01.10.2020
+* Overrides default inmemory configurations
+* Adds pagination when enumerating indices
+
 #### 6.1.1 - 24.09.2020
 * Starts using GetSession from CassandraProvider instead of local copies for connections
 * Updates Cronus package to 6.1.1

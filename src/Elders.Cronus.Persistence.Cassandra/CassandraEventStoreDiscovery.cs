@@ -8,12 +8,23 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
-    public class CassandraEventStoreDiscovery : EventStoreDiscoveryBase
+    public class CassandraEventStoreDiscovery : EventStoreDiscovery
     {
         protected override DiscoveryResult<IEventStore> DiscoverFromAssemblies(DiscoveryContext context)
         {
-            IEnumerable<DiscoveredModel> models = base.DiscoverFromAssemblies(context).Models.Concat(GetModels(context));
+            IEnumerable<DiscoveredModel> models = base.DiscoverFromAssemblies(context).Models
+                .Concat(GetModels(context))
+                .Concat(DiscoverCassandraTableNameStrategy(context));
+
+
             return new DiscoveryResult<IEventStore>(models, services => services.AddOptions<CassandraProviderOptions, CassandraProviderOptionsProvider>());
+        }
+
+        protected virtual IEnumerable<DiscoveredModel> DiscoverCassandraTableNameStrategy(DiscoveryContext context)
+        {
+            yield return new DiscoveredModel(typeof(ITableNamingStrategy), typeof(TablePerBoundedContext), ServiceLifetime.Singleton);
+            yield return new DiscoveredModel(typeof(TablePerBoundedContext), typeof(TablePerBoundedContext), ServiceLifetime.Singleton);
+            yield return new DiscoveredModel(typeof(NoTableNamingStrategy), typeof(NoTableNamingStrategy), ServiceLifetime.Singleton);
         }
 
         IEnumerable<DiscoveredModel> GetModels(DiscoveryContext context)
@@ -37,10 +48,6 @@ namespace Elders.Cronus.Persistence.Cassandra
 
             yield return new DiscoveredModel(typeof(CassandraProvider), typeof(CassandraProvider), ServiceLifetime.Transient);
             yield return new DiscoveredModel(typeof(ICassandraProvider), provider => provider.GetRequiredService<SingletonPerTenant<CassandraProvider>>().Get(), ServiceLifetime.Transient);
-
-            yield return new DiscoveredModel(typeof(ITableNamingStrategy), typeof(TablePerBoundedContext), ServiceLifetime.Singleton);
-            yield return new DiscoveredModel(typeof(NoTableNamingStrategy), typeof(NoTableNamingStrategy), ServiceLifetime.Singleton);
-            yield return new DiscoveredModel(typeof(TablePerBoundedContext), typeof(TablePerBoundedContext), ServiceLifetime.Singleton);
 
             yield return new DiscoveredModel(typeof(IKeyspaceNamingStrategy), typeof(KeyspacePerTenantKeyspace), ServiceLifetime.Transient);
             yield return new DiscoveredModel(typeof(NoKeyspaceNamingStrategy), typeof(NoKeyspaceNamingStrategy), ServiceLifetime.Transient);

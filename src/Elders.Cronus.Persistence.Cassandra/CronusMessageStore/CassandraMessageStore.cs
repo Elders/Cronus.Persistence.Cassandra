@@ -70,7 +70,7 @@ namespace Elders.Cronus.Persistence.Cassandra.CronusMessageStore
                     catch (Exception ex)
                     {
                         string error = "Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
-                        logger.ErrorException(error, ex);
+                        logger.ErrorException(ex, () => error);
                         continue;
                     }
                     yield return commit;

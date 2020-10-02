@@ -86,7 +86,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
             else
             {
-                logger.Warn($"[EventStore] Could not acquire lock for `{tableName}` to create table.");
+                logger.Warn(() => $"[EventStore] Could not acquire lock for `{tableName}` to create table.");
             }
         }
     }

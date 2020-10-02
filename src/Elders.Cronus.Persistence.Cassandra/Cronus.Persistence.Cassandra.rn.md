@@ -1,3 +1,6 @@
+#### 6.2.1 - 02.10.2020
+* Allows to override table name strategy explicitly
+
 #### 6.2.0 - 01.10.2020
 * Overrides default inmemory configurations
 * Adds pagination when enumerating indices

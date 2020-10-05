@@ -1,3 +1,6 @@
+#### 6.2.4 - 05.10.2020
+* Fixes Cassandra paging
+
 #### 6.2.3 - 05.10.2020
 * Fixes Cassandra paging
 

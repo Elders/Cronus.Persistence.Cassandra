@@ -90,10 +90,13 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public LoadAggregateCommitsResult LoadAggregateCommits(string paginationToken, int pageSize = 5000)
         {
+            PagingInfo pagingInfo = GetPagingInfo(paginationToken);
+            if (pagingInfo.HasMore == false)
+                return new LoadAggregateCommitsResult() { PaginationToken = paginationToken };
+
             List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
 
             IStatement queryStatement = GetReplayStatement().Bind().SetPageSize(pageSize).SetAutoPage(false);
-            PagingInfo pagingInfo = GetPagingInfo(paginationToken);
 
             if (pagingInfo.HasToken())
                 queryStatement.SetPagingState(pagingInfo.Token);
@@ -287,12 +290,15 @@ namespace Elders.Cronus.Persistence.Cassandra
     {
         public byte[] Token { get; set; }
 
+        public bool HasMore { get; set; } = true;
+
         public bool HasToken() => Token is null == false;
 
         public static PagingInfo From(RowSet result)
         {
             return new PagingInfo()
             {
+                HasMore = result.PagingState is null == false,
                 Token = result.PagingState
             };
         }

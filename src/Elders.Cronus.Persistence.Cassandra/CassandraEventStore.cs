@@ -92,7 +92,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
 
-            IStatement queryStatement = GetReplayStatement().Bind().SetPageSize(pageSize);
+            IStatement queryStatement = GetReplayStatement().Bind().SetPageSize(pageSize).SetAutoPage(false);
             PagingInfo pagingInfo = GetPagingInfo(paginationToken);
             if (pagingInfo.IsFullyFetched)
                 return new LoadAggregateCommitsResult() { PaginationToken = pagingInfo.ToString() };

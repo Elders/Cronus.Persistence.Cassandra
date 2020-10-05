@@ -58,7 +58,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             List<IndexRecord> indexRecords = new List<IndexRecord>();
 
-            IStatement queryStatement = GetSession().Prepare(Read).Bind(indexRecordId).SetPageSize(pageSize);
+            IStatement queryStatement = GetSession().Prepare(Read).Bind(indexRecordId).SetPageSize(pageSize).SetAutoPage(false);
             PagingInfo pagingInfo = GetPagingInfo(paginationToken);
             if (pagingInfo.IsFullyFetched)
                 return new LoadIndexRecordsResult() { PaginationToken = pagingInfo.ToString() };

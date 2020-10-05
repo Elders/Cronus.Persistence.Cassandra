@@ -94,8 +94,6 @@ namespace Elders.Cronus.Persistence.Cassandra
 
             IStatement queryStatement = GetReplayStatement().Bind().SetPageSize(pageSize).SetAutoPage(false);
             PagingInfo pagingInfo = GetPagingInfo(paginationToken);
-            if (pagingInfo.IsFullyFetched)
-                return new LoadAggregateCommitsResult() { PaginationToken = pagingInfo.ToString() };
 
             if (pagingInfo.HasToken())
                 queryStatement.SetPagingState(pagingInfo.Token);
@@ -119,6 +117,11 @@ namespace Elders.Cronus.Persistence.Cassandra
                     }
                     aggregateCommits.Add(commit);
                 }
+            }
+
+            if (result.IsFullyFetched == false)
+            {
+                logger.Warn(() => "Not implemented logic. => if (result.IsFullyFetched == false)");
             }
 
             return new LoadAggregateCommitsResult()
@@ -284,15 +287,12 @@ namespace Elders.Cronus.Persistence.Cassandra
     {
         public byte[] Token { get; set; }
 
-        public bool IsFullyFetched { get; set; }
-
         public bool HasToken() => Token is null == false;
 
         public static PagingInfo From(RowSet result)
         {
             return new PagingInfo()
             {
-                IsFullyFetched = result.IsFullyFetched,
                 Token = result.PagingState
             };
         }

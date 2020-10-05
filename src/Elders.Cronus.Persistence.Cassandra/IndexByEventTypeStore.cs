@@ -60,8 +60,6 @@ namespace Elders.Cronus.Persistence.Cassandra
 
             IStatement queryStatement = GetSession().Prepare(Read).Bind(indexRecordId).SetPageSize(pageSize).SetAutoPage(false);
             PagingInfo pagingInfo = GetPagingInfo(paginationToken);
-            if (pagingInfo.IsFullyFetched)
-                return new LoadIndexRecordsResult() { PaginationToken = pagingInfo.ToString() };
 
             if (pagingInfo.HasToken())
                 queryStatement.SetPagingState(pagingInfo.Token);
@@ -71,6 +69,11 @@ namespace Elders.Cronus.Persistence.Cassandra
             {
                 var indexRecord = new IndexRecord(indexRecordId, Convert.FromBase64String(row.GetValue<string>("aid")));
                 indexRecords.Add(indexRecord);
+            }
+
+            if (result.IsFullyFetched == false)
+            {
+                logger.Warn(() => "Not implemented logic. => if (result.IsFullyFetched == false)");
             }
 
             return new LoadIndexRecordsResult()

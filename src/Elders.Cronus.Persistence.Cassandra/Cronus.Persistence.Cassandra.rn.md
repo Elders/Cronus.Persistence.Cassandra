@@ -1,3 +1,6 @@
+#### 6.2.2 - 05.10.2020
+* Fixes Cassandra paging
+
 #### 6.2.1 - 02.10.2020
 * Allows to override table name strategy explicitly
 

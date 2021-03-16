@@ -1,3 +1,6 @@
+#### 6.3.0-bete0001 - 16.03.2021
+* Updates Cronus
+
 #### 6.2.4 - 05.10.2020
 * Fixes Cassandra paging
 

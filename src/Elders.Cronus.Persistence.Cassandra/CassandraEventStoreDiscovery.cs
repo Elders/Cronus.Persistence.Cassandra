@@ -3,6 +3,7 @@ using System.Linq;
 using Elders.Cronus.Discoveries;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.EventStore.Index;
+using Elders.Cronus.Persistence.Cassandra.Counters;
 using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -59,6 +60,9 @@ namespace Elders.Cronus.Persistence.Cassandra
             yield return new DiscoveredModel(typeof(IIndexStore), typeof(IndexByEventTypeStore), ServiceLifetime.Transient) { CanOverrideDefaults = true };
 
             yield return new DiscoveredModel(typeof(ICassandraEventStoreSchema), typeof(CassandraEventStoreSchema), ServiceLifetime.Transient);
+
+            yield return new DiscoveredModel(typeof(IMessageCounter), typeof(MessageCounter), ServiceLifetime.Transient) { CanOverrideDefaults = true };
+            yield return new DiscoveredModel(typeof(MessageCounter), typeof(MessageCounter), ServiceLifetime.Transient) { CanOverrideDefaults = true };
         }
     }
 }

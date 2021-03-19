@@ -15,6 +15,9 @@ namespace Elders.Cronus.Persistence.Cassandra
         private const string Read = @"SELECT aid FROM index_by_eventtype WHERE et = ?;";
         private const string Write = @"INSERT INTO index_by_eventtype (et,aid) VALUES (?,?);";
 
+        private PreparedStatement readStatement;
+        private PreparedStatement writeStatement;
+
         private readonly ICassandraProvider cassandraProvider;
 
         private ISession GetSession() => cassandraProvider.GetSession(); // In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
@@ -30,7 +33,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             try
             {
-                PreparedStatement statement = GetSession().Prepare(Write);
+                PreparedStatement statement = GetWritePreparedStatement();
 
                 foreach (var record in indexRecords)
                 {
@@ -44,9 +47,35 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
+        private PreparedStatement GetWritePreparedStatement()
+        {
+            if (writeStatement is null)
+            {
+                writeStatement = GetSession()
+                    .Prepare(Write)
+                    .SetConsistencyLevel(ConsistencyLevel.Any);
+            }
+
+            return writeStatement;
+        }
+
+        private PreparedStatement GetReadPreparedStatement()
+        {
+            if (readStatement is null)
+            {
+                readStatement = GetSession()
+                    .Prepare(Read)
+                    .SetConsistencyLevel(ConsistencyLevel.One);
+            }
+
+            return readStatement;
+        }
+
         public IEnumerable<IndexRecord> Get(string indexRecordId)
         {
-            BoundStatement bs = GetSession().Prepare(Read).Bind(indexRecordId);
+            PreparedStatement statement = GetReadPreparedStatement();
+
+            BoundStatement bs = statement.Bind(indexRecordId);
             var result = GetSession().Execute(bs);
             foreach (var row in result.GetRows())
             {
@@ -62,7 +91,8 @@ namespace Elders.Cronus.Persistence.Cassandra
 
             List<IndexRecord> indexRecords = new List<IndexRecord>();
 
-            IStatement queryStatement = GetSession().Prepare(Read).Bind(indexRecordId).SetPageSize(pageSize).SetAutoPage(false);
+            PreparedStatement statement = GetReadPreparedStatement();
+            IStatement queryStatement = statement.Bind(indexRecordId).SetPageSize(pageSize).SetAutoPage(false);
 
             if (pagingInfo.HasToken())
                 queryStatement.SetPagingState(pagingInfo.Token);

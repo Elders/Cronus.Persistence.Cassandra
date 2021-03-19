@@ -1,3 +1,6 @@
+#### 6.3.0-beta0002 - 19.03.2021
+* Improves cassandra statements
+
 #### 6.3.0-beta0001 - 16.03.2021
 * Updates Cronus
 

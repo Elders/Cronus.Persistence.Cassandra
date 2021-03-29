@@ -1,3 +1,6 @@
+#### 6.3.0-beta0003 - 29.03.2021
+* Adds migration support
+
 #### 6.3.0-beta0002 - 19.03.2021
 * Improves cassandra statements
 

@@ -138,7 +138,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             var queryStatement = GetReplayStatement().Bind().SetPageSize(batchSize);
             RowSet result = GetSession().Execute(queryStatement);
-            foreach (var row in result.GetRows())
+            foreach (var row in result)
             {
                 var data = row.GetValue<byte[]>("data");
                 using (var stream = new MemoryStream(data))

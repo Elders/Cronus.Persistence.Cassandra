@@ -1,3 +1,12 @@
+# [6.3.0-preview.1](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v6.2.5-preview.1...v6.3.0-preview.1) (2021-05-11)
+
+
+### Bug Fixes
+
+* Consolidates release notes ([4114a80](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/4114a803a2a0f037cef0a9f3374e480a4b403fb6))
+* Implements new replay option ([03b89b6](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/03b89b632ca92041787843acafe82a279a738c41))
+* Updates Cronus ([c7245f2](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/c7245f2b3d4c3188eafa5d92a1b452b1407d2778))
+
 ## [6.2.5-preview.2](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v6.2.5-preview.1...v6.2.5-preview.2) (2021-05-11)
 
 

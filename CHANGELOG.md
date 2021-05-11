@@ -1,4 +1,4 @@
-## [6.2.5-preview.2](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v6.2.5-preview.1...v6.2.5-preview.2) (2021-05-11)
+## [6.3.0-preview.1](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v6.2.5-preview.1...v6.2.5-preview.2) (2021-05-11)
 
 
 ### Bug Fixes

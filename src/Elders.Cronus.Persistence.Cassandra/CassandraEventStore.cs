@@ -26,7 +26,10 @@ namespace Elders.Cronus.Persistence.Cassandra
         private const string LoadAggregateEventsQueryTemplate = @"SELECT data FROM {0} WHERE id = ?;";
         private const string InsertEventsQueryTemplate = @"INSERT INTO {0} (id,ts,rev,data) VALUES (?,?,?,?);";
         private const string LoadAggregateCommitsQueryTemplate = @"SELECT id,ts,rev,data FROM {0};";
-        private const string LoadAggregateCommitsQueryWithoutDataTemplate = @"SELECT id,ts FROM {0};";
+        private const string LoadAggregateCommitsQueryWithoutDataTemplate = @"SELECT ts FROM {0} WHERE id = ?;";
+
+
+        private const string LoadAggregateCommitsMetaQueryTemplate = @"SELECT ts,rev,data FROM {0} WHERE id = ?;";
 
         private readonly ISerializer serializer;
         private readonly ICassandraProvider cassandraProvider;
@@ -38,6 +41,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         private PreparedStatement readStatement;
         private PreparedStatement replayStatement;
         private PreparedStatement replayWithoutDataStatement;
+        private PreparedStatement loadAggregateCommitsMetaStatement;
 
         public CassandraEventStore(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ISerializer serializer)
         {
@@ -209,6 +213,52 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
+        private PreparedStatement LoadAggregateCommitsMetaStatement()
+        {
+            if (loadAggregateCommitsMetaStatement is null)
+            {
+                string tableName = tableNameStrategy.GetName();
+                loadAggregateCommitsMetaStatement = GetSession().Prepare(string.Format(LoadAggregateCommitsMetaQueryTemplate, tableName));
+                loadAggregateCommitsMetaStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
+
+            return loadAggregateCommitsMetaStatement;
+        }
+
+        private IEnumerable<AggregateCommit> LoadAggregateCommitsMeta(IEnumerable<IAggregateRootId> arIds, long afterTimestamp, long beforeStamp)
+        {
+            var queryStatement = LoadAggregateCommitsMetaStatement();
+            foreach (IAggregateRootId arId in arIds)
+            {
+                var q = queryStatement.Bind(Convert.ToBase64String(arId.RawId));
+                var result = GetSession().Execute(q);
+
+                foreach (var row in result.GetRows())
+                {
+                    long timestamp = row.GetValue<long>("ts");
+                    if (afterTimestamp > timestamp || timestamp > beforeStamp)
+                        continue;
+
+                    var data = row.GetValue<byte[]>("data");
+                    using (var stream = new MemoryStream(data))
+                    {
+                        AggregateCommit commit;
+                        try
+                        {
+                            commit = (AggregateCommit)serializer.Deserialize(stream);
+                        }
+                        catch (Exception ex)
+                        {
+                            string error = "Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
+                            logger.ErrorException(ex, () => error);
+                            continue;
+                        }
+                        yield return commit;
+                    }
+                }
+            }
+        }
+
         public async IAsyncEnumerable<AggregateCommitRaw> LoadAggregateCommitsRawAsync()
         {
             var queryStatement = GetReplayStatement().Bind();
@@ -322,66 +372,48 @@ namespace Elders.Cronus.Persistence.Cassandra
                 beforeStamp = replayOptions.Before.Value.ToFileTime();
             #endregion
 
-            RowSet result = null;
-            foreach (IAggregateRootId arId in replayOptions.AggregateIds)
-            {
-                if (hasTimeRangeFilter)
-                {
-                    IStatement queryGGStatement = GetReplayWithoutDataStatement().Bind().SetPageSize(pageSize).SetAutoPage(false);
-                    if (pagingInfo.HasToken())
-                        queryGGStatement.SetPagingState(pagingInfo.Token);
+            var found = LoadAggregateCommitsMeta(replayOptions.AggregateIds, afterTimestamp, beforeStamp);
 
-                    result = GetSession().Execute(queryGGStatement);
-                    foreach (Row row in result.GetRows())
-                    {
-                        long timestamp = row.GetValue<long>("ts");
-                        if (afterTimestamp > timestamp || timestamp > beforeStamp)
-                            continue;
-                    }
-                }
+            aggregateCommits.AddRange(found);
 
-                IEnumerable<AggregateCommit> GG = Load(arId).Commits;
-                aggregateCommits.AddRange(GG);
-            }
+            //if (replayOptions.AggregateIds.Any() == false)
+            //{
+            //    IStatement queryStatement = GetReplayStatement().Bind().SetPageSize(pageSize).SetAutoPage(false);
 
-            if (replayOptions.AggregateIds.Any() == false)
-            {
-                IStatement queryStatement = GetReplayStatement().Bind().SetPageSize(pageSize).SetAutoPage(false);
+            //    if (pagingInfo.HasToken())
+            //        queryStatement.SetPagingState(pagingInfo.Token);
 
-                if (pagingInfo.HasToken())
-                    queryStatement.SetPagingState(pagingInfo.Token);
+            //    result = GetSession().Execute(queryStatement);
+            //    foreach (var row in result.GetRows())
+            //    {
+            //        var data = row.GetValue<byte[]>("data");
+            //        using (var stream = new MemoryStream(data))
+            //        {
+            //            AggregateCommit commit;
+            //            try
+            //            {
+            //                commit = (AggregateCommit)serializer.Deserialize(stream);
+            //            }
+            //            catch (Exception ex)
+            //            {
+            //                string error = "Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
+            //                logger.ErrorException(ex, () => error);
+            //                continue;
+            //            }
+            //            aggregateCommits.Add(commit);
+            //        }
+            //    }
 
-                result = GetSession().Execute(queryStatement);
-                foreach (var row in result.GetRows())
-                {
-                    var data = row.GetValue<byte[]>("data");
-                    using (var stream = new MemoryStream(data))
-                    {
-                        AggregateCommit commit;
-                        try
-                        {
-                            commit = (AggregateCommit)serializer.Deserialize(stream);
-                        }
-                        catch (Exception ex)
-                        {
-                            string error = "Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
-                            logger.ErrorException(ex, () => error);
-                            continue;
-                        }
-                        aggregateCommits.Add(commit);
-                    }
-                }
-
-                if (result.IsFullyFetched == false)
-                {
-                    logger.Warn(() => "Not implemented logic. => if (result.IsFullyFetched == false)");
-                }
-            }
+            //    if (result.IsFullyFetched == false)
+            //    {
+            //        logger.Warn(() => "Not implemented logic. => if (result.IsFullyFetched == false)");
+            //    }
+            //}
 
             return new LoadAggregateCommitsResult()
             {
                 Commits = aggregateCommits,
-                PaginationToken = result is null ? null : PagingInfo.From(result).ToString()
+                PaginationToken = null
             };
         }
     }

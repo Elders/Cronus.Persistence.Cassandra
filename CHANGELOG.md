@@ -1,3 +1,10 @@
+# [6.3.0-preview.3](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v6.3.0-preview.2...v6.3.0-preview.3) (2021-05-11)
+
+
+### Bug Fixes
+
+* Fixes AggregateCommits loading ([3de7b23](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/3de7b2318c80ec7c01c68a3abb0956e84a44ba81))
+
 # [6.3.0-preview.2](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v6.3.0-preview.1...v6.3.0-preview.2) (2021-05-11)
 
 

@@ -1,3 +1,10 @@
+# [6.3.0-preview.4](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v6.3.0-preview.3...v6.3.0-preview.4) (2021-10-22)
+
+
+### Bug Fixes
+
+* Updates packages ([d6bec5f](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/d6bec5f0b47351d6ee5d4bc81a46e0a2279ee460))
+
 # [6.3.0-preview.3](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v6.3.0-preview.2...v6.3.0-preview.3) (2021-05-11)
 
 

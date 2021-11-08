@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Cassandra;
 using Elders.Cronus.AtomicAction;
+using Elders.Cronus.Persistence.Cassandra.Counters;
 using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra
@@ -60,6 +61,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             CreateTable(CREATE_INDEX_STATUS_TABLE_TEMPLATE, INDEX_STATUS_TABLE_NAME);
             CreateTable(CREATE_INDEX_BY_EVENT_TYPE_TABLE_TEMPLATE, INDEX_BY_EVENT_TYPE_TABLE_NAME);
+            CreateTable(MessageCounter.CreateTableTemplate, "EventCounter");
         }
 
         void CreateTable(string cqlQuery, string tableName)

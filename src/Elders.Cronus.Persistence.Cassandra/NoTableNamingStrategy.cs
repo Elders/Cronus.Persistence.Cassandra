@@ -4,7 +4,7 @@
     {
         public string GetName()
         {
-            return "Events".ToLower();
+            return "events";
         }
     }
 }

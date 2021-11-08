@@ -1,3 +1,25 @@
+# [6.3.0](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v6.2.4...v6.3.0) (2021-11-08)
+
+
+### Bug Fixes
+
+* Consolidates release notes ([4114a80](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/4114a803a2a0f037cef0a9f3374e480a4b403fb6))
+* Fixes AggregateCommits loading ([3de7b23](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/3de7b2318c80ec7c01c68a3abb0956e84a44ba81))
+* Fixes copyright attribute ([779131f](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/779131f70ca04d2384ee6bc46fd7fd1da684ab92))
+* Fixes release flow ([94abd29](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/94abd296d122557935ef5b5a78963aa76dbc9e5d))
+* Implements new replay option ([03b89b6](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/03b89b632ca92041787843acafe82a279a738c41))
+* Prepare release ([99e5821](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/99e5821718e4975452e53cc617077e6b8f773428))
+* Project Cleanup ([55b62f6](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/55b62f67fb3e7538b4748570b380d73a372b4a40))
+* Removes gitversion ([42355cf](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/42355cfaf05e45c338dcd214bd0b6f25a29bbee6))
+* Updates Cronus ([c7245f2](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/c7245f2b3d4c3188eafa5d92a1b452b1407d2778))
+* Updates Cronus ([d64d259](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/d64d2591bde4be4026237c4a5e89430d3b036173))
+* Updates packages ([d6bec5f](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/d6bec5f0b47351d6ee5d4bc81a46e0a2279ee460))
+
+
+### Features
+
+* Release ([28c6fe9](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/28c6fe9f50b05e22fa89ae01929058a268398095))
+
 # [6.3.0-preview.4](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v6.3.0-preview.3...v6.3.0-preview.4) (2021-10-22)
 
 

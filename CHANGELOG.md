@@ -1,3 +1,5 @@
+# [7.0.0-preview.1](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v6.3.0...v7.0.0-preview.1) (2021-11-11)
+
 # [6.3.0](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v6.2.4...v6.3.0) (2021-11-08)
 
 

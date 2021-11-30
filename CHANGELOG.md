@@ -1,3 +1,10 @@
+# [7.0.0-preview.2](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0-preview.1...v7.0.0-preview.2) (2021-11-30)
+
+
+### Bug Fixes
+
+* Update Cronus ([97db8c1](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/97db8c1269cf533d3481fd320717019f5f26438e))
+
 # [7.0.0-preview.1](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v6.3.0...v7.0.0-preview.1) (2021-11-11)
 
 # [6.3.0](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v6.2.4...v6.3.0) (2021-11-08)

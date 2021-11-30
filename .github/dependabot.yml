@@ -5,10 +5,23 @@
 
 version: 2
 updates:
+- package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    target-branch: "master"
+    reviewers:
+      - "Elders/cronus-team"
+    assignees: 
+      - "mynkow"
+    commit-message:
+      prefix: "fix: "
+
   - package-ecosystem: "nuget"
     directory: "/"
     schedule:
       interval: "daily"
+    target-branch: "preview"
     reviewers:
       - "Elders/cronus-team"
     assignees: 

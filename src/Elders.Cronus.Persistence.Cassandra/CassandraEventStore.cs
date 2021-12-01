@@ -49,7 +49,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             this.cassandraProvider = cassandraProvider;
             this.tableNameStrategy = tableNameStrategy ?? throw new ArgumentNullException(nameof(tableNameStrategy));
             this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer)); ;
-        }
+        } 
 
         public void Append(AggregateCommit aggregateCommit)
         {

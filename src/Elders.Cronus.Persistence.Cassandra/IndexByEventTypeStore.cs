@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
 using Cassandra;
 using Elders.Cronus.EventStore.Index;
 using Microsoft.Extensions.Logging;
@@ -14,6 +16,8 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private const string Read = @"SELECT aid FROM index_by_eventtype WHERE et = ?;";
         private const string Write = @"INSERT INTO index_by_eventtype (et,aid) VALUES (?,?);";
+
+        const int MaxConcurrencyLevel = 16;
 
         private PreparedStatement readStatement;
         private PreparedStatement writeStatement;
@@ -34,16 +38,41 @@ namespace Elders.Cronus.Persistence.Cassandra
             try
             {
                 PreparedStatement statement = GetWritePreparedStatement();
+                var session = GetSession();
 
-                foreach (var record in indexRecords)
+                int totalLength = indexRecords.Count();
+                var concurrencyLevel = MaxConcurrencyLevel >= totalLength ? totalLength : MaxConcurrencyLevel;
+
+                int maxCount = (int)Math.Ceiling(totalLength / (double)concurrencyLevel);   // Compute operations per Task (rounded up, so the first tasks will process more operations)
+                List<Task> tasks = new List<Task>(concurrencyLevel);   // The maximum amount of async executions that are going to be launched in parallel at any given time
+
+                var skip = 0;
+                while (skip < totalLength)
                 {
-                    GetSession().Execute(statement.Bind(record.Id, Convert.ToBase64String(record.AggregateRootId)));
+                    var take = maxCount;
+                    if (skip + maxCount > totalLength)
+                        take = (totalLength - skip);
+
+                    tasks.Add(ExecuteOneAtATimeAsync(session, statement, indexRecords.Skip(skip).Take(take)));
+                    skip += take;
                 }
+
+                Task.WhenAll(tasks).ConfigureAwait(false).GetAwaiter().GetResult();
 
             }
             catch (WriteTimeoutException ex)
             {
                 logger.WarnException(ex, () => "Write timeout while persisting in IndexByEventTypeStore");
+            }
+        }
+
+        private async Task ExecuteOneAtATimeAsync(ISession session, PreparedStatement preparedStatement, IEnumerable<IndexRecord> indexRecords)
+        {
+            foreach (var record in indexRecords)
+            {
+                string arId = Convert.ToBase64String(record.AggregateRootId);
+                var bs = preparedStatement.Bind(record.Id, arId).SetIdempotence(true);
+                await session.ExecuteAsync(bs).ConfigureAwait(false);
             }
         }
 

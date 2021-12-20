@@ -1,3 +1,11 @@
+# [7.0.0-preview.4](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0-preview.3...v7.0.0-preview.4) (2021-12-20)
+
+
+### Bug Fixes
+
+* Makes ES index writing to C* async ([704bc13](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/704bc135ff9094d5e9c600a7e629fc6ac9a13d44))
+* Update Cronus ([9cd8480](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/9cd8480848d3f4b49e72a81c8afb85654a0aed2b))
+
 # [7.0.0-preview.3](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0-preview.2...v7.0.0-preview.3) (2021-12-01)
 
 

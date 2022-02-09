@@ -19,6 +19,8 @@ namespace Elders.Cronus.Persistence.Cassandra
         protected ICluster cluster;
         protected ISession session;
 
+        private static object establishNewConnection = new object();
+
         private string baseConfigurationKeyspace;
 
         public CassandraProvider(IOptionsMonitor<CassandraProviderOptions> optionsMonitor, IKeyspaceNamingStrategy keyspaceNamingStrategy, ICassandraReplicationStrategy replicationStrategy, IInitializer initializer = null)
@@ -61,6 +63,8 @@ namespace Elders.Cronus.Persistence.Cassandra
                     .WithReconnectionPolicy(new ExponentialReconnectionPolicy(100, 100000))
                     .WithRetryPolicy(new NoHintedHandOffRetryPolicy())
                     .Build();
+
+                cluster.RefreshSchema();
             }
 
             else
@@ -82,9 +86,29 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             if (session is null || session.IsDisposed || optionsHasChanged)
             {
-                session?.Dispose();
-                session = GetCluster().Connect();
-                CreateKeyspace(GetKeyspace(), replicationStrategy);
+                lock (establishNewConnection)
+                {
+                    if (session is null || session.IsDisposed || optionsHasChanged)
+                    {
+                        if (optionsHasChanged)
+                            session?.Dispose();
+
+                        try
+                        {
+                            session = GetCluster().Connect(GetKeyspace());
+                        }
+                        catch (InvalidQueryException)
+                        {
+                            using (ISession schemaSession = GetCluster().Connect())
+                            {
+                                var createKeySpaceQuery = replicationStrategy.CreateKeySpaceTemplate(GetKeyspace());
+                                schemaSession.Execute(createKeySpaceQuery);
+                            }
+
+                            session = GetCluster().Connect(GetKeyspace());
+                        }
+                    }
+                }
             }
 
             return session;
@@ -94,7 +118,6 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             var createKeySpaceQuery = replicationStrategy.CreateKeySpaceTemplate(keyspace);
             session.Execute(createKeySpaceQuery);
-            session.ChangeKeyspace(keyspace);
         }
 
         private void Changed(CassandraProviderOptions newOptions)

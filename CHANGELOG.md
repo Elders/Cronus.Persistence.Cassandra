@@ -1,3 +1,10 @@
+# [7.0.0-preview.5](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0-preview.4...v7.0.0-preview.5) (2022-02-09)
+
+
+### Bug Fixes
+
+* We hope that we've fixed 'keyspace doesn't exist' in concurrent execution ([47bc65a](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/47bc65a9ec148d813d002f109d459d480725d99a))
+
 # [7.0.0-preview.4](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0-preview.3...v7.0.0-preview.4) (2021-12-20)
 
 

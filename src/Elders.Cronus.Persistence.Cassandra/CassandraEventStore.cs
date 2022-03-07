@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
 using Cassandra;
 using Elders.Cronus.EventStore;
 using Microsoft.Extensions.Logging;
@@ -49,7 +49,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             this.cassandraProvider = cassandraProvider;
             this.tableNameStrategy = tableNameStrategy ?? throw new ArgumentNullException(nameof(tableNameStrategy));
             this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer)); ;
-        } 
+        }
 
         public void Append(AggregateCommit aggregateCommit)
         {
@@ -72,6 +72,23 @@ namespace Elders.Cronus.Persistence.Cassandra
             List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
             BoundStatement bs = GetReadStatement().Bind(Convert.ToBase64String(aggregateId.RawId));
             var result = GetSession().Execute(bs);
+            foreach (var row in result.GetRows())
+            {
+                var data = row.GetValue<byte[]>("data");
+                using (var stream = new MemoryStream(data))
+                {
+                    aggregateCommits.Add((AggregateCommit)serializer.Deserialize(stream));
+                }
+            }
+
+            return new EventStream(aggregateCommits);
+        }
+
+        public async Task<EventStream> LoadAsync(IAggregateRootId aggregateId)
+        {
+            List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
+            BoundStatement bs = GetReadStatement().Bind(Convert.ToBase64String(aggregateId.RawId));
+            RowSet result = await GetSession().ExecuteAsync(bs).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
                 var data = row.GetValue<byte[]>("data");

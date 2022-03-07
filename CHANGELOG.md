@@ -1,3 +1,10 @@
+# [7.0.0-preview.6](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0-preview.5...v7.0.0-preview.6) (2022-03-07)
+
+
+### Bug Fixes
+
+* Add async version of Load ([4714ce4](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/4714ce48ca8c938717085f74b9de5d383ba21f79))
+
 # [7.0.0-preview.5](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0-preview.4...v7.0.0-preview.5) (2022-02-09)
 
 

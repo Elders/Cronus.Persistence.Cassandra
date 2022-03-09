@@ -390,42 +390,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             #endregion
 
             var found = LoadAggregateCommitsMeta(replayOptions.AggregateIds, afterTimestamp, beforeStamp);
-
             aggregateCommits.AddRange(found);
-
-            //if (replayOptions.AggregateIds.Any() == false)
-            //{
-            //    IStatement queryStatement = GetReplayStatement().Bind().SetPageSize(pageSize).SetAutoPage(false);
-
-            //    if (pagingInfo.HasToken())
-            //        queryStatement.SetPagingState(pagingInfo.Token);
-
-            //    result = GetSession().Execute(queryStatement);
-            //    foreach (var row in result.GetRows())
-            //    {
-            //        var data = row.GetValue<byte[]>("data");
-            //        using (var stream = new MemoryStream(data))
-            //        {
-            //            AggregateCommit commit;
-            //            try
-            //            {
-            //                commit = (AggregateCommit)serializer.Deserialize(stream);
-            //            }
-            //            catch (Exception ex)
-            //            {
-            //                string error = "Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
-            //                logger.ErrorException(ex, () => error);
-            //                continue;
-            //            }
-            //            aggregateCommits.Add(commit);
-            //        }
-            //    }
-
-            //    if (result.IsFullyFetched == false)
-            //    {
-            //        logger.Warn(() => "Not implemented logic. => if (result.IsFullyFetched == false)");
-            //    }
-            //}
 
             return new LoadAggregateCommitsResult()
             {

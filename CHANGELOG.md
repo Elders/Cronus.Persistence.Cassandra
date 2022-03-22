@@ -1,3 +1,11 @@
+# [7.0.0-preview.7](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0-preview.6...v7.0.0-preview.7) (2022-03-22)
+
+
+### Bug Fixes
+
+* Removes session reload ([1213227](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/1213227fbf83dd98eff521bc60935d33ce8ea268))
+* Updates packages ([16c2bf5](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/16c2bf59cc583f60d21c854476b25175b43dce7c))
+
 # [7.0.0-preview.6](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0-preview.5...v7.0.0-preview.6) (2022-03-07)
 
 

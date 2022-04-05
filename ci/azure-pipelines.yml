@@ -29,6 +29,13 @@ jobs:
     clean: true
     persistCredentials: true
 
+  - task: UseDotNet@2
+    displayName: 'Use .NET 6 Core sdk'
+    inputs:
+      packageType: sdk
+      version: 6.0.x
+      installationPath: $(Agent.ToolsDirectory)/dotnet
+
   - task: Bash@3
     name: GetNextVersion
     env:
@@ -60,6 +67,13 @@ jobs:
   - checkout: self
     clean: true
     persistCredentials: true
+
+  - task: UseDotNet@2
+    displayName: 'Use .NET 6 Core sdk'
+    inputs:
+      packageType: sdk
+      version: 6.0.x
+      installationPath: $(Agent.ToolsDirectory)/dotnet
 
   - task: DotNetCoreCLI@2
     name: Pack

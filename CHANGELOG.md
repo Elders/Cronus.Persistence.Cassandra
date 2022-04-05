@@ -1,3 +1,56 @@
+# [7.0.0-preview.8](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0-preview.7...v7.0.0-preview.8) (2022-03-31)
+
+
+### Bug Fixes
+
+* Update Cronus package ([e8c70ea](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/e8c70eaaf179ead37a2e3c2082020a87df31724b))
+
+# [7.0.0-preview.7](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0-preview.6...v7.0.0-preview.7) (2022-03-22)
+
+
+### Bug Fixes
+
+* Removes session reload ([1213227](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/1213227fbf83dd98eff521bc60935d33ce8ea268))
+* Updates packages ([16c2bf5](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/16c2bf59cc583f60d21c854476b25175b43dce7c))
+
+# [7.0.0-preview.6](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0-preview.5...v7.0.0-preview.6) (2022-03-07)
+
+
+### Bug Fixes
+
+* Add async version of Load ([4714ce4](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/4714ce48ca8c938717085f74b9de5d383ba21f79))
+
+# [7.0.0-preview.5](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0-preview.4...v7.0.0-preview.5) (2022-02-09)
+
+
+### Bug Fixes
+
+* We hope that we've fixed 'keyspace doesn't exist' in concurrent execution ([47bc65a](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/47bc65a9ec148d813d002f109d459d480725d99a))
+
+# [7.0.0-preview.4](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0-preview.3...v7.0.0-preview.4) (2021-12-20)
+
+
+### Bug Fixes
+
+* Makes ES index writing to C* async ([704bc13](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/704bc135ff9094d5e9c600a7e629fc6ac9a13d44))
+* Update Cronus ([9cd8480](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/9cd8480848d3f4b49e72a81c8afb85654a0aed2b))
+
+# [7.0.0-preview.3](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0-preview.2...v7.0.0-preview.3) (2021-12-01)
+
+
+### Bug Fixes
+
+* Add missing parts for Event Store migrations ([f0f3e66](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/f0f3e661cc5f79c34d3d26c9508998276c1dc2c0))
+
+# [7.0.0-preview.2](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0-preview.1...v7.0.0-preview.2) (2021-11-30)
+
+
+### Bug Fixes
+
+* Update Cronus ([97db8c1](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/97db8c1269cf533d3481fd320717019f5f26438e))
+
+# [7.0.0-preview.1](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v6.3.0...v7.0.0-preview.1) (2021-11-11)
+
 # [6.3.0](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v6.2.4...v6.3.0) (2021-11-08)
 
 

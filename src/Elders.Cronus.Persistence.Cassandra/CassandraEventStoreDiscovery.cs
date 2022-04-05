@@ -4,6 +4,7 @@ using Elders.Cronus.Discoveries;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.EventStore.Index;
 using Elders.Cronus.Persistence.Cassandra.Counters;
+using Elders.Cronus.Persistence.Cassandra.Migrations;
 using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -18,7 +19,11 @@ namespace Elders.Cronus.Persistence.Cassandra
                 .Concat(DiscoverCassandraTableNameStrategy(context));
 
 
-            return new DiscoveryResult<IEventStore>(models, services => services.AddOptions<CassandraProviderOptions, CassandraProviderOptionsProvider>());
+            return new DiscoveryResult<IEventStore>(models, services =>
+            {
+                services.AddOptions<CassandraProviderOptions, CassandraProviderOptionsProvider>();
+                services.AddOptions<MigrationCassandraProviderOptions, MigrationCassandraProviderOptionsProvider>();
+            });
         }
 
         protected virtual IEnumerable<DiscoveredModel> DiscoverCassandraTableNameStrategy(DiscoveryContext context)

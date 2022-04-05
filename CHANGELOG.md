@@ -1,17 +1,4 @@
-# [7.0.0](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v6.3.0...v7.0.0) (2022-04-05)
-
-
-### Bug Fixes
-
-* Add async version of Load ([4714ce4](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/4714ce48ca8c938717085f74b9de5d383ba21f79))
-* Add missing parts for Event Store migrations ([f0f3e66](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/f0f3e661cc5f79c34d3d26c9508998276c1dc2c0))
-* Makes ES index writing to C* async ([704bc13](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/704bc135ff9094d5e9c600a7e629fc6ac9a13d44))
-* Removes session reload ([1213227](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/1213227fbf83dd98eff521bc60935d33ce8ea268))
-* Update Cronus ([9cd8480](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/9cd8480848d3f4b49e72a81c8afb85654a0aed2b))
-* Update Cronus ([97db8c1](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/97db8c1269cf533d3481fd320717019f5f26438e))
-* Update Cronus package ([e8c70ea](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/e8c70eaaf179ead37a2e3c2082020a87df31724b))
-* Updates packages ([16c2bf5](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/16c2bf59cc583f60d21c854476b25175b43dce7c))
-* We hope that we've fixed 'keyspace doesn't exist' in concurrent execution ([47bc65a](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/47bc65a9ec148d813d002f109d459d480725d99a))
+# [7.0.0-preview.9](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0-preview.8...v7.0.0-preview.9) (2022-04-05)
 
 # [7.0.0-preview.8](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0-preview.7...v7.0.0-preview.8) (2022-03-31)
 

@@ -10,12 +10,12 @@ using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
-    public class IndexByEventTypeStore : IIndexStore<IOldIndexRecord>
+    public class NewIndexByEventTypeStore : IIndexStore<INewIndexRecord>
     {
-        private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(IndexByEventTypeStore));
+        private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(NewIndexByEventTypeStore));
 
-        private const string Read = @"SELECT aid FROM index_by_eventtype WHERE et = ?;";
-        private const string Write = @"INSERT INTO index_by_eventtype (et,aid) VALUES (?,?);";
+        private const string Read = @"SELECT aid FROM new_index_by_eventtype WHERE et = ?;";
+        private const string Write = @"INSERT INTO new_index_by_eventtype (et,aid,rev,pos,ts) VALUES (?,?,?,?,?);";
 
         const int MaxConcurrencyLevel = 16;
 
@@ -24,21 +24,21 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private readonly ICassandraProvider cassandraProvider;
 
-        private Task<ISession> GetSessionAsync() => cassandraProvider.GetSessionAsync(); // In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
+        private ISession GetSession() => cassandraProvider.GetSession(); // In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
 
-        public IndexByEventTypeStore(ICassandraProvider cassandraProvider)
+        public NewIndexByEventTypeStore(ICassandraProvider cassandraProvider)
         {
             if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
 
             this.cassandraProvider = cassandraProvider;
         }
 
-        public async Task ApendAsync(IEnumerable<IndexRecord> indexRecords)
+        public void Apend(IEnumerable<IIndexRecord> indexRecords)
         {
             try
             {
-                PreparedStatement statement = await GetWritePreparedStatementAsync().ConfigureAwait(false);
-                var session = await GetSessionAsync().ConfigureAwait(false);
+                PreparedStatement statement = GetWritePreparedStatement();
+                var session = GetSession();
 
                 int totalLength = indexRecords.Count();
                 var concurrencyLevel = MaxConcurrencyLevel >= totalLength ? totalLength : MaxConcurrencyLevel;
@@ -57,7 +57,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                     skip += take;
                 }
 
-                await Task.WhenAll(tasks).ConfigureAwait(false);
+                Task.WhenAll(tasks).ConfigureAwait(false).GetAwaiter().GetResult();
 
             }
             catch (WriteTimeoutException ex)
@@ -68,74 +68,68 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private async Task ExecuteOneAtATimeAsync(ISession session, PreparedStatement preparedStatement, IEnumerable<IIndexRecord> indexRecords)
         {
-            foreach (var record in indexRecords)
+            foreach (NewIndexRecord record in indexRecords)
             {
                 string arId = Convert.ToBase64String(record.AggregateRootId);
-                var bs = preparedStatement.Bind(record.Id, arId).SetIdempotence(true);
+                var bs = preparedStatement.Bind(record.Id, arId, record.Revision, record.Position, record.TimeStamp).SetIdempotence(true);
                 await session.ExecuteAsync(bs).ConfigureAwait(false);
             }
         }
 
-        private async Task<PreparedStatement> GetWritePreparedStatementAsync()
+        private PreparedStatement GetWritePreparedStatement()
         {
             if (writeStatement is null)
             {
-                ISession session = await GetSessionAsync().ConfigureAwait(false);
-                writeStatement = await session.PrepareAsync(Write).ConfigureAwait(false);
-                writeStatement.SetConsistencyLevel(ConsistencyLevel.Any);
+                writeStatement = GetSession()
+                    .Prepare(Write)
+                    .SetConsistencyLevel(ConsistencyLevel.Any);
             }
 
             return writeStatement;
         }
 
-        private async Task<PreparedStatement> GetReadPreparedStatementAsync()
+        private PreparedStatement GetReadPreparedStatement()
         {
             if (readStatement is null)
             {
-                ISession session = await GetSessionAsync().ConfigureAwait(false);
-                readStatement = await session.PrepareAsync(Read).ConfigureAwait(false);
-                readStatement.SetConsistencyLevel(ConsistencyLevel.One);
+                readStatement = GetSession()
+                    .Prepare(Read)
+                    .SetConsistencyLevel(ConsistencyLevel.One);
             }
 
             return readStatement;
         }
 
-<<<<<<< HEAD
-        public async IAsyncEnumerable<IndexRecord> GetAsync(string indexRecordId)
-=======
         public IEnumerable<IIndexRecord> Get(string indexRecordId)
->>>>>>> 37bd695 (WIP)
         {
-            PreparedStatement statement = await GetReadPreparedStatementAsync().ConfigureAwait(false);
+            PreparedStatement statement = GetReadPreparedStatement();
 
             BoundStatement bs = statement.Bind(indexRecordId);
-            ISession session = await GetSessionAsync().ConfigureAwait(false);
-            RowSet result = await session.ExecuteAsync(bs).ConfigureAwait(false);
+            var result = GetSession().Execute(bs);
             foreach (var row in result.GetRows())
             {
-                yield return new IndexRecord(indexRecordId, Convert.FromBase64String(row.GetValue<string>("aid")));
+                yield return new NewIndexRecord(indexRecordId, Convert.FromBase64String(row.GetValue<string>("aid")), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
             }
         }
 
-        public async Task<LoadIndexRecordsResult> GetAsync(string indexRecordId, string paginationToken, int pageSize)
+        public LoadIndexRecordsResult Get(string indexRecordId, string paginationToken, int pageSize)
         {
             PagingInfo pagingInfo = GetPagingInfo(paginationToken);
             if (pagingInfo.HasMore == false)
                 return new LoadIndexRecordsResult() { PaginationToken = paginationToken };
 
-            List<IndexRecord> indexRecords = new List<IndexRecord>();
+            List<NewIndexRecord> indexRecords = new List<NewIndexRecord>();
 
-            PreparedStatement statement = await GetReadPreparedStatementAsync().ConfigureAwait(false);
+            PreparedStatement statement = GetReadPreparedStatement();
             IStatement queryStatement = statement.Bind(indexRecordId).SetPageSize(pageSize).SetAutoPage(false);
 
             if (pagingInfo.HasToken())
                 queryStatement.SetPagingState(pagingInfo.Token);
 
-            ISession session = await GetSessionAsync().ConfigureAwait(false);
-            RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
+            RowSet result = GetSession().Execute(queryStatement);
             foreach (var row in result.GetRows())
             {
-                var indexRecord = new IndexRecord(indexRecordId, Convert.FromBase64String(row.GetValue<string>("aid")));
+                var indexRecord = new NewIndexRecord(indexRecordId, Convert.FromBase64String(row.GetValue<string>("aid")), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
                 indexRecords.Add(indexRecord);
             }
 

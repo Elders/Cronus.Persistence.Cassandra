@@ -33,7 +33,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             this.cassandraProvider = cassandraProvider;
         }
 
-        public void Apend(IEnumerable<IndexRecord> indexRecords)
+        public async Task ApendAsync(IEnumerable<IndexRecord> indexRecords)
         {
             try
             {
@@ -57,7 +57,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                     skip += take;
                 }
 
-                Task.WhenAll(tasks).ConfigureAwait(false).GetAwaiter().GetResult();
+                await Task.WhenAll(tasks).ConfigureAwait(false);
 
             }
             catch (WriteTimeoutException ex)
@@ -88,31 +88,31 @@ namespace Elders.Cronus.Persistence.Cassandra
             return writeStatement;
         }
 
-        private PreparedStatement GetReadPreparedStatement()
+        private async Task<PreparedStatement> GetReadPreparedStatementAsync()
         {
             if (readStatement is null)
             {
-                readStatement = GetSession()
-                    .Prepare(Read)
+                readStatement = (await GetSession()
+                    .PrepareAsync(Read).ConfigureAwait(false))
                     .SetConsistencyLevel(ConsistencyLevel.One);
             }
 
             return readStatement;
         }
 
-        public IEnumerable<IndexRecord> Get(string indexRecordId)
+        public async IAsyncEnumerable<IndexRecord> GetAsync(string indexRecordId)
         {
-            PreparedStatement statement = GetReadPreparedStatement();
+            PreparedStatement statement = await GetReadPreparedStatementAsync().ConfigureAwait(false);
 
             BoundStatement bs = statement.Bind(indexRecordId);
-            var result = GetSession().Execute(bs);
+            var result = await GetSession().ExecuteAsync(bs).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
                 yield return new IndexRecord(indexRecordId, Convert.FromBase64String(row.GetValue<string>("aid")));
             }
         }
 
-        public LoadIndexRecordsResult Get(string indexRecordId, string paginationToken, int pageSize)
+        public async Task<LoadIndexRecordsResult> GetAsync(string indexRecordId, string paginationToken, int pageSize)
         {
             PagingInfo pagingInfo = GetPagingInfo(paginationToken);
             if (pagingInfo.HasMore == false)
@@ -120,13 +120,13 @@ namespace Elders.Cronus.Persistence.Cassandra
 
             List<IndexRecord> indexRecords = new List<IndexRecord>();
 
-            PreparedStatement statement = GetReadPreparedStatement();
+            PreparedStatement statement = await GetReadPreparedStatementAsync().ConfigureAwait(false);
             IStatement queryStatement = statement.Bind(indexRecordId).SetPageSize(pageSize).SetAutoPage(false);
 
             if (pagingInfo.HasToken())
                 queryStatement.SetPagingState(pagingInfo.Token);
 
-            RowSet result = GetSession().Execute(queryStatement);
+            RowSet result = await GetSession().ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
                 var indexRecord = new IndexRecord(indexRecordId, Convert.FromBase64String(row.GetValue<string>("aid")));

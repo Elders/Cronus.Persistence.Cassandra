@@ -1,3 +1,10 @@
+# [8.0.0-preview.1](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0...v8.0.0-preview.1) (2022-04-11)
+
+
+### Bug Fixes
+
+* Ensure to prepare and execute queries asynchronously ([14577ab](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/14577ab2341471333ddaf4f767be2bab170ab0ed))
+
 # [7.0.0-preview.11](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0-preview.10...v7.0.0-preview.11) (2022-04-11)
 
 # [7.0.0-preview.10](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0-preview.9...v7.0.0-preview.10) (2022-04-11)

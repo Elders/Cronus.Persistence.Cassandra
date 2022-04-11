@@ -1,10 +1,12 @@
-﻿namespace Elders.Cronus.Persistence.Cassandra
+﻿using System.Threading.Tasks;
+
+namespace Elders.Cronus.Persistence.Cassandra
 {
     public interface ICassandraEventStoreSchema
     {
-        void CreateEventsStorage();
-        void CreateIndecies();
-        void CreateSnapshotsStorage();
-        void CreateStorage();
+        Task CreateEventsStorageAsync();
+        Task CreateIndeciesAsync();
+        Task CreateSnapshotsStorageAsync();
+        Task CreateStorageAsync();
     }
 }

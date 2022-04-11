@@ -24,7 +24,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private readonly ICassandraProvider cassandraProvider;
 
-        private ISession GetSession() => cassandraProvider.GetSession(); // In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
+        private Task<ISession> GetSessionAsync() => cassandraProvider.GetSessionAsync(); // In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
 
         public IndexByEventTypeStore(ICassandraProvider cassandraProvider)
         {
@@ -37,8 +37,8 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             try
             {
-                PreparedStatement statement = GetWritePreparedStatement();
-                var session = GetSession();
+                PreparedStatement statement = await GetWritePreparedStatementAsync().ConfigureAwait(false);
+                var session = await GetSessionAsync().ConfigureAwait(false);
 
                 int totalLength = indexRecords.Count();
                 var concurrencyLevel = MaxConcurrencyLevel >= totalLength ? totalLength : MaxConcurrencyLevel;
@@ -76,13 +76,13 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
-        private PreparedStatement GetWritePreparedStatement()
+        private async Task<PreparedStatement> GetWritePreparedStatementAsync()
         {
             if (writeStatement is null)
             {
-                writeStatement = GetSession()
-                    .Prepare(Write)
-                    .SetConsistencyLevel(ConsistencyLevel.Any);
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
+                writeStatement = await session.PrepareAsync(Write).ConfigureAwait(false);
+                writeStatement.SetConsistencyLevel(ConsistencyLevel.Any);
             }
 
             return writeStatement;
@@ -92,9 +92,9 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             if (readStatement is null)
             {
-                readStatement = (await GetSession()
-                    .PrepareAsync(Read).ConfigureAwait(false))
-                    .SetConsistencyLevel(ConsistencyLevel.One);
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
+                readStatement = await session.PrepareAsync(Read).ConfigureAwait(false);
+                readStatement.SetConsistencyLevel(ConsistencyLevel.One);
             }
 
             return readStatement;
@@ -105,7 +105,8 @@ namespace Elders.Cronus.Persistence.Cassandra
             PreparedStatement statement = await GetReadPreparedStatementAsync().ConfigureAwait(false);
 
             BoundStatement bs = statement.Bind(indexRecordId);
-            var result = await GetSession().ExecuteAsync(bs).ConfigureAwait(false);
+            ISession session = await GetSessionAsync().ConfigureAwait(false);
+            RowSet result = await session.ExecuteAsync(bs).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
                 yield return new IndexRecord(indexRecordId, Convert.FromBase64String(row.GetValue<string>("aid")));
@@ -126,7 +127,8 @@ namespace Elders.Cronus.Persistence.Cassandra
             if (pagingInfo.HasToken())
                 queryStatement.SetPagingState(pagingInfo.Token);
 
-            RowSet result = await GetSession().ExecuteAsync(queryStatement).ConfigureAwait(false);
+            ISession session = await GetSessionAsync().ConfigureAwait(false);
+            RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
                 var indexRecord = new IndexRecord(indexRecordId, Convert.FromBase64String(row.GetValue<string>("aid")));

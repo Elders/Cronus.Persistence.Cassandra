@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using Cassandra;
 using Elders.Cronus.AtomicAction;
 using Elders.Cronus.Persistence.Cassandra.Counters;
@@ -24,7 +25,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         private readonly ILock @lock;
         private readonly TimeSpan lockTtl;
 
-        private ISession GetSession() => cassandraProvider.GetSession(); // In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
+        private Task<ISession> GetSessionAsync() => cassandraProvider.GetSessionAsync(); // In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
 
         public CassandraEventStoreSchema(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ILock @lock)
         {
@@ -38,44 +39,58 @@ namespace Elders.Cronus.Persistence.Cassandra
             if (lockTtl == TimeSpan.Zero) throw new ArgumentException("Lock ttl must be more than 0", nameof(lockTtl));
         }
 
-        public void CreateStorage()
+        public Task CreateStorageAsync()
         {
-            CreateEventsStorage();
-            CreateIndecies();
-            CreateSnapshotsStorage();
+            Task[] createESTasks = new Task[]
+            {
+                CreateEventsStorageAsync(),
+                CreateIndeciesAsync(),
+                CreateSnapshotsStorageAsync()
+            };
+
+            return Task.WhenAll(createESTasks);
         }
 
-        public void CreateEventsStorage()
+        public Task CreateEventsStorageAsync()
         {
             string tableName = tableNameStrategy.GetName();
-            CreateTable(CREATE_EVENTS_TABLE_TEMPLATE, tableName);
+            return CreateTableAsync(CREATE_EVENTS_TABLE_TEMPLATE, tableName);
         }
 
-        public void CreateSnapshotsStorage()
+        public Task CreateSnapshotsStorageAsync()
         {
             //var createSnapshotsTable = String.Format(CreateSnapshotsTableTemplate, tableNameStrategy.GetSnapshotsTableName()).ToLower();
             //session.Execute(createSnapshotsTable);
+            return Task.CompletedTask;
         }
 
-        public void CreateIndecies()
+        public Task CreateIndeciesAsync()
         {
-            CreateTable(CREATE_INDEX_STATUS_TABLE_TEMPLATE, INDEX_STATUS_TABLE_NAME);
-            CreateTable(CREATE_INDEX_BY_EVENT_TYPE_TABLE_TEMPLATE, INDEX_BY_EVENT_TYPE_TABLE_NAME);
-            CreateTable(MessageCounter.CreateTableTemplate, "EventCounter");
+            Task[] createTableTasks = new Task[]
+            {
+                CreateTableAsync(CREATE_INDEX_STATUS_TABLE_TEMPLATE, INDEX_STATUS_TABLE_NAME),
+                CreateTableAsync(CREATE_INDEX_BY_EVENT_TYPE_TABLE_TEMPLATE, INDEX_BY_EVENT_TYPE_TABLE_NAME),
+                CreateTableAsync(MessageCounter.CreateTableTemplate, "EventCounter")
+            };
+
+            return Task.WhenAll(createTableTasks);
         }
 
-        void CreateTable(string cqlQuery, string tableName)
+        async Task CreateTableAsync(string cqlQuery, string tableName)
         {
             if (@lock.Lock(tableName, lockTtl))
             {
                 try
                 {
-                    logger.Debug(() => $"[EventStore] Creating table `{tableName}` with `{GetSession().Cluster.AllHosts().First().Address}` in keyspace `{GetSession().Keyspace}`...");
+                    ISession session = await GetSessionAsync().ConfigureAwait(false);
+                    logger.Debug(() => $"[EventStore] Creating table `{tableName}` with `{session.Cluster.AllHosts().First().Address}` in keyspace `{session.Keyspace}`...");
 
-                    var createEventsTable = string.Format(cqlQuery, tableName).ToLower();
-                    GetSession().Execute(createEventsTable);
+                    PreparedStatement createEventsTableStatement = await session.PrepareAsync(string.Format(cqlQuery, tableName).ToLower()).ConfigureAwait(false);
+                    createEventsTableStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
 
-                    logger.Debug(() => $"[EventStore] Created table `{tableName}` in keyspace `{GetSession().Keyspace}`...");
+                    await session.ExecuteAsync(createEventsTableStatement.Bind()).ConfigureAwait(false);
+
+                    logger.Debug(() => $"[EventStore] Created table `{tableName}` in keyspace `{session.Keyspace}`...");
                 }
                 catch (Exception)
                 {

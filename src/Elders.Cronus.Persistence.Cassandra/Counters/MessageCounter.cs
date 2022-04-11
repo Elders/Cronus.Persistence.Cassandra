@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Elders.Cronus.Persistence.Cassandra.Counters
 {
@@ -17,7 +18,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Counters
         private readonly ICassandraProvider cassandraProvider;
         private readonly ILogger<MessageCounter> logger;
 
-        private ISession GetSession() => cassandraProvider.GetSession();
+        private Task<ISession> GetSessionAsync() => cassandraProvider.GetSessionAsync();
 
         public MessageCounter(ICassandraProvider cassandraProvider, ILogger<MessageCounter> logger)
         {
@@ -25,12 +26,14 @@ namespace Elders.Cronus.Persistence.Cassandra.Counters
             this.logger = logger;
         }
 
-        public void Increment(Type messageType, long incrementWith = 1)
+        public async Task IncrementAsync(Type messageType, long incrementWith = 1)
         {
             try
             {
                 string eventType = Convert.ToBase64String(Encoding.UTF8.GetBytes(messageType.GetContractId()));
-                GetSession().Execute(GetIncrementStatement().Bind(incrementWith, eventType));
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
+                PreparedStatement incrementedStatement = await GetIncrementStatementAsync().ConfigureAwait(false);
+                await session.ExecuteAsync(incrementedStatement.Bind(incrementWith, eventType)).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -38,12 +41,14 @@ namespace Elders.Cronus.Persistence.Cassandra.Counters
             }
         }
 
-        public void Decrement(Type messageType, long decrementWith = 1)
+        public async Task DecrementAsync(Type messageType, long decrementWith = 1)
         {
             try
             {
                 string eventType = Convert.ToBase64String(Encoding.UTF8.GetBytes(messageType.GetContractId()));
-                GetSession().Execute(GetDecrementStatement().Bind(decrementWith, eventType));
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
+                PreparedStatement decrementedStatement = await GetIncrementStatementAsync().ConfigureAwait(false);
+                await session.ExecuteAsync(decrementedStatement.Bind(decrementWith, eventType)).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -51,14 +56,16 @@ namespace Elders.Cronus.Persistence.Cassandra.Counters
             }
         }
 
-        public long GetCount(Type messageType)
+        public async Task<long> GetCountAsync(Type messageType)
         {
             try
             {
                 string eventType = Convert.ToBase64String(Encoding.UTF8.GetBytes(messageType.GetContractId()));
-                BoundStatement bs = GetReadStatement().Bind(eventType);
-                var result = GetSession().Execute(bs);
-                var row = result.GetRows().SingleOrDefault();
+                PreparedStatement ps = await GetReadStatementAsync().ConfigureAwait(false);
+                BoundStatement bs = ps.Bind(eventType);
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
+                RowSet result = await session.ExecuteAsync(bs).ConfigureAwait(false);
+                Row row = result.GetRows().SingleOrDefault();
                 if (row is null)
                 {
                     return 0;
@@ -76,18 +83,19 @@ namespace Elders.Cronus.Persistence.Cassandra.Counters
             }
         }
 
-        public void Reset(Type messageType)
+        public async Task ResetAsync(Type messageType)
         {
-            long current = GetCount(messageType);
-            Decrement(messageType, current);
+            long current = await GetCountAsync(messageType).ConfigureAwait(false);
+            await DecrementAsync(messageType, current).ConfigureAwait(false);
         }
 
         PreparedStatement incrementStatement;
-        private PreparedStatement GetIncrementStatement()
+        private async Task<PreparedStatement> GetIncrementStatementAsync()
         {
             if (incrementStatement is null)
             {
-                incrementStatement = GetSession().Prepare(IncrementTemplate);
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
+                incrementStatement = await session.PrepareAsync(IncrementTemplate).ConfigureAwait(false);
                 incrementStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
             }
 
@@ -95,11 +103,12 @@ namespace Elders.Cronus.Persistence.Cassandra.Counters
         }
 
         PreparedStatement decrementStatement;
-        private PreparedStatement GetDecrementStatement()
+        private async Task<PreparedStatement> GetDecrementStatementAsync()
         {
             if (decrementStatement is null)
             {
-                decrementStatement = GetSession().Prepare(DecrementTemplate);
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
+                decrementStatement = await session.PrepareAsync(DecrementTemplate).ConfigureAwait(false);
                 decrementStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
             }
 
@@ -107,11 +116,12 @@ namespace Elders.Cronus.Persistence.Cassandra.Counters
         }
 
         PreparedStatement readStatement;
-        private PreparedStatement GetReadStatement()
+        private async Task<PreparedStatement> GetReadStatementAsync()
         {
             if (readStatement is null)
             {
-                readStatement = GetSession().Prepare(GetTemplate);
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
+                readStatement = await session.PrepareAsync(GetTemplate).ConfigureAwait(false);
                 readStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
             }
 

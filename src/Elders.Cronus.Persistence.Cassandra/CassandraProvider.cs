@@ -1,8 +1,8 @@
 ﻿using System;
 using Cassandra;
-using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
 using Microsoft.Extensions.Options;
 using DataStax = Cassandra;
+using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {

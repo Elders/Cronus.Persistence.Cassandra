@@ -2,7 +2,6 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Cassandra;
-using Elders.Cronus.AtomicAction;
 using Elders.Cronus.Persistence.Cassandra.Counters;
 using Microsoft.Extensions.Logging;
 
@@ -22,21 +21,15 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private readonly ICassandraProvider cassandraProvider;
         private readonly ITableNamingStrategy tableNameStrategy;
-        private readonly ILock @lock;
-        private readonly TimeSpan lockTtl;
 
         private Task<ISession> GetSessionAsync() => cassandraProvider.GetSessionAsync(); // In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
 
-        public CassandraEventStoreSchema(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ILock @lock)
+        public CassandraEventStoreSchema(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy)
         {
             if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
 
             this.cassandraProvider = cassandraProvider;
             this.tableNameStrategy = tableNameStrategy ?? throw new ArgumentNullException(nameof(tableNameStrategy));
-            this.@lock = @lock;
-
-            this.lockTtl = TimeSpan.FromSeconds(2);
-            if (lockTtl == TimeSpan.Zero) throw new ArgumentException("Lock ttl must be more than 0", nameof(lockTtl));
         }
 
         public Task CreateStorageAsync()
@@ -78,32 +71,21 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         async Task CreateTableAsync(string cqlQuery, string tableName)
         {
-            if (@lock.Lock(tableName, lockTtl))
+            try
             {
-                try
-                {
-                    ISession session = await GetSessionAsync().ConfigureAwait(false);
-                    logger.Debug(() => $"[EventStore] Creating table `{tableName}` with `{session.Cluster.AllHosts().First().Address}` in keyspace `{session.Keyspace}`...");
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
+                logger.Debug(() => $"[EventStore] Creating table `{tableName}` with `{session.Cluster.AllHosts().First().Address}` in keyspace `{session.Keyspace}`...");
 
-                    PreparedStatement createEventsTableStatement = await session.PrepareAsync(string.Format(cqlQuery, tableName).ToLower()).ConfigureAwait(false);
-                    createEventsTableStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+                PreparedStatement createEventsTableStatement = await session.PrepareAsync(string.Format(cqlQuery, tableName).ToLower()).ConfigureAwait(false);
+                createEventsTableStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
 
-                    await session.ExecuteAsync(createEventsTableStatement.Bind()).ConfigureAwait(false);
+                await session.ExecuteAsync(createEventsTableStatement.Bind()).ConfigureAwait(false);
 
-                    logger.Debug(() => $"[EventStore] Created table `{tableName}` in keyspace `{session.Keyspace}`...");
-                }
-                catch (Exception)
-                {
-                    throw;
-                }
-                finally
-                {
-                    @lock.Unlock(tableName);
-                }
+                logger.Debug(() => $"[EventStore] Created table `{tableName}` in keyspace `{session.Keyspace}`...");
             }
-            else
+            catch (Exception)
             {
-                logger.Warn(() => $"[EventStore] Could not acquire lock for `{tableName}` to create table.");
+                throw;
             }
         }
     }

@@ -1,10 +1,11 @@
 ﻿using System;
 using Cassandra;
-using Microsoft.Extensions.Options;
-using DataStax = Cassandra;
 using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
+using Microsoft.Extensions.Options;
+using System.Threading;
 using System.Threading.Tasks;
-using Elders.Cronus.AtomicAction;
+using DataStax = Cassandra;
+using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
@@ -14,17 +15,13 @@ namespace Elders.Cronus.Persistence.Cassandra
         protected readonly IKeyspaceNamingStrategy keyspaceNamingStrategy;
         protected readonly ICassandraReplicationStrategy replicationStrategy;
         protected readonly IInitializer initializer;
-        private readonly ILock @lock;
-        private readonly TimeSpan lockTtl;
+        protected readonly ILogger<CassandraProvider> logger;
 
         protected ICluster cluster;
         protected ISession session;
 
-        private static object establishNewConnection = new object();
-
         private string baseConfigurationKeyspace;
-
-        public CassandraProvider(IOptionsMonitor<CassandraProviderOptions> optionsMonitor, IKeyspaceNamingStrategy keyspaceNamingStrategy, ICassandraReplicationStrategy replicationStrategy, IInitializer initializer, ILock @lock)
+        public CassandraProvider(IOptionsMonitor<CassandraProviderOptions> optionsMonitor, IKeyspaceNamingStrategy keyspaceNamingStrategy, ICassandraReplicationStrategy replicationStrategy, ILogger<CassandraProvider> logger, IInitializer initializer = null)
         {
             if (optionsMonitor is null) throw new ArgumentNullException(nameof(optionsMonitor));
             if (keyspaceNamingStrategy is null) throw new ArgumentNullException(nameof(keyspaceNamingStrategy));
@@ -34,10 +31,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             this.keyspaceNamingStrategy = keyspaceNamingStrategy;
             this.replicationStrategy = replicationStrategy;
             this.initializer = initializer;
-            this.@lock = @lock;
-
-            this.lockTtl = TimeSpan.FromSeconds(2);
-            if (lockTtl == TimeSpan.Zero) throw new ArgumentException("Lock ttl must be more than 0", nameof(lockTtl));
+            this.logger = logger;
         }
 
         public async Task<ICluster> GetClusterAsync()
@@ -60,7 +54,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
                 var connStrBuilder = new CassandraConnectionStringBuilder(connectionString);
 
-                await (cluster?.ShutdownAsync(30000)).ConfigureAwait(false);
+                cluster?.Shutdown(30000);
                 cluster = connStrBuilder
                     .ApplyToBuilder(builder)
                     .WithReconnectionPolicy(new ExponentialReconnectionPolicy(100, 100000))
@@ -83,32 +77,49 @@ namespace Elders.Cronus.Persistence.Cassandra
             return keyspaceNamingStrategy.GetName(baseConfigurationKeyspace).ToLower();
         }
 
+        private static SemaphoreSlim threadGate = new SemaphoreSlim(1); // Instantiate a Singleton of the Semaphore with a value of 1. This means that only 1 thread can be granted access at a time
+
         public async Task<ISession> GetSessionAsync()
         {
-            if (session is null || session.IsDisposed)
+            try
             {
-                if (@lock.Lock(session.ToString(), lockTtl))
+                if (session is null || session.IsDisposed)
                 {
+                    await threadGate.WaitAsync(30000).ConfigureAwait(false);
+
                     try
                     {
-                        ICluster cluster = await GetClusterAsync().ConfigureAwait(false);
-                        session = await cluster.ConnectAsync(GetKeyspace());
-                    }
-                    catch (InvalidQueryException)
-                    {
-                        ICluster cluster = await GetClusterAsync().ConfigureAwait(false);
-                        using (ISession schemaSession = await cluster.ConnectAsync().ConfigureAwait(false))
+                        if (session is null || session.IsDisposed)
                         {
-                            string createKeySpaceQuery = replicationStrategy.CreateKeySpaceTemplate(GetKeyspace());
-                            IStatement createTableStatement = await GetKreateKeySpaceQuery(schemaSession).ConfigureAwait(false);
-                            await schemaSession.ExecuteAsync(createTableStatement).ConfigureAwait(false);
-                        }
+                            logger.Info(() => "Refreshing cassandra session...");
+                            try
+                            {
+                                ICluster cluster = await GetClusterAsync().ConfigureAwait(false);
+                                session = await cluster.ConnectAsync(GetKeyspace()).ConfigureAwait(false);
+                            }
+                            catch (InvalidQueryException)
+                            {
+                                ICluster cluster = await GetClusterAsync().ConfigureAwait(false);
+                                using (ISession schemaSession = await cluster.ConnectAsync().ConfigureAwait(false))
+                                {
+                                    string createKeySpaceQuery = replicationStrategy.CreateKeySpaceTemplate(GetKeyspace());
+                                    IStatement createTableStatement = await GetKreateKeySpaceQuery(schemaSession).ConfigureAwait(false);
+                                    await schemaSession.ExecuteAsync(createTableStatement).ConfigureAwait(false);
+                                }
 
-                        ICluster server = await GetClusterAsync().ConfigureAwait(false);
-                        session = await server.ConnectAsync(GetKeyspace()).ConfigureAwait(false);
+                                ICluster server = await GetClusterAsync().ConfigureAwait(false);
+                                session = await server.ConnectAsync(GetKeyspace()).ConfigureAwait(false);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        threadGate?.Release();
                     }
                 }
             }
+            catch (ObjectDisposedException) { }
+
 
             return session;
         }

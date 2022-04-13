@@ -13,10 +13,7 @@ namespace Elders.Cronus.Persistence.Cassandra
     public class CassandraEventStore<TSettings> : CassandraEventStore, IEventStorePlayer<TSettings>
         where TSettings : class, ICassandraEventStoreSettings
     {
-        public CassandraEventStore(TSettings settings)
-            : base(settings.CassandraProvider, settings.TableNameStrategy, settings.Serializer)
-        {
-        }
+        public CassandraEventStore(TSettings settings) : base(settings.CassandraProvider, settings.TableNameStrategy, settings.Serializer) { }
     }
 
     public class CassandraEventStore : IEventStore, IEventStorePlayer

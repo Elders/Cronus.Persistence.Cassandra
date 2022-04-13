@@ -1,3 +1,10 @@
+# [8.0.0-preview.2](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v8.0.0-preview.1...v8.0.0-preview.2) (2022-04-13)
+
+
+### Bug Fixes
+
+* Establish async connection to Cassandra session ([0c06db2](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/0c06db2b54645a7f43232e7212db5a4113a2e852))
+
 # [8.0.0-preview.1](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0...v8.0.0-preview.1) (2022-04-11)
 
 

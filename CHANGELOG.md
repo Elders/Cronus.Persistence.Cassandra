@@ -1,3 +1,10 @@
+## [7.0.2](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.1...v7.0.2) (2022-04-15)
+
+
+### Bug Fixes
+
+* Fix injecting a non-generic logger ([90326e4](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/90326e428950ae2273e1b64416762b4bd899d19c))
+
 ## [7.0.1](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0...v7.0.1) (2022-04-15)
 
 

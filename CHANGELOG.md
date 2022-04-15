@@ -1,3 +1,10 @@
+## [7.0.1](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0...v7.0.1) (2022-04-15)
+
+
+### Bug Fixes
+
+* Add loggs when loading events ([f7ced3a](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/f7ced3af698d73bdb8a7984fd094a9784900d41d))
+
 # [7.0.0](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v6.3.0...v7.0.0) (2022-04-05)
 
 

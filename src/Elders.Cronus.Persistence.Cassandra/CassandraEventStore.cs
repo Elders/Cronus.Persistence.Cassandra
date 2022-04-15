@@ -14,7 +14,7 @@ namespace Elders.Cronus.Persistence.Cassandra
     public class CassandraEventStore<TSettings> : CassandraEventStore, IEventStorePlayer<TSettings>
         where TSettings : class, ICassandraEventStoreSettings
     {
-        public CassandraEventStore(TSettings settings, ILogger logger)
+        public CassandraEventStore(TSettings settings, ILogger<CassandraEventStore> logger)
             : base(settings.CassandraProvider, settings.TableNameStrategy, settings.Serializer, logger)
         {
         }
@@ -22,7 +22,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
     public class CassandraEventStore : IEventStore, IEventStorePlayer
     {
-        private readonly ILogger logger;
+        private readonly ILogger<CassandraEventStore> logger;
 
         private const string LoadAggregateEventsQueryTemplate = @"SELECT data FROM {0} WHERE id = ?;";
         private const string InsertEventsQueryTemplate = @"INSERT INTO {0} (id,ts,rev,data) VALUES (?,?,?,?);";
@@ -44,7 +44,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         private PreparedStatement replayWithoutDataStatement;
         private PreparedStatement loadAggregateCommitsMetaStatement;
 
-        public CassandraEventStore(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ISerializer serializer, ILogger logger)
+        public CassandraEventStore(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ISerializer serializer, ILogger<CassandraEventStore> logger)
         {
             if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
             this.cassandraProvider = cassandraProvider;

@@ -5,7 +5,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Migrations
 {
     public class CassandraMigratorEventStorePlayer : CassandraEventStore<MigratorCassandraReplaySettings>, IMigrationEventStorePlayer
     {
-        public CassandraMigratorEventStorePlayer(MigratorCassandraReplaySettings settings, ILogger logger) : base(settings, logger)
+        public CassandraMigratorEventStorePlayer(MigratorCassandraReplaySettings settings, ILogger<CassandraEventStore> logger) : base(settings, logger)
         {
 
         }

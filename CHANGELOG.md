@@ -1,3 +1,10 @@
+# [8.0.0-preview.3](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v8.0.0-preview.2...v8.0.0-preview.3) (2022-04-18)
+
+
+### Bug Fixes
+
+* Update Cronus package ([789eb1d](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/789eb1d1032c9aed4ae8474d4bfe8d2417351137))
+
 # [8.0.0-preview.2](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v8.0.0-preview.1...v8.0.0-preview.2) (2022-04-13)
 
 

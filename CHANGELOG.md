@@ -1,3 +1,13 @@
+# [8.0.0-preview.4](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v8.0.0-preview.3...v8.0.0-preview.4) (2022-05-19)
+
+
+### Bug Fixes
+
+* Add loggs when loading events ([f7ced3a](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/f7ced3af698d73bdb8a7984fd094a9784900d41d))
+* Fix injecting a non-generic logger ([90326e4](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/90326e428950ae2273e1b64416762b4bd899d19c))
+* Fix merge effects ([105c05d](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/105c05da61b5e11a0b6830bd70f7ce32c4f4035c))
+* Merge: fix inkection a non-generic logger ([36e60bf](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/36e60bfd3d4540813d756313183cb557c8e83e0e))
+
 # [8.0.0-preview.3](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v8.0.0-preview.2...v8.0.0-preview.3) (2022-04-18)
 
 

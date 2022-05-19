@@ -71,7 +71,6 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
-<<<<<<< HEAD
         public async Task<EventStream> LoadAsync(IAggregateRootId aggregateId)
         {
             List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
@@ -81,56 +80,15 @@ namespace Elders.Cronus.Persistence.Cassandra
             ISession session = await GetSessionAsync().ConfigureAwait(false);
             var result = await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
-=======
-        public EventStream Load(IAggregateRootId aggregateId)
-        {
-            try
             {
-                List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
-                BoundStatement bs = GetReadStatement().Bind(Convert.ToBase64String(aggregateId.RawId));
-                var result = GetSession().Execute(bs);
-                foreach (var row in result.GetRows())
+                var data = row.GetValue<byte[]>("data");
+                using (var stream = new MemoryStream(data))
                 {
-                    var data = row.GetValue<byte[]>("data");
-                    using (var stream = new MemoryStream(data))
-                    {
-                        aggregateCommits.Add((AggregateCommit)serializer.Deserialize(stream));
-                    }
+                    aggregateCommits.Add((AggregateCommit)serializer.Deserialize(stream));
                 }
+            }
 
-                return new EventStream(aggregateCommits);
-            }
-            catch (Exception ex)
-            {
-                logger.WarnException(ex, () => $"Failed to load aggregate commits for {aggregateId}");
-                return new EventStream(new List<AggregateCommit>());
-            }
-        }
-
-        public async Task<EventStream> LoadAsync(IAggregateRootId aggregateId)
-        {
-            List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
-            try
->>>>>>> master
-            {
-                BoundStatement bs = GetReadStatement().Bind(Convert.ToBase64String(aggregateId.RawId));
-                RowSet result = await GetSession().ExecuteAsync(bs).ConfigureAwait(false);
-                foreach (var row in result.GetRows())
-                {
-                    var data = row.GetValue<byte[]>("data");
-                    using (var stream = new MemoryStream(data))
-                    {
-                        aggregateCommits.Add((AggregateCommit)serializer.Deserialize(stream));
-                    }
-                }
-
-                return new EventStream(aggregateCommits);
-            }
-            catch (Exception ex)
-            {
-                logger.WarnException(ex, () => $"Failed to load aggregate commits for {aggregateId}");
-                return new EventStream(new List<AggregateCommit>());
-            }
+            return new EventStream(aggregateCommits);
         }
 
         private PagingInfo GetPagingInfo(string paginationToken)

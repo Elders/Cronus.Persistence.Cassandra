@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
-    public class IndexByEventTypeStore : IIndexStore<IOldIndexRecord>
+    public class IndexByEventTypeStore : IIndexStore
     {
         private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(IndexByEventTypeStore));
 
@@ -66,7 +66,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
-        private async Task ExecuteOneAtATimeAsync(ISession session, PreparedStatement preparedStatement, IEnumerable<IIndexRecord> indexRecords)
+        private async Task ExecuteOneAtATimeAsync(ISession session, PreparedStatement preparedStatement, IEnumerable<IndexRecord> indexRecords)
         {
             foreach (var record in indexRecords)
             {
@@ -101,10 +101,14 @@ namespace Elders.Cronus.Persistence.Cassandra
         }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
         public async IAsyncEnumerable<IndexRecord> GetAsync(string indexRecordId)
 =======
         public IEnumerable<IIndexRecord> Get(string indexRecordId)
 >>>>>>> 37bd695 (WIP)
+=======
+        public IEnumerable<IndexRecord> Get(string indexRecordId)
+>>>>>>> f80120d (Make preview event store)
         {
             PreparedStatement statement = await GetReadPreparedStatementAsync().ConfigureAwait(false);
 
@@ -113,7 +117,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             RowSet result = await session.ExecuteAsync(bs).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
-                yield return new IndexRecord(indexRecordId, Convert.FromBase64String(row.GetValue<string>("aid")));
+                yield return new IndexRecord(indexRecordId, Encoding.UTF8.GetBytes(row.GetValue<string>("aid")));
             }
         }
 
@@ -135,7 +139,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
-                var indexRecord = new IndexRecord(indexRecordId, Convert.FromBase64String(row.GetValue<string>("aid")));
+                var indexRecord = new IndexRecord(indexRecordId, Encoding.UTF8.GetBytes(row.GetValue<string>("aid")));
                 indexRecords.Add(indexRecord);
             }
 

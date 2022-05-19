@@ -8,13 +8,13 @@ using Cassandra;
 using Elders.Cronus.EventStore.Index;
 using Microsoft.Extensions.Logging;
 
-namespace Elders.Cronus.Persistence.Cassandra
+namespace Elders.Cronus.Persistence.Cassandra.Preview
 {
-    public class NewIndexByEventTypeStore : IIndexStore<INewIndexRecord>
+    public class NewIndexByEventTypeStore : IIndexStore
     {
         private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(NewIndexByEventTypeStore));
 
-        private const string Read = @"SELECT aid FROM new_index_by_eventtype WHERE et = ?;";
+        private const string Read = @"SELECT aid,rev,pos,ts FROM new_index_by_eventtype WHERE et = ?;";
         private const string Write = @"INSERT INTO new_index_by_eventtype (et,aid,rev,pos,ts) VALUES (?,?,?,?,?);";
 
         const int MaxConcurrencyLevel = 16;
@@ -33,7 +33,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             this.cassandraProvider = cassandraProvider;
         }
 
-        public void Apend(IEnumerable<IIndexRecord> indexRecords)
+        public void Apend(IEnumerable<IndexRecord> indexRecords)
         {
             try
             {
@@ -66,11 +66,11 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
-        private async Task ExecuteOneAtATimeAsync(ISession session, PreparedStatement preparedStatement, IEnumerable<IIndexRecord> indexRecords)
+        private async Task ExecuteOneAtATimeAsync(ISession session, PreparedStatement preparedStatement, IEnumerable<IndexRecord> indexRecords)
         {
-            foreach (NewIndexRecord record in indexRecords)
+            foreach (IndexRecord record in indexRecords)
             {
-                string arId = Convert.ToBase64String(record.AggregateRootId);
+                byte[] arId = record.AggregateRootId;
                 var bs = preparedStatement.Bind(record.Id, arId, record.Revision, record.Position, record.TimeStamp).SetIdempotence(true);
                 await session.ExecuteAsync(bs).ConfigureAwait(false);
             }
@@ -100,7 +100,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             return readStatement;
         }
 
-        public IEnumerable<IIndexRecord> Get(string indexRecordId)
+        public IEnumerable<IndexRecord> Get(string indexRecordId)
         {
             PreparedStatement statement = GetReadPreparedStatement();
 
@@ -108,7 +108,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             var result = GetSession().Execute(bs);
             foreach (var row in result.GetRows())
             {
-                yield return new NewIndexRecord(indexRecordId, Convert.FromBase64String(row.GetValue<string>("aid")), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
+                yield return new IndexRecord(indexRecordId, Encoding.UTF8.GetBytes(row.GetValue<string>("aid")), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
             }
         }
 
@@ -118,7 +118,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             if (pagingInfo.HasMore == false)
                 return new LoadIndexRecordsResult() { PaginationToken = paginationToken };
 
-            List<NewIndexRecord> indexRecords = new List<NewIndexRecord>();
+            List<IndexRecord> indexRecords = new List<IndexRecord>();
 
             PreparedStatement statement = GetReadPreparedStatement();
             IStatement queryStatement = statement.Bind(indexRecordId).SetPageSize(pageSize).SetAutoPage(false);
@@ -129,7 +129,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             RowSet result = GetSession().Execute(queryStatement);
             foreach (var row in result.GetRows())
             {
-                var indexRecord = new NewIndexRecord(indexRecordId, Convert.FromBase64String(row.GetValue<string>("aid")), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
+                var indexRecord = new IndexRecord(indexRecordId, Encoding.UTF8.GetBytes(row.GetValue<byte[]>("aid")), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
                 indexRecords.Add(indexRecord);
             }
 

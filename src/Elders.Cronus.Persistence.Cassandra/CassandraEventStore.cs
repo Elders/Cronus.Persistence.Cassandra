@@ -90,15 +90,36 @@ namespace Elders.Cronus.Persistence.Cassandra
             return new EventStream(aggregateCommits);
         }
 
-        private PagingInfo GetPagingInfo(string paginationToken)
+        public LoadAggregateCommitsResult LoadAggregateCommits(ReplayOptions replayOptions)
         {
-            PagingInfo pagingInfo = new PagingInfo();
-            if (string.IsNullOrEmpty(paginationToken) == false)
+            List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
+
+            string paginationToken = replayOptions.PaginationToken;
+            int pageSize = replayOptions.BatchSize;
+
+            PagingInfo pagingInfo = GetPagingInfo(paginationToken);
+            if (pagingInfo.HasMore == false)
+                return new LoadAggregateCommitsResult() { PaginationToken = paginationToken };
+
+            #region TerribleCode
+            // AAAAAAAAAAAAAAAAA why did you expand this. Now you have to fix it.
+            bool hasTimeRangeFilter = replayOptions.After.HasValue || replayOptions.Before.HasValue;
+            long afterTimestamp = 0; // 1/1/1601 2:00:00 AM +02:00
+            long beforeStamp = 2650381343999999999; // DateTimeOffset.MaxValue.Subtract(TimeSpan.FromDays(100)).ToFileTime()
+            if (replayOptions.After.HasValue)
+                afterTimestamp = replayOptions.After.Value.ToFileTime();
+            if (replayOptions.Before.HasValue)
+                beforeStamp = replayOptions.Before.Value.ToFileTime();
+            #endregion
+
+            var found = LoadAggregateCommitsMeta(replayOptions.AggregateIds, afterTimestamp, beforeStamp);
+            aggregateCommits.AddRange(found);
+
+            return new LoadAggregateCommitsResult()
             {
-                string paginationJson = Encoding.UTF8.GetString(Convert.FromBase64String(paginationToken));
-                pagingInfo = JsonSerializer.Deserialize<PagingInfo>(paginationJson);
-            }
-            return pagingInfo;
+                Commits = aggregateCommits,
+                PaginationToken = null
+            };
         }
 
         public async Task<LoadAggregateCommitsResult> LoadAggregateCommitsAsync(string paginationToken, int pageSize = 5000)
@@ -210,14 +231,34 @@ namespace Elders.Cronus.Persistence.Cassandra
             var result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
-                string id = row.GetValue<string>("id");
+                byte[] id = row.GetValue<byte[]>("id");
                 byte[] data = row.GetValue<byte[]>("data");
                 int revision = row.GetValue<int>("rev");
                 long timestamp = row.GetValue<long>("ts");
 
                 using (var stream = new MemoryStream(data))
                 {
-                    AggregateCommitRaw commitRaw = new AggregateCommitRaw(id, data, revision, timestamp);
+                    AggregateCommitRaw commitRaw = new AggregateCommitRaw(id, data, revision,0, timestamp);
+
+                    yield return commitRaw;
+                }
+            }
+        }
+
+        public async IAsyncEnumerable<AggregateCommitRaw> LoadAggregateCommitsRawAsync()
+        {
+            var queryStatement = GetReplayStatement().Bind();
+            var result = await GetSession().ExecuteAsync(queryStatement);
+            foreach (var row in result.GetRows())
+            {
+                byte[] id = row.GetValue<byte[]>("id");
+                byte[] data = row.GetValue<byte[]>("data");
+                int revision = row.GetValue<int>("rev");
+                long timestamp = row.GetValue<long>("ts");
+
+                using (var stream = new MemoryStream(data))
+                {
+                    AggregateCommitRaw commitRaw = new AggregateCommitRaw(id, data,revision, 0, timestamp); // the position 0 is ignored in
 
                     yield return commitRaw;
                 }
@@ -272,25 +313,22 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
-        public async IAsyncEnumerable<AggregateCommitRaw> LoadAggregateCommitsRawAsync()
+        private PagingInfo GetPagingInfo(string paginationToken)
         {
+<<<<<<< HEAD
             ISession session = await GetSessionAsync().ConfigureAwait(false);
             var queryStatement = (await GetReplayStatementAsync().ConfigureAwait(false)).Bind();
             var result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
+=======
+            PagingInfo pagingInfo = new PagingInfo();
+            if (string.IsNullOrEmpty(paginationToken) == false)
+>>>>>>> f80120d (Make preview event store)
             {
-                string id = row.GetValue<string>("id");
-                byte[] data = row.GetValue<byte[]>("data");
-                int revision = row.GetValue<int>("rev");
-                long timestamp = row.GetValue<long>("ts");
-
-                using (var stream = new MemoryStream(data))
-                {
-                    AggregateCommitRaw commitRaw = new AggregateCommitRaw(id, data, revision, timestamp);
-
-                    yield return commitRaw;
-                }
+                string paginationJson = Encoding.UTF8.GetString(Convert.FromBase64String(paginationToken));
+                pagingInfo = JsonSerializer.Deserialize<PagingInfo>(paginationJson);
             }
+            return pagingInfo;
         }
 
         private byte[] SerializeEvent(AggregateCommit commit)
@@ -354,6 +392,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             return replayWithoutDataStatement;
         }
 
+<<<<<<< HEAD
         public async Task AppendAsync(AggregateCommitRaw aggregateCommitRaw)
         {
             try
@@ -403,5 +442,8 @@ namespace Elders.Cronus.Persistence.Cassandra
                 PaginationToken = null
             };
         }
+=======
+
+>>>>>>> f80120d (Make preview event store)
     }
 }

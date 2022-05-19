@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -13,12 +14,15 @@ namespace Elders.Cronus.Persistence.Cassandra
     public class CassandraEventStore<TSettings> : CassandraEventStore, IEventStorePlayer<TSettings>
         where TSettings : class, ICassandraEventStoreSettings
     {
-        public CassandraEventStore(TSettings settings) : base(settings.CassandraProvider, settings.TableNameStrategy, settings.Serializer) { }
+        public CassandraEventStore(TSettings settings, ILogger<CassandraEventStore> logger)
+            : base(settings.CassandraProvider, settings.TableNameStrategy, settings.Serializer, logger)
+        {
+        }
     }
 
     public class CassandraEventStore : IEventStore, IEventStorePlayer
     {
-        private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(CassandraEventStore));
+        private readonly ILogger<CassandraEventStore> logger;
 
         private const string LoadAggregateEventsQueryTemplate = @"SELECT data FROM {0} WHERE id = ?;";
         private const string InsertEventsQueryTemplate = @"INSERT INTO {0} (id,ts,rev,data) VALUES (?,?,?,?);";
@@ -40,12 +44,13 @@ namespace Elders.Cronus.Persistence.Cassandra
         private PreparedStatement replayWithoutDataStatement;
         private PreparedStatement loadAggregateCommitsMetaStatement;
 
-        public CassandraEventStore(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ISerializer serializer)
+        public CassandraEventStore(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ISerializer serializer, ILogger<CassandraEventStore> logger)
         {
             if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
             this.cassandraProvider = cassandraProvider;
             this.tableNameStrategy = tableNameStrategy ?? throw new ArgumentNullException(nameof(tableNameStrategy));
             this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer)); ;
+            this.logger = logger;
         }
 
         public async Task AppendAsync(AggregateCommit aggregateCommit)
@@ -66,6 +71,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
+<<<<<<< HEAD
         public async Task<EventStream> LoadAsync(IAggregateRootId aggregateId)
         {
             List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
@@ -75,15 +81,56 @@ namespace Elders.Cronus.Persistence.Cassandra
             ISession session = await GetSessionAsync().ConfigureAwait(false);
             var result = await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
+=======
+        public EventStream Load(IAggregateRootId aggregateId)
+        {
+            try
             {
-                var data = row.GetValue<byte[]>("data");
-                using (var stream = new MemoryStream(data))
+                List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
+                BoundStatement bs = GetReadStatement().Bind(Convert.ToBase64String(aggregateId.RawId));
+                var result = GetSession().Execute(bs);
+                foreach (var row in result.GetRows())
                 {
-                    aggregateCommits.Add((AggregateCommit)serializer.Deserialize(stream));
+                    var data = row.GetValue<byte[]>("data");
+                    using (var stream = new MemoryStream(data))
+                    {
+                        aggregateCommits.Add((AggregateCommit)serializer.Deserialize(stream));
+                    }
                 }
-            }
 
-            return new EventStream(aggregateCommits);
+                return new EventStream(aggregateCommits);
+            }
+            catch (Exception ex)
+            {
+                logger.WarnException(ex, () => $"Failed to load aggregate commits for {aggregateId}");
+                return new EventStream(new List<AggregateCommit>());
+            }
+        }
+
+        public async Task<EventStream> LoadAsync(IAggregateRootId aggregateId)
+        {
+            List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
+            try
+>>>>>>> master
+            {
+                BoundStatement bs = GetReadStatement().Bind(Convert.ToBase64String(aggregateId.RawId));
+                RowSet result = await GetSession().ExecuteAsync(bs).ConfigureAwait(false);
+                foreach (var row in result.GetRows())
+                {
+                    var data = row.GetValue<byte[]>("data");
+                    using (var stream = new MemoryStream(data))
+                    {
+                        aggregateCommits.Add((AggregateCommit)serializer.Deserialize(stream));
+                    }
+                }
+
+                return new EventStream(aggregateCommits);
+            }
+            catch (Exception ex)
+            {
+                logger.WarnException(ex, () => $"Failed to load aggregate commits for {aggregateId}");
+                return new EventStream(new List<AggregateCommit>());
+            }
         }
 
         private PagingInfo GetPagingInfo(string paginationToken)

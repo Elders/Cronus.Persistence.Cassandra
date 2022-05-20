@@ -70,6 +70,22 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
+        public async Task AppendAsync(AggregateCommitRaw aggregateCommitRaw)
+        {
+            try
+            {
+                PreparedStatement statement = await GetWriteStatementAsync().ConfigureAwait(false);
+                BoundStatement boundStatement = statement.Bind(aggregateCommitRaw.AggregateRootId, aggregateCommitRaw.Timestamp, aggregateCommitRaw.Revision, 0, aggregateCommitRaw.Data);
+
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
+                await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
+            }
+            catch (WriteTimeoutException ex)
+            {
+                logger.WarnException(ex, () => "Write timeout while persisting an aggregate commit");
+            }
+        }
+
         public async Task<EventStream> LoadAsync(IAggregateRootId aggregateId)
         {
             List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
@@ -90,7 +106,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             return new EventStream(aggregateCommits);
         }
 
-        public LoadAggregateCommitsResult LoadAggregateCommits(ReplayOptions replayOptions)
+        public async Task<LoadAggregateCommitsResult> LoadAggregateCommitsAsync(ReplayOptions replayOptions)
         {
             List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
 
@@ -112,8 +128,10 @@ namespace Elders.Cronus.Persistence.Cassandra
                 beforeStamp = replayOptions.Before.Value.ToFileTime();
             #endregion
 
-            var found = LoadAggregateCommitsMeta(replayOptions.AggregateIds, afterTimestamp, beforeStamp);
-            aggregateCommits.AddRange(found);
+            var found = LoadAggregateCommitsMetaAsync(replayOptions.AggregateIds, afterTimestamp, beforeStamp).ConfigureAwait(false);
+            await foreach (var meta in found)
+                aggregateCommits.Add(meta);
+
 
             return new LoadAggregateCommitsResult()
             {
@@ -130,12 +148,20 @@ namespace Elders.Cronus.Persistence.Cassandra
 
             List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
 
+<<<<<<< HEAD
             IStatement queryStatement = (await GetReplayStatementAsync()).Bind().SetPageSize(pageSize).SetAutoPage(false);
+=======
+            IStatement queryStatement = (await GetReplayStatementAsync().ConfigureAwait(false)).Bind().SetPageSize(pageSize).SetAutoPage(false);
+>>>>>>> e171231 (Move to async Cronus)
 
             if (pagingInfo.HasToken())
                 queryStatement.SetPagingState(pagingInfo.Token);
 
+<<<<<<< HEAD
             ISession session = await GetSessionAsync();
+=======
+            ISession session = await GetSessionAsync().ConfigureAwait(false);
+>>>>>>> e171231 (Move to async Cronus)
             RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
@@ -173,7 +199,11 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             PreparedStatement statement = await GetReplayStatementAsync().ConfigureAwait(false);
             IStatement queryStatement = statement.Bind().SetPageSize(batchSize);
+<<<<<<< HEAD
             ISession session = await GetSessionAsync();
+=======
+            ISession session = await GetSessionAsync().ConfigureAwait(false);
+>>>>>>> e171231 (Move to async Cronus)
             RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
@@ -200,7 +230,11 @@ namespace Elders.Cronus.Persistence.Cassandra
         public async IAsyncEnumerable<AggregateCommit> LoadAggregateCommitsAsync()
         {
             var queryStatement = (await GetReplayStatementAsync().ConfigureAwait(false)).Bind();
+<<<<<<< HEAD
             ISession session = await GetSessionAsync();
+=======
+            ISession session = await GetSessionAsync().ConfigureAwait(false);
+>>>>>>> e171231 (Move to async Cronus)
             RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
@@ -227,7 +261,11 @@ namespace Elders.Cronus.Persistence.Cassandra
         public async IAsyncEnumerable<AggregateCommitRaw> LoadAggregateCommitsRawAsync(int batchSize = 5000)
         {
             var queryStatement = (await GetReplayStatementAsync().ConfigureAwait(false)).Bind().SetPageSize(batchSize);
+<<<<<<< HEAD
             ISession session = await GetSessionAsync();
+=======
+            ISession session = await GetSessionAsync().ConfigureAwait(false);
+>>>>>>> e171231 (Move to async Cronus)
             var result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
@@ -247,8 +285,9 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public async IAsyncEnumerable<AggregateCommitRaw> LoadAggregateCommitsRawAsync()
         {
-            var queryStatement = GetReplayStatement().Bind();
-            var result = await GetSession().ExecuteAsync(queryStatement);
+            ISession session = await GetSessionAsync().ConfigureAwait(false);
+            var queryStatement = (await GetReplayStatementAsync().ConfigureAwait(false)).Bind();
+            var result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
                 byte[] id = row.GetValue<byte[]>("id");
@@ -269,7 +308,11 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             if (loadAggregateCommitsMetaStatement is null)
             {
+<<<<<<< HEAD
                 ISession session = await GetSessionAsync();
+=======
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
+>>>>>>> e171231 (Move to async Cronus)
                 string tableName = tableNameStrategy.GetName();
                 loadAggregateCommitsMetaStatement = await session.PrepareAsync(string.Format(LoadAggregateCommitsMetaQueryTemplate, tableName)).ConfigureAwait(false);
                 loadAggregateCommitsMetaStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);

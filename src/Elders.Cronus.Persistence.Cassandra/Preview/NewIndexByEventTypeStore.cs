@@ -24,7 +24,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
         private readonly ICassandraProvider cassandraProvider;
 
-        private ISession GetSession() => cassandraProvider.GetSession(); // In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
+        private Task<ISession> GetSessionAsync() => cassandraProvider.GetSessionAsync(); // In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
 
         public NewIndexByEventTypeStore(ICassandraProvider cassandraProvider)
         {
@@ -33,12 +33,12 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             this.cassandraProvider = cassandraProvider;
         }
 
-        public void Apend(IEnumerable<IndexRecord> indexRecords)
+        public async Task ApendAsync(IEnumerable<IndexRecord> indexRecords)
         {
             try
             {
-                PreparedStatement statement = GetWritePreparedStatement();
-                var session = GetSession();
+                PreparedStatement statement = await GetWritePreparedStatementAsync().ConfigureAwait(false);
+                var session = await GetSessionAsync().ConfigureAwait(false);
 
                 int totalLength = indexRecords.Count();
                 var concurrencyLevel = MaxConcurrencyLevel >= totalLength ? totalLength : MaxConcurrencyLevel;
@@ -76,43 +76,44 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             }
         }
 
-        private PreparedStatement GetWritePreparedStatement()
+        private async Task<PreparedStatement> GetWritePreparedStatementAsync()
         {
             if (writeStatement is null)
             {
-                writeStatement = GetSession()
-                    .Prepare(Write)
-                    .SetConsistencyLevel(ConsistencyLevel.Any);
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
+                writeStatement = await session.PrepareAsync(Write).ConfigureAwait(false);
+                writeStatement.SetConsistencyLevel(ConsistencyLevel.Any);
             }
 
             return writeStatement;
         }
 
-        private PreparedStatement GetReadPreparedStatement()
+        private async Task<PreparedStatement> GetReadPreparedStatementAsync()
         {
             if (readStatement is null)
             {
-                readStatement = GetSession()
-                    .Prepare(Read)
-                    .SetConsistencyLevel(ConsistencyLevel.One);
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
+                readStatement = await session.PrepareAsync(Read).ConfigureAwait(false);
+                readStatement.SetConsistencyLevel(ConsistencyLevel.One);
             }
 
             return readStatement;
         }
 
-        public IEnumerable<IndexRecord> Get(string indexRecordId)
+        public async IAsyncEnumerable<IndexRecord> GetAsync(string indexRecordId)
         {
-            PreparedStatement statement = GetReadPreparedStatement();
+            PreparedStatement statement = await GetReadPreparedStatementAsync().ConfigureAwait(false);
 
             BoundStatement bs = statement.Bind(indexRecordId);
-            var result = GetSession().Execute(bs);
+            ISession session = await GetSessionAsync().ConfigureAwait(false);
+            RowSet result = await session.ExecuteAsync(bs).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
                 yield return new IndexRecord(indexRecordId, Encoding.UTF8.GetBytes(row.GetValue<string>("aid")), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
             }
         }
 
-        public LoadIndexRecordsResult Get(string indexRecordId, string paginationToken, int pageSize)
+        public async Task<LoadIndexRecordsResult> GetAsync(string indexRecordId, string paginationToken, int pageSize)
         {
             PagingInfo pagingInfo = GetPagingInfo(paginationToken);
             if (pagingInfo.HasMore == false)
@@ -120,16 +121,17 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
             List<IndexRecord> indexRecords = new List<IndexRecord>();
 
-            PreparedStatement statement = GetReadPreparedStatement();
+            PreparedStatement statement = await GetReadPreparedStatementAsync().ConfigureAwait(false);
             IStatement queryStatement = statement.Bind(indexRecordId).SetPageSize(pageSize).SetAutoPage(false);
 
             if (pagingInfo.HasToken())
                 queryStatement.SetPagingState(pagingInfo.Token);
 
-            RowSet result = GetSession().Execute(queryStatement);
+            ISession session = await GetSessionAsync().ConfigureAwait(false);
+            RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
-                var indexRecord = new IndexRecord(indexRecordId, Encoding.UTF8.GetBytes(row.GetValue<byte[]>("aid")), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
+                var indexRecord = new IndexRecord(indexRecordId, Encoding.UTF8.GetBytes(row.GetValue<string>("aid")), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
                 indexRecords.Add(indexRecord);
             }
 

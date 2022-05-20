@@ -148,20 +148,12 @@ namespace Elders.Cronus.Persistence.Cassandra
 
             List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
 
-<<<<<<< HEAD
-            IStatement queryStatement = (await GetReplayStatementAsync()).Bind().SetPageSize(pageSize).SetAutoPage(false);
-=======
             IStatement queryStatement = (await GetReplayStatementAsync().ConfigureAwait(false)).Bind().SetPageSize(pageSize).SetAutoPage(false);
->>>>>>> e171231 (Move to async Cronus)
 
             if (pagingInfo.HasToken())
                 queryStatement.SetPagingState(pagingInfo.Token);
 
-<<<<<<< HEAD
-            ISession session = await GetSessionAsync();
-=======
             ISession session = await GetSessionAsync().ConfigureAwait(false);
->>>>>>> e171231 (Move to async Cronus)
             RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
@@ -199,11 +191,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             PreparedStatement statement = await GetReplayStatementAsync().ConfigureAwait(false);
             IStatement queryStatement = statement.Bind().SetPageSize(batchSize);
-<<<<<<< HEAD
-            ISession session = await GetSessionAsync();
-=======
             ISession session = await GetSessionAsync().ConfigureAwait(false);
->>>>>>> e171231 (Move to async Cronus)
             RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
@@ -230,11 +218,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         public async IAsyncEnumerable<AggregateCommit> LoadAggregateCommitsAsync()
         {
             var queryStatement = (await GetReplayStatementAsync().ConfigureAwait(false)).Bind();
-<<<<<<< HEAD
-            ISession session = await GetSessionAsync();
-=======
             ISession session = await GetSessionAsync().ConfigureAwait(false);
->>>>>>> e171231 (Move to async Cronus)
             RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
@@ -261,11 +245,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         public async IAsyncEnumerable<AggregateCommitRaw> LoadAggregateCommitsRawAsync(int batchSize = 5000)
         {
             var queryStatement = (await GetReplayStatementAsync().ConfigureAwait(false)).Bind().SetPageSize(batchSize);
-<<<<<<< HEAD
-            ISession session = await GetSessionAsync();
-=======
             ISession session = await GetSessionAsync().ConfigureAwait(false);
->>>>>>> e171231 (Move to async Cronus)
             var result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
@@ -276,7 +256,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
                 using (var stream = new MemoryStream(data))
                 {
-                    AggregateCommitRaw commitRaw = new AggregateCommitRaw(id, data, revision,0, timestamp);
+                    AggregateCommitRaw commitRaw = new AggregateCommitRaw(id, data, revision, 0, timestamp);
 
                     yield return commitRaw;
                 }
@@ -297,7 +277,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
                 using (var stream = new MemoryStream(data))
                 {
-                    AggregateCommitRaw commitRaw = new AggregateCommitRaw(id, data,revision, 0, timestamp); // the position 0 is ignored in
+                    AggregateCommitRaw commitRaw = new AggregateCommitRaw(id, data, revision, 0, timestamp); // the position 0 is ignored in
 
                     yield return commitRaw;
                 }
@@ -308,11 +288,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             if (loadAggregateCommitsMetaStatement is null)
             {
-<<<<<<< HEAD
-                ISession session = await GetSessionAsync();
-=======
                 ISession session = await GetSessionAsync().ConfigureAwait(false);
->>>>>>> e171231 (Move to async Cronus)
                 string tableName = tableNameStrategy.GetName();
                 loadAggregateCommitsMetaStatement = await session.PrepareAsync(string.Format(LoadAggregateCommitsMetaQueryTemplate, tableName)).ConfigureAwait(false);
                 loadAggregateCommitsMetaStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
@@ -358,15 +334,20 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private PagingInfo GetPagingInfo(string paginationToken)
         {
-<<<<<<< HEAD
-            ISession session = await GetSessionAsync().ConfigureAwait(false);
-            var queryStatement = (await GetReplayStatementAsync().ConfigureAwait(false)).Bind();
-            var result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
-            foreach (var row in result.GetRows())
-=======
+            // I am not shure about this conflict...
+            // This is another version of the GetPagingInfo()
+            //  ISession session = await GetSessionAsync().ConfigureAwait(false);
+            // var queryStatement = (await GetReplayStatementAsync().ConfigureAwait(false)).Bind();
+            // var result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
+            // foreach (var row in result.GetRows())
+            // {
+            //     string paginationJson = Encoding.UTF8.GetString(Convert.FromBase64String(paginationToken));
+            //     pagingInfo = JsonSerializer.Deserialize<PagingInfo>(paginationJson);
+            // }
+            // return pagingInfo;
+
             PagingInfo pagingInfo = new PagingInfo();
             if (string.IsNullOrEmpty(paginationToken) == false)
->>>>>>> f80120d (Make preview event store)
             {
                 string paginationJson = Encoding.UTF8.GetString(Convert.FromBase64String(paginationToken));
                 pagingInfo = JsonSerializer.Deserialize<PagingInfo>(paginationJson);
@@ -435,7 +416,6 @@ namespace Elders.Cronus.Persistence.Cassandra
             return replayWithoutDataStatement;
         }
 
-<<<<<<< HEAD
         public async Task AppendAsync(AggregateCommitRaw aggregateCommitRaw)
         {
             try
@@ -485,8 +465,5 @@ namespace Elders.Cronus.Persistence.Cassandra
                 PaginationToken = null
             };
         }
-=======
-
->>>>>>> f80120d (Make preview event store)
     }
 }

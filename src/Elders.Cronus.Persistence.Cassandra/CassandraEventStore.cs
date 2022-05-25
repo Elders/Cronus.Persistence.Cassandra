@@ -36,7 +36,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         private readonly ICassandraProvider cassandraProvider;
         private readonly ITableNamingStrategy tableNameStrategy;
 
-        private ISession GetSession() => cassandraProvider.GetSession(); // In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
+        private Task<ISession> GetSessionAsync() => cassandraProvider.GetSessionAsync(); // In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
 
         private PreparedStatement writeStatement;
         private PreparedStatement readStatement;
@@ -53,15 +53,17 @@ namespace Elders.Cronus.Persistence.Cassandra
             this.logger = logger;
         }
 
-        public void Append(AggregateCommit aggregateCommit)
+        public async Task AppendAsync(AggregateCommit aggregateCommit)
         {
             byte[] data = SerializeEvent(aggregateCommit);
 
             try
             {
-                GetSession()
-                    .Execute(GetWriteStatement()
-                        .Bind(Convert.ToBase64String(aggregateCommit.AggregateRootId), aggregateCommit.Timestamp, aggregateCommit.Revision, data));
+                PreparedStatement statement = await GetWriteStatementAsync().ConfigureAwait(false);
+                BoundStatement boundStatement = statement.Bind(Convert.ToBase64String(aggregateCommit.AggregateRootId), aggregateCommit.Timestamp, aggregateCommit.Revision, data);
+
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
+                await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
             }
             catch (WriteTimeoutException ex)
             {
@@ -69,54 +71,24 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
-        public EventStream Load(IAggregateRootId aggregateId)
-        {
-            try
-            {
-                List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
-                BoundStatement bs = GetReadStatement().Bind(Convert.ToBase64String(aggregateId.RawId));
-                var result = GetSession().Execute(bs);
-                foreach (var row in result.GetRows())
-                {
-                    var data = row.GetValue<byte[]>("data");
-                    using (var stream = new MemoryStream(data))
-                    {
-                        aggregateCommits.Add((AggregateCommit)serializer.Deserialize(stream));
-                    }
-                }
-
-                return new EventStream(aggregateCommits);
-            }
-            catch (Exception ex)
-            {
-                logger.WarnException(ex, () => $"Failed to load aggregate commits for {aggregateId}");
-                return new EventStream(new List<AggregateCommit>());
-            }
-        }
-
         public async Task<EventStream> LoadAsync(IAggregateRootId aggregateId)
         {
             List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
-            try
-            {
-                BoundStatement bs = GetReadStatement().Bind(Convert.ToBase64String(aggregateId.RawId));
-                RowSet result = await GetSession().ExecuteAsync(bs).ConfigureAwait(false);
-                foreach (var row in result.GetRows())
-                {
-                    var data = row.GetValue<byte[]>("data");
-                    using (var stream = new MemoryStream(data))
-                    {
-                        aggregateCommits.Add((AggregateCommit)serializer.Deserialize(stream));
-                    }
-                }
+            PreparedStatement bs = await GetReadStatementAsync().ConfigureAwait(false);
+            BoundStatement boundStatement = bs.Bind(Convert.ToBase64String(aggregateId.RawId));
 
-                return new EventStream(aggregateCommits);
-            }
-            catch (Exception ex)
+            ISession session = await GetSessionAsync().ConfigureAwait(false);
+            var result = await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
+            foreach (var row in result.GetRows())
             {
-                logger.WarnException(ex, () => $"Failed to load aggregate commits for {aggregateId}");
-                return new EventStream(new List<AggregateCommit>());
+                var data = row.GetValue<byte[]>("data");
+                using (var stream = new MemoryStream(data))
+                {
+                    aggregateCommits.Add((AggregateCommit)serializer.Deserialize(stream));
+                }
             }
+
+            return new EventStream(aggregateCommits);
         }
 
         private PagingInfo GetPagingInfo(string paginationToken)
@@ -130,7 +102,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             return pagingInfo;
         }
 
-        public LoadAggregateCommitsResult LoadAggregateCommits(string paginationToken, int pageSize = 5000)
+        public async Task<LoadAggregateCommitsResult> LoadAggregateCommitsAsync(string paginationToken, int pageSize = 5000)
         {
             PagingInfo pagingInfo = GetPagingInfo(paginationToken);
             if (pagingInfo.HasMore == false)
@@ -138,12 +110,13 @@ namespace Elders.Cronus.Persistence.Cassandra
 
             List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
 
-            IStatement queryStatement = GetReplayStatement().Bind().SetPageSize(pageSize).SetAutoPage(false);
+            IStatement queryStatement = (await GetReplayStatementAsync()).Bind().SetPageSize(pageSize).SetAutoPage(false);
 
             if (pagingInfo.HasToken())
                 queryStatement.SetPagingState(pagingInfo.Token);
 
-            RowSet result = GetSession().Execute(queryStatement);
+            ISession session = await GetSessionAsync();
+            RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
                 var data = row.GetValue<byte[]>("data");
@@ -176,10 +149,12 @@ namespace Elders.Cronus.Persistence.Cassandra
             };
         }
 
-        public IEnumerable<AggregateCommit> LoadAggregateCommits(int batchSize)
+        public async IAsyncEnumerable<AggregateCommit> LoadAggregateCommitsAsync(int batchSize)
         {
-            var queryStatement = GetReplayStatement().Bind().SetPageSize(batchSize);
-            RowSet result = GetSession().Execute(queryStatement);
+            PreparedStatement statement = await GetReplayStatementAsync().ConfigureAwait(false);
+            IStatement queryStatement = statement.Bind().SetPageSize(batchSize);
+            ISession session = await GetSessionAsync();
+            RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
                 var data = row.GetValue<byte[]>("data");
@@ -204,8 +179,9 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public async IAsyncEnumerable<AggregateCommit> LoadAggregateCommitsAsync()
         {
-            var queryStatement = GetReplayStatement().Bind();
-            RowSet result = await GetSession().ExecuteAsync(queryStatement).ConfigureAwait(false);
+            var queryStatement = (await GetReplayStatementAsync().ConfigureAwait(false)).Bind();
+            ISession session = await GetSessionAsync();
+            RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
                 var data = row.GetValue<byte[]>("data");
@@ -228,10 +204,11 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
-        public IEnumerable<AggregateCommitRaw> LoadAggregateCommitsRaw(int batchSize = 5000)
+        public async IAsyncEnumerable<AggregateCommitRaw> LoadAggregateCommitsRawAsync(int batchSize = 5000)
         {
-            var queryStatement = GetReplayStatement().Bind().SetPageSize(batchSize);
-            var result = GetSession().Execute(queryStatement);
+            var queryStatement = (await GetReplayStatementAsync().ConfigureAwait(false)).Bind().SetPageSize(batchSize);
+            ISession session = await GetSessionAsync();
+            var result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
                 string id = row.GetValue<string>("id");
@@ -248,25 +225,27 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
-        private PreparedStatement LoadAggregateCommitsMetaStatement()
+        private async Task<PreparedStatement> LoadAggregateCommitsMetaStatementAsync()
         {
             if (loadAggregateCommitsMetaStatement is null)
             {
+                ISession session = await GetSessionAsync();
                 string tableName = tableNameStrategy.GetName();
-                loadAggregateCommitsMetaStatement = GetSession().Prepare(string.Format(LoadAggregateCommitsMetaQueryTemplate, tableName));
+                loadAggregateCommitsMetaStatement = await session.PrepareAsync(string.Format(LoadAggregateCommitsMetaQueryTemplate, tableName)).ConfigureAwait(false);
                 loadAggregateCommitsMetaStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
             }
 
             return loadAggregateCommitsMetaStatement;
         }
 
-        private IEnumerable<AggregateCommit> LoadAggregateCommitsMeta(IEnumerable<IAggregateRootId> arIds, long afterTimestamp, long beforeStamp)
+        private async IAsyncEnumerable<AggregateCommit> LoadAggregateCommitsMetaAsync(IEnumerable<IAggregateRootId> arIds, long afterTimestamp, long beforeStamp)
         {
-            var queryStatement = LoadAggregateCommitsMetaStatement();
+            PreparedStatement queryStatement = await LoadAggregateCommitsMetaStatementAsync().ConfigureAwait(false);
             foreach (IAggregateRootId arId in arIds)
             {
-                var q = queryStatement.Bind(Convert.ToBase64String(arId.RawId));
-                var result = GetSession().Execute(q);
+                BoundStatement q = queryStatement.Bind(Convert.ToBase64String(arId.RawId));
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
+                RowSet result = await session.ExecuteAsync(q).ConfigureAwait(false);
 
                 foreach (var row in result.GetRows())
                 {
@@ -296,8 +275,9 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public async IAsyncEnumerable<AggregateCommitRaw> LoadAggregateCommitsRawAsync()
         {
-            var queryStatement = GetReplayStatement().Bind();
-            var result = await GetSession().ExecuteAsync(queryStatement);
+            ISession session = await GetSessionAsync().ConfigureAwait(false);
+            var queryStatement = (await GetReplayStatementAsync().ConfigureAwait(false)).Bind();
+            var result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
                 string id = row.GetValue<string>("id");
@@ -323,61 +303,67 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
-        private PreparedStatement GetWriteStatement()
+        private async Task<PreparedStatement> GetWriteStatementAsync()
         {
             if (writeStatement is null)
             {
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
                 string tableName = tableNameStrategy.GetName();
-                writeStatement = GetSession().Prepare(string.Format(InsertEventsQueryTemplate, tableName));
+                writeStatement = await session.PrepareAsync(string.Format(InsertEventsQueryTemplate, tableName)).ConfigureAwait(false);
                 writeStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
             }
 
             return writeStatement;
         }
 
-        private PreparedStatement GetReadStatement()
+        private async Task<PreparedStatement> GetReadStatementAsync()
         {
             if (readStatement is null)
             {
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
                 string tableName = tableNameStrategy.GetName();
-                readStatement = GetSession().Prepare(string.Format(LoadAggregateEventsQueryTemplate, tableName));
+                readStatement = await session.PrepareAsync(string.Format(LoadAggregateEventsQueryTemplate, tableName)).ConfigureAwait(false);
                 readStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
             }
 
             return readStatement;
         }
 
-        private PreparedStatement GetReplayStatement()
+        private async Task<PreparedStatement> GetReplayStatementAsync()
         {
             if (replayStatement is null)
             {
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
                 string tableName = tableNameStrategy.GetName();
-                replayStatement = GetSession().Prepare(string.Format(LoadAggregateCommitsQueryTemplate, tableName));
+                replayStatement = await session.PrepareAsync(string.Format(LoadAggregateCommitsQueryTemplate, tableName)).ConfigureAwait(false);
                 replayStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
             }
 
             return replayStatement;
         }
 
-        private PreparedStatement GetReplayWithoutDataStatement()
+        private async Task<PreparedStatement> GetReplayWithoutDataStatementAsync()
         {
             if (replayWithoutDataStatement is null)
             {
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
                 string tableName = tableNameStrategy.GetName();
-                replayWithoutDataStatement = GetSession().Prepare(string.Format(LoadAggregateCommitsQueryWithoutDataTemplate, tableName));
+                replayWithoutDataStatement = await session.PrepareAsync(string.Format(LoadAggregateCommitsQueryWithoutDataTemplate, tableName)).ConfigureAwait(false);
                 replayWithoutDataStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
             }
 
             return replayWithoutDataStatement;
         }
 
-        public void Append(AggregateCommitRaw aggregateCommitRaw)
+        public async Task AppendAsync(AggregateCommitRaw aggregateCommitRaw)
         {
             try
             {
-                GetSession()
-                    .Execute(GetWriteStatement()
-                        .Bind(aggregateCommitRaw.AggregateRootId, aggregateCommitRaw.Timestamp, aggregateCommitRaw.Revision, aggregateCommitRaw.Data));
+                PreparedStatement statement = await GetWriteStatementAsync().ConfigureAwait(false);
+                BoundStatement boundStatement = statement.Bind(aggregateCommitRaw.AggregateRootId, aggregateCommitRaw.Timestamp, aggregateCommitRaw.Revision, aggregateCommitRaw.Data);
+
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
+                await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
             }
             catch (WriteTimeoutException ex)
             {
@@ -385,7 +371,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
-        public LoadAggregateCommitsResult LoadAggregateCommits(ReplayOptions replayOptions)
+        public async Task<LoadAggregateCommitsResult> LoadAggregateCommitsAsync(ReplayOptions replayOptions)
         {
             List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
 
@@ -407,37 +393,16 @@ namespace Elders.Cronus.Persistence.Cassandra
                 beforeStamp = replayOptions.Before.Value.ToFileTime();
             #endregion
 
-            var found = LoadAggregateCommitsMeta(replayOptions.AggregateIds, afterTimestamp, beforeStamp);
-            aggregateCommits.AddRange(found);
+            var found = LoadAggregateCommitsMetaAsync(replayOptions.AggregateIds, afterTimestamp, beforeStamp).ConfigureAwait(false);
+            await foreach (var meta in found)
+                aggregateCommits.Add(meta);
+
 
             return new LoadAggregateCommitsResult()
             {
                 Commits = aggregateCommits,
                 PaginationToken = null
             };
-        }
-    }
-
-    class PagingInfo
-    {
-        public byte[] Token { get; set; }
-
-        public bool HasMore { get; set; } = true;
-
-        public bool HasToken() => Token is null == false;
-
-        public static PagingInfo From(RowSet result)
-        {
-            return new PagingInfo()
-            {
-                HasMore = result.PagingState is null == false,
-                Token = result.PagingState
-            };
-        }
-
-        public override string ToString()
-        {
-            return Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(this)));
         }
     }
 }

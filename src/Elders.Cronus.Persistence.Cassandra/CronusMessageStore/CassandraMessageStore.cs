@@ -3,13 +3,14 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace Elders.Cronus.Persistence.Cassandra.CronusMessageStore
 {
     public interface ICronusMessageStore
     {
-        void Append(CronusMessage msg);
-        IEnumerable<CronusMessage> LoadMessages(int batchSize);
+        Task AppendAsync(CronusMessage msg);
+        IAsyncEnumerable<CronusMessage> LoadMessagesAsync(int batchSize);
     }
 
     public class CassandraMessageStore : ICronusMessageStore
@@ -29,7 +30,7 @@ namespace Elders.Cronus.Persistence.Cassandra.CronusMessageStore
             this.serializer = serializer;
         }
 
-        public void Append(CronusMessage msg)
+        public async Task AppendAsync(CronusMessage msg)
         {
             var date = DateTime.UtcNow;
             var cutDownDate = Convert.ToDateTime(date.ToString("yyyyMMdd"));
@@ -44,19 +45,20 @@ namespace Elders.Cronus.Persistence.Cassandra.CronusMessageStore
 
             byte[] data = SerializeEvent(msg);
 
-            PreparedStatement insertPreparedStatement = session.Prepare(String.Format(INSERT_MESSAGE_QUERY_TEMPLATE, MESSAGE_STORE_TABLE_NAME));
+            PreparedStatement insertPreparedStatement = await session.PrepareAsync(string.Format(INSERT_MESSAGE_QUERY_TEMPLATE, MESSAGE_STORE_TABLE_NAME)).ConfigureAwait(false);
 
-            session
-                .Execute(insertPreparedStatement
-                .Bind(dateTimeStamp, resultTimestamp, data));
+            await session
+                .ExecuteAsync(insertPreparedStatement
+                .Bind(dateTimeStamp, resultTimestamp, data))
+                .ConfigureAwait(false);
         }
 
-        public IEnumerable<CronusMessage> LoadMessages(int batchSize)
+        public async IAsyncEnumerable<CronusMessage> LoadMessagesAsync(int batchSize)
         {
-            PreparedStatement loadMessagesPreparedStatement = session.Prepare(String.Format(LOAD_MESSAGES_QUERY_TEMPLATE, MESSAGE_STORE_TABLE_NAME));
+            PreparedStatement loadMessagesPreparedStatement = await session.PrepareAsync(string.Format(LOAD_MESSAGES_QUERY_TEMPLATE, MESSAGE_STORE_TABLE_NAME)).ConfigureAwait(false);
 
             var queryStatement = loadMessagesPreparedStatement.Bind().SetPageSize(batchSize);
-            var result = session.Execute(queryStatement);
+            var result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
                 var data = row.GetValue<byte[]>("data");

@@ -2,26 +2,26 @@
 using Cassandra;
 using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
 using Microsoft.Extensions.Options;
+using System.Threading;
+using System.Threading.Tasks;
 using DataStax = Cassandra;
+using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
     public class CassandraProvider : ICassandraProvider
     {
         protected CassandraProviderOptions options;
-
         protected readonly IKeyspaceNamingStrategy keyspaceNamingStrategy;
         protected readonly ICassandraReplicationStrategy replicationStrategy;
         protected readonly IInitializer initializer;
+        protected readonly ILogger<CassandraProvider> logger;
 
         protected ICluster cluster;
         protected ISession session;
 
-        private static object establishNewConnection = new object();
-
         private string baseConfigurationKeyspace;
-
-        public CassandraProvider(IOptionsMonitor<CassandraProviderOptions> optionsMonitor, IKeyspaceNamingStrategy keyspaceNamingStrategy, ICassandraReplicationStrategy replicationStrategy, IInitializer initializer = null)
+        public CassandraProvider(IOptionsMonitor<CassandraProviderOptions> optionsMonitor, IKeyspaceNamingStrategy keyspaceNamingStrategy, ICassandraReplicationStrategy replicationStrategy, ILogger<CassandraProvider> logger, IInitializer initializer = null)
         {
             if (optionsMonitor is null) throw new ArgumentNullException(nameof(optionsMonitor));
             if (keyspaceNamingStrategy is null) throw new ArgumentNullException(nameof(keyspaceNamingStrategy));
@@ -31,9 +31,10 @@ namespace Elders.Cronus.Persistence.Cassandra
             this.keyspaceNamingStrategy = keyspaceNamingStrategy;
             this.replicationStrategy = replicationStrategy;
             this.initializer = initializer;
+            this.logger = logger;
         }
 
-        public ICluster GetCluster()
+        public async Task<ICluster> GetClusterAsync()
         {
             if (cluster is null == false)
                 return cluster;
@@ -60,7 +61,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                     .WithRetryPolicy(new NoHintedHandOffRetryPolicy())
                     .Build();
 
-                cluster.RefreshSchema();
+                await cluster.RefreshSchemaAsync().ConfigureAwait(false);
             }
 
             else
@@ -76,39 +77,59 @@ namespace Elders.Cronus.Persistence.Cassandra
             return keyspaceNamingStrategy.GetName(baseConfigurationKeyspace).ToLower();
         }
 
-        public ISession GetSession()
-        {
-            if (session is null || session.IsDisposed)
-            {
-                lock (establishNewConnection)
-                {
-                    if (session is null || session.IsDisposed)
-                    {
-                        try
-                        {
-                            session = GetCluster().Connect(GetKeyspace());
-                        }
-                        catch (InvalidQueryException)
-                        {
-                            using (ISession schemaSession = GetCluster().Connect())
-                            {
-                                var createKeySpaceQuery = replicationStrategy.CreateKeySpaceTemplate(GetKeyspace());
-                                schemaSession.Execute(createKeySpaceQuery);
-                            }
+        private static SemaphoreSlim threadGate = new SemaphoreSlim(1); // Instantiate a Singleton of the Semaphore with a value of 1. This means that only 1 thread can be granted access at a time
 
-                            session = GetCluster().Connect(GetKeyspace());
+        public async Task<ISession> GetSessionAsync()
+        {
+            try
+            {
+                if (session is null || session.IsDisposed)
+                {
+                    await threadGate.WaitAsync(30000).ConfigureAwait(false);
+
+                    try
+                    {
+                        if (session is null || session.IsDisposed)
+                        {
+                            logger.Info(() => "Refreshing cassandra session...");
+                            try
+                            {
+                                ICluster cluster = await GetClusterAsync().ConfigureAwait(false);
+                                session = await cluster.ConnectAsync(GetKeyspace()).ConfigureAwait(false);
+                            }
+                            catch (InvalidQueryException)
+                            {
+                                ICluster cluster = await GetClusterAsync().ConfigureAwait(false);
+                                using (ISession schemaSession = await cluster.ConnectAsync().ConfigureAwait(false))
+                                {
+                                    string createKeySpaceQuery = replicationStrategy.CreateKeySpaceTemplate(GetKeyspace());
+                                    IStatement createTableStatement = await GetKreateKeySpaceQuery(schemaSession).ConfigureAwait(false);
+                                    await schemaSession.ExecuteAsync(createTableStatement).ConfigureAwait(false);
+                                }
+
+                                ICluster server = await GetClusterAsync().ConfigureAwait(false);
+                                session = await server.ConnectAsync(GetKeyspace()).ConfigureAwait(false);
+                            }
                         }
+                    }
+                    finally
+                    {
+                        threadGate?.Release();
                     }
                 }
             }
+            catch (ObjectDisposedException) { }
+
 
             return session;
         }
 
-        private void CreateKeyspace(string keyspace, ICassandraReplicationStrategy replicationStrategy)
+        private async Task<IStatement> GetKreateKeySpaceQuery(ISession schemaSession)
         {
-            var createKeySpaceQuery = replicationStrategy.CreateKeySpaceTemplate(keyspace);
-            session.Execute(createKeySpaceQuery);
+            PreparedStatement createEventsTableStatement = await schemaSession.PrepareAsync(replicationStrategy.CreateKeySpaceTemplate(GetKeyspace())).ConfigureAwait(false);
+            createEventsTableStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+
+            return createEventsTableStatement.Bind();
         }
     }
 

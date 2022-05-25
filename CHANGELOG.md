@@ -1,31 +1,39 @@
-## [7.0.2](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.1...v7.0.2) (2022-04-15)
-
-
-### Bug Fixes
-
-* Fix injecting a non-generic logger ([90326e4](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/90326e428950ae2273e1b64416762b4bd899d19c))
-
-## [7.0.1](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0...v7.0.1) (2022-04-15)
+# [8.0.0-preview.4](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v8.0.0-preview.3...v8.0.0-preview.4) (2022-05-19)
 
 
 ### Bug Fixes
 
 * Add loggs when loading events ([f7ced3a](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/f7ced3af698d73bdb8a7984fd094a9784900d41d))
+* Fix injecting a non-generic logger ([90326e4](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/90326e428950ae2273e1b64416762b4bd899d19c))
+* Fix merge effects ([105c05d](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/105c05da61b5e11a0b6830bd70f7ce32c4f4035c))
+* Merge: fix inkection a non-generic logger ([36e60bf](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/36e60bfd3d4540813d756313183cb557c8e83e0e))
 
-# [7.0.0](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v6.3.0...v7.0.0) (2022-04-05)
+# [8.0.0-preview.3](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v8.0.0-preview.2...v8.0.0-preview.3) (2022-04-18)
 
 
 ### Bug Fixes
 
-* Add async version of Load ([4714ce4](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/4714ce48ca8c938717085f74b9de5d383ba21f79))
-* Add missing parts for Event Store migrations ([f0f3e66](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/f0f3e661cc5f79c34d3d26c9508998276c1dc2c0))
-* Makes ES index writing to C* async ([704bc13](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/704bc135ff9094d5e9c600a7e629fc6ac9a13d44))
-* Removes session reload ([1213227](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/1213227fbf83dd98eff521bc60935d33ce8ea268))
-* Update Cronus ([9cd8480](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/9cd8480848d3f4b49e72a81c8afb85654a0aed2b))
-* Update Cronus ([97db8c1](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/97db8c1269cf533d3481fd320717019f5f26438e))
-* Update Cronus package ([e8c70ea](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/e8c70eaaf179ead37a2e3c2082020a87df31724b))
-* Updates packages ([16c2bf5](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/16c2bf59cc583f60d21c854476b25175b43dce7c))
-* We hope that we've fixed 'keyspace doesn't exist' in concurrent execution ([47bc65a](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/47bc65a9ec148d813d002f109d459d480725d99a))
+* Update Cronus package ([789eb1d](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/789eb1d1032c9aed4ae8474d4bfe8d2417351137))
+
+# [8.0.0-preview.2](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v8.0.0-preview.1...v8.0.0-preview.2) (2022-04-13)
+
+
+### Bug Fixes
+
+* Establish async connection to Cassandra session ([0c06db2](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/0c06db2b54645a7f43232e7212db5a4113a2e852))
+
+# [8.0.0-preview.1](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0...v8.0.0-preview.1) (2022-04-11)
+
+
+### Bug Fixes
+
+* Ensure to prepare and execute queries asynchronously ([14577ab](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/14577ab2341471333ddaf4f767be2bab170ab0ed))
+
+# [7.0.0-preview.11](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0-preview.10...v7.0.0-preview.11) (2022-04-11)
+
+# [7.0.0-preview.10](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0-preview.9...v7.0.0-preview.10) (2022-04-11)
+
+# [7.0.0-preview.9](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0-preview.8...v7.0.0-preview.9) (2022-04-05)
 
 # [7.0.0-preview.8](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.0-preview.7...v7.0.0-preview.8) (2022-03-31)
 

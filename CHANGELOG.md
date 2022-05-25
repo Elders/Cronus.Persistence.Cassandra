@@ -1,3 +1,14 @@
+# [8.0.0](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.2...v8.0.0) (2022-05-25)
+
+
+### Bug Fixes
+
+* Ensure to prepare and execute queries asynchronously ([14577ab](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/14577ab2341471333ddaf4f767be2bab170ab0ed))
+* Establish async connection to Cassandra session ([0c06db2](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/0c06db2b54645a7f43232e7212db5a4113a2e852))
+* Fix merge effects ([105c05d](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/105c05da61b5e11a0b6830bd70f7ce32c4f4035c))
+* Merge: fix inkection a non-generic logger ([36e60bf](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/36e60bfd3d4540813d756313183cb557c8e83e0e))
+* Update Cronus package ([789eb1d](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/789eb1d1032c9aed4ae8474d4bfe8d2417351137))
+
 # [8.0.0-preview.4](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v8.0.0-preview.3...v8.0.0-preview.4) (2022-05-19)
 
 

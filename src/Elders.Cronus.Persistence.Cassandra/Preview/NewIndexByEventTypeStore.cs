@@ -1,12 +1,12 @@
-﻿using System;
+﻿using Cassandra;
+using Elders.Cronus.EventStore.Index;
+using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Cassandra;
-using Elders.Cronus.EventStore.Index;
-using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra.Preview
 {
@@ -70,7 +70,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         {
             foreach (IndexRecord record in indexRecords)
             {
-                byte[] arId = record.AggregateRootId;
+                byte[] arId = record.AggregateRootId;              
                 var bs = preparedStatement.Bind(record.Id, arId, record.Revision, record.Position, record.TimeStamp).SetIdempotence(true);
                 await session.ExecuteAsync(bs).ConfigureAwait(false);
             }
@@ -109,7 +109,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             RowSet result = await session.ExecuteAsync(bs).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
-                yield return new IndexRecord(indexRecordId, Encoding.UTF8.GetBytes(row.GetValue<string>("aid")), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
+                yield return new IndexRecord(indexRecordId, row.GetValue<byte[]>("aid"), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
             }
         }
 
@@ -131,7 +131,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
-                var indexRecord = new IndexRecord(indexRecordId, Encoding.UTF8.GetBytes(row.GetValue<string>("aid")), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
+                IndexRecord indexRecord = new IndexRecord(indexRecordId, row.GetValue<byte[]>("aid"), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
                 indexRecords.Add(indexRecord);
             }
 

@@ -1,3 +1,6 @@
+using Cassandra;
+using Elders.Cronus.EventStore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -5,9 +8,6 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Cassandra;
-using Elders.Cronus.EventStore;
-using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra.Preview
 {
@@ -56,14 +56,14 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         {
             PreparedStatement writeStatement = await GetWriteStatementAsync().ConfigureAwait(false);
 
-            var pos = 0;
+            var pos = -1;
             foreach (var @event in aggregateCommit.Events)
             {
                 byte[] data = SerializeEvent(@event);
 
                 try
                 {
-                    BoundStatement boundStatement = writeStatement.Bind(aggregateCommit.AggregateRootId, aggregateCommit.Revision, pos++, aggregateCommit.Timestamp, data);
+                    BoundStatement boundStatement = writeStatement.Bind(aggregateCommit.AggregateRootId, aggregateCommit.Revision, ++pos, aggregateCommit.Timestamp, data);
                     ISession session = await GetSessionAsync().ConfigureAwait(false);
                     await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
                 }
@@ -112,7 +112,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         {
             List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
             PreparedStatement bs = await GetReadStatementAsync().ConfigureAwait(false);
-            BoundStatement boundStatement = bs.Bind(Convert.ToBase64String(aggregateId.RawId));
+            BoundStatement boundStatement = bs.Bind(aggregateId.RawId);
 
             ISession session = await GetSessionAsync().ConfigureAwait(false);
             var result = await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
@@ -611,9 +611,12 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
         public List<AggregateCommit> Complete()
         {
-            // Appends the everything we have in memory to the final result
-            var aggregateCommit = new AggregateCommit(id.RawId, this.revision, Events.ToList(), PublicEvents.ToList(), this.timestamp);
-            aggregateCommits.Add(aggregateCommit);
+            if (Events.Any())
+            {
+                // Appends the everything we have in memory to the final result
+                var aggregateCommit = new AggregateCommit(id.RawId, this.revision, Events.ToList(), PublicEvents.ToList(), this.timestamp);
+                aggregateCommits.Add(aggregateCommit);
+            }
 
             return aggregateCommits;
         }

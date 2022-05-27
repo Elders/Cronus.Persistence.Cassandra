@@ -52,9 +52,6 @@ namespace Elders.Cronus.Persistence.Cassandra
                 yield return new DiscoveredModel(setting, setting, ServiceLifetime.Transient);
             }
 
-            //yield return new DiscoveredModel(typeof(EventToAggregateRootId), typeof(EventToAggregateRootId), ServiceLifetime.Transient);
-            //yield return new DiscoveredModel(typeof(IEventStore), typeof(EventToAggregateRootId), ServiceLifetime.Transient);
-
             yield return new DiscoveredModel(typeof(IEventStoreJobIndex), typeof(EventToAggregateRootId), ServiceLifetime.Transient) { CanOverrideDefaults = true };
 
             yield return new DiscoveredModel(typeof(CassandraProvider), typeof(CassandraProvider), ServiceLifetime.Transient);
@@ -97,9 +94,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             services.Replace(typeof(IEventStoreJobIndex), typeof(NewEventToAggregateRootId));
             services.Replace(typeof(ICassandraEventStoreSchema), typeof(CassandraEventStoreSchemaNew));
 
-            //services.AddTransient(typeof(NewEventToAggregateRootId), typeof(NewEventToAggregateRootId));
             services.Replace(typeof (IRebuildIndex_EventToAggregateRootId_JobFactory), typeof(RebuildNewIndex_EventToAggregateRootId_JobFactory));    
-            //services.AddTransient(typeof(IEventStoreIndex), typeof(NewEventToAggregateRootId));
 
             services.AddTransient(typeof(CassandraEventStoreNew<>), typeof(CassandraEventStoreNew<>));
             services.AddTransient(typeof(CassandraEventStoreNew), typeof(CassandraEventStoreNew));

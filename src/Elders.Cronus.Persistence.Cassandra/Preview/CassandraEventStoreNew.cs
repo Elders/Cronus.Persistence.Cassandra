@@ -603,7 +603,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         {
             if (GetNextExpectedEventPosition() == position)
                 Events.Add((IEvent)data);
-            else if (GetNextExpectedPublicEventPosition() == position)
+            else if (GetNextExpectedPublicEventPosition() >= position)
                 PublicEvents.Add((IPublicEvent)data);
             else
                 throw new NotSupportedException("How?!?!?");

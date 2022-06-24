@@ -31,22 +31,22 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         protected virtual IEnumerable<DiscoveredModel> DiscoverCassandraTableNameStrategy(DiscoveryContext context)
         {
-            yield return new DiscoveredModel(typeof(ITableNamingStrategy), typeof(TablePerBoundedContext), ServiceLifetime.Singleton);
-            yield return new DiscoveredModel(typeof(TablePerBoundedContext), typeof(TablePerBoundedContext), ServiceLifetime.Singleton);
-            yield return new DiscoveredModel(typeof(NoTableNamingStrategy), typeof(NoTableNamingStrategy), ServiceLifetime.Singleton);
+            yield return new DiscoveredModel(typeof(ITableNamingStrategy), typeof(TablePerBoundedContextNew), ServiceLifetime.Singleton);
+            yield return new DiscoveredModel(typeof(TablePerBoundedContextNew), typeof(TablePerBoundedContextNew), ServiceLifetime.Singleton);
+            yield return new DiscoveredModel(typeof(NoTableNamingStrategyStiopa), typeof(NoTableNamingStrategyStiopa), ServiceLifetime.Singleton);
         }
 
         IEnumerable<DiscoveredModel> GetModels(DiscoveryContext context)
         {
 
-            yield return new DiscoveredModel(typeof(IEventStore<>), typeof(CassandraEventStore<>), ServiceLifetime.Transient) { CanOverrideDefaults = true };
-            yield return new DiscoveredModel(typeof(IEventStore), typeof(CassandraEventStore), ServiceLifetime.Transient) { CanOverrideDefaults = true };
+            yield return new DiscoveredModel(typeof(IEventStore<>), typeof(CassandraEventStoreNew<>), ServiceLifetime.Transient) { CanOverrideDefaults = true };
+            yield return new DiscoveredModel(typeof(IEventStore), typeof(CassandraEventStoreNew), ServiceLifetime.Transient) { CanOverrideDefaults = true };
 
-            yield return new DiscoveredModel(typeof(IEventStorePlayer<>), typeof(CassandraEventStore<>), ServiceLifetime.Transient) { CanOverrideDefaults = true };
-            yield return new DiscoveredModel(typeof(IEventStorePlayer), typeof(CassandraEventStore), ServiceLifetime.Transient) { CanOverrideDefaults = true };
+            yield return new DiscoveredModel(typeof(IEventStorePlayer<>), typeof(CassandraEventStoreNew<>), ServiceLifetime.Transient) { CanOverrideDefaults = true };
+            yield return new DiscoveredModel(typeof(IEventStorePlayer), typeof(CassandraEventStoreNew), ServiceLifetime.Transient) { CanOverrideDefaults = true };
 
-            yield return new DiscoveredModel(typeof(CassandraEventStore<>), typeof(CassandraEventStore<>), ServiceLifetime.Transient);
-            yield return new DiscoveredModel(typeof(CassandraEventStore), typeof(CassandraEventStore), ServiceLifetime.Transient);
+            yield return new DiscoveredModel(typeof(CassandraEventStoreNew<>), typeof(CassandraEventStoreNew<>), ServiceLifetime.Transient);
+            yield return new DiscoveredModel(typeof(CassandraEventStoreNew), typeof(CassandraEventStoreNew), ServiceLifetime.Transient);
 
             var cassandraSettings = context.FindService<ICassandraEventStoreSettings>();
             foreach (var setting in cassandraSettings)
@@ -54,8 +54,8 @@ namespace Elders.Cronus.Persistence.Cassandra
                 yield return new DiscoveredModel(setting, setting, ServiceLifetime.Transient);
             }
 
-            yield return new DiscoveredModel(typeof(IEventStoreJobIndex), typeof(EventToAggregateRootId), ServiceLifetime.Transient) { CanOverrideDefaults = true };
-            yield return new DiscoveredModel(typeof(ICronusEventStoreIndex), typeof(EventToAggregateRootId), ServiceLifetime.Transient) { CanOverrideDefaults = true };
+            yield return new DiscoveredModel(typeof(IEventStoreJobIndex), typeof(NewEventToAggregateRootId), ServiceLifetime.Transient) { CanOverrideDefaults = true };
+            yield return new DiscoveredModel(typeof(ICronusEventStoreIndex), typeof(NewEventToAggregateRootId), ServiceLifetime.Transient) { CanOverrideDefaults = true };
 
             yield return new DiscoveredModel(typeof(CassandraProvider), typeof(CassandraProvider), ServiceLifetime.Transient);
             yield return new DiscoveredModel(typeof(ICassandraProvider), provider => provider.GetRequiredService<SingletonPerTenant<CassandraProvider>>().Get(), ServiceLifetime.Transient);
@@ -67,18 +67,18 @@ namespace Elders.Cronus.Persistence.Cassandra
             yield return new DiscoveredModel(typeof(CassandraReplicationStrategyFactory), typeof(CassandraReplicationStrategyFactory), ServiceLifetime.Singleton);
             yield return new DiscoveredModel(typeof(ICassandraReplicationStrategy), provider => provider.GetRequiredService<CassandraReplicationStrategyFactory>().GetReplicationStrategy(), ServiceLifetime.Transient);
 
-            yield return new DiscoveredModel(typeof(IIndexStore), typeof(IndexByEventTypeStore), ServiceLifetime.Transient) { CanOverrideDefaults = true };
+            yield return new DiscoveredModel(typeof(IIndexStore), typeof(NewIndexByEventTypeStore), ServiceLifetime.Transient) { CanOverrideDefaults = true };
 
-            yield return new DiscoveredModel(typeof(ICassandraEventStoreSchema), typeof(CassandraEventStoreSchema), ServiceLifetime.Transient);
+            yield return new DiscoveredModel(typeof(ICassandraEventStoreSchema), typeof(CassandraEventStoreSchemaNew), ServiceLifetime.Transient);
 
             yield return new DiscoveredModel(typeof(IMessageCounter), typeof(MessageCounter), ServiceLifetime.Transient) { CanOverrideDefaults = true };
             yield return new DiscoveredModel(typeof(MessageCounter), typeof(MessageCounter), ServiceLifetime.Transient) { CanOverrideDefaults = true };
 
-            yield return new DiscoveredModel(typeof(IRebuildIndex_EventToAggregateRootId_JobFactory), typeof(RebuildIndex_EventToAggregateRootId_JobFactory), ServiceLifetime.Transient);
+            yield return new DiscoveredModel(typeof(IRebuildIndex_EventToAggregateRootId_JobFactory), typeof(RebuildNewIndex_EventToAggregateRootId_JobFactory), ServiceLifetime.Transient);
         }
     }
 
-    public static class CronusPersistenceCassandraServiceCollectionExtensions
+    /*public static class CronusPersistenceCassandraServiceCollectionExtensions
     {
         public static IServiceCollection AddCronusEventStorePreview(this IServiceCollection services, IConfiguration configuration)
         {
@@ -110,8 +110,8 @@ namespace Elders.Cronus.Persistence.Cassandra
 
             var toRemove = services.Where(x => x.ServiceType == typeof(TypeContainer<ICronusEventStoreIndex>)).Single();
             services.Remove(toRemove);
-            /*services.Remove(new DiscoveredModel(typeof(TypeContainer<ICronusEventStoreIndex>), typeof(TypeContainer<EventToAggregateRootId>)));
-            services.Remove(new DiscoveredModel(typeof(EventToAggregateRootId), typeof(EventToAggregateRootId)));*/
+            *//*services.Remove(new DiscoveredModel(typeof(TypeContainer<ICronusEventStoreIndex>), typeof(TypeContainer<EventToAggregateRootId>)));
+            services.Remove(new DiscoveredModel(typeof(EventToAggregateRootId), typeof(EventToAggregateRootId)));*//*
 
 
             DiscoveryContext context = new DiscoveryContext(AppDomain.CurrentDomain.GetAssemblies(), configuration);
@@ -134,5 +134,5 @@ namespace Elders.Cronus.Persistence.Cassandra
 
             return services;
         }
-    }
+    }*/
 }

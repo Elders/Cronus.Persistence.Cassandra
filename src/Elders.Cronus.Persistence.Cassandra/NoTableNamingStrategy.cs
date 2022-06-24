@@ -1,10 +1,10 @@
 ﻿namespace Elders.Cronus.Persistence.Cassandra
 {
-    public sealed class NoTableNamingStrategy : ITableNamingStrategy
-    {
-        public string GetName()
+    /*    public sealed class NoTableNamingStrategy : ITableNamingStrategy
         {
-            return "events";
-        }
-    }
+            public string GetName()
+            {
+                return "events";
+            }
+        }*/
 }

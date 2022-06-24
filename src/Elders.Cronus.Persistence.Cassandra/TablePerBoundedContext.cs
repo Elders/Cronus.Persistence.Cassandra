@@ -2,18 +2,18 @@
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
-    public sealed class TablePerBoundedContext : ITableNamingStrategy
-    {
-        private readonly BoundedContext boundedContext;
-
-        public TablePerBoundedContext(IOptionsMonitor<BoundedContext> boundedContext)
+    /*    public sealed class TablePerBoundedContext : ITableNamingStrategy
         {
-            this.boundedContext = boundedContext.CurrentValue;
-        }
+            private readonly BoundedContext boundedContext;
 
-        public string GetName()
-        {
-            return $"{boundedContext.Name}Events".ToLower();
-        }
-    }
+            public TablePerBoundedContext(IOptionsMonitor<BoundedContext> boundedContext)
+            {
+                this.boundedContext = boundedContext.CurrentValue;
+            }
+
+            public string GetName()
+            {
+                return $"{boundedContext.Name}Events".ToLower();
+            }
+        }*/
 }

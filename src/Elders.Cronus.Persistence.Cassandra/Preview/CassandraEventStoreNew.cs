@@ -1,5 +1,6 @@
 using Cassandra;
 using Elders.Cronus.EventStore;
+using Elders.Cronus.EventStore.Index;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -8,13 +9,14 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using static Elders.Cronus.Persistence.Cassandra.Preview.AggregateCommitBlock;
 
 namespace Elders.Cronus.Persistence.Cassandra.Preview
 {
     public class CassandraEventStoreNew<TSettings> : CassandraEventStoreNew, IEventStorePlayer<TSettings>
         where TSettings : class, ICassandraEventStoreSettings
     {
-        public CassandraEventStoreNew(TSettings settings)
+        public CassandraEventStoreNew(TSettings settings, ILogger<CassandraEventStoreNew> logger)
             : base(settings.CassandraProvider, settings.TableNameStrategy, settings.Serializer)
         {
         }
@@ -24,13 +26,16 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
     {
         private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(CassandraEventStoreNew));
 
-        private const string LoadAggregateEventsQueryTemplate = @"SELECT rev,pos,ts,data FROM new{0} WHERE id = ?;";
-        private const string InsertEventsQueryTemplate = @"INSERT INTO new{0} (id,rev,pos,ts,data) VALUES (?,?,?,?,?);";
-        private const string LoadAggregateCommitsQueryTemplate = @"SELECT id,rev,pos,ts,data FROM new{0};";
-        private const string LoadAggregateCommitsQueryWithoutDataTemplate = @"SELECT ts FROM new{0} WHERE id = ? AND rev = ? AND pos = ?;";
+        private const string LoadAggregateEventsQueryTemplate = @"SELECT rev,pos,ts,data FROM {0} WHERE id = ?;";
+        private const string InsertEventsQueryTemplate = @"INSERT INTO {0} (id,rev,pos,ts,data) VALUES (?,?,?,?,?);";
+        private const string LoadAggregateCommitsQueryTemplate = @"SELECT id,rev,pos,ts,data FROM {0};";
+        private const string LoadAggregateCommitsQueryWithoutDataTemplate = @"SELECT ts FROM {0} WHERE id = ? AND rev = ? AND pos = ?;";
+
+        private const string LoadAggregateEventsRebuildQueryTemplate = @"SELECT data FROM {0} WHERE id = ? AND rev = ? AND pos = ?;";
 
 
-        private const string LoadAggregateCommitsMetaQueryTemplate = @"SELECT ts,rev,pos,data FROM new{0} WHERE id = ? AND rev = ? AND pos = ?;";
+
+        private const string LoadAggregateCommitsMetaQueryTemplate = @"SELECT ts,rev,pos,data FROM {0} WHERE id = ? AND rev = ? AND pos = ?;";
 
         private readonly ISerializer serializer;
         private readonly ICassandraProvider cassandraProvider;
@@ -131,7 +136,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                     block.AppendBlock(revision, position, @event, timestamp);
                 }
             }
-            
+
             return new EventStream(block.Complete());
         }
 
@@ -468,6 +473,24 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             }
         }
 
+        public async Task<IEvent> LoadEventWithRebuildProjection(IndexRecord indexRecord)
+        {
+            PreparedStatement bs = await GetRebuildWithoutDataStatementAsync().ConfigureAwait(false);
+            /*byte[] theId = Encoding.UTF8.GetBytes(indexRecord.Id);
+            IBlobId LoadedId = new AggregateCommitBlock.CassandraRawId(theId);*/
+
+            BoundStatement boundStatement = bs.Bind(indexRecord.AggregateRootId, indexRecord.Revision, indexRecord.Position);
+            ISession session = await GetSessionAsync().ConfigureAwait(false);
+            var result = await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
+            var row = result.GetRows().Single();
+            byte[] data = row.GetValue<byte[]>("data");
+
+            using (var stream = new MemoryStream(data))
+            {
+                return (IEvent)serializer.Deserialize(stream);
+            }
+        }
+
         private PagingInfo GetPagingInfo(string paginationToken)
         {
             PagingInfo pagingInfo = new PagingInfo();
@@ -543,6 +566,19 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                 ISession session = await GetSessionAsync().ConfigureAwait(false);
                 string tableName = tableNameStrategy.GetName();
                 replayWithoutDataStatement = await session.PrepareAsync(string.Format(LoadAggregateCommitsQueryWithoutDataTemplate, tableName)).ConfigureAwait(false);
+                replayWithoutDataStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
+
+            return replayWithoutDataStatement;
+        }
+
+        private async Task<PreparedStatement> GetRebuildWithoutDataStatementAsync()
+        {
+            if (replayWithoutDataStatement is null)
+            {
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
+                string tableName = tableNameStrategy.GetName();
+                replayWithoutDataStatement = await session.PrepareAsync(string.Format(LoadAggregateEventsRebuildQueryTemplate, tableName)).ConfigureAwait(false);
                 replayWithoutDataStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
             }
 

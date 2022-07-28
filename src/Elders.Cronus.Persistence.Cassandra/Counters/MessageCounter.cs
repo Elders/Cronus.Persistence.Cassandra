@@ -47,7 +47,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Counters
             {
                 string eventType = Convert.ToBase64String(Encoding.UTF8.GetBytes(messageType.GetContractId()));
                 ISession session = await GetSessionAsync().ConfigureAwait(false);
-                PreparedStatement decrementedStatement = await GetIncrementStatementAsync().ConfigureAwait(false);
+                PreparedStatement decrementedStatement = await GetDecrementStatementAsync().ConfigureAwait(false);
                 await session.ExecuteAsync(decrementedStatement.Bind(decrementWith, eventType)).ConfigureAwait(false);
             }
             catch (Exception ex)

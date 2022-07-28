@@ -1,3 +1,10 @@
+## [8.0.1](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v8.0.0...v8.0.1) (2022-07-28)
+
+
+### Bug Fixes
+
+* Fix message counter reset ([c5e8ddc](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/c5e8ddcb42bfa08ba57f0109b357238b3aace390))
+
 # [8.0.0](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v7.0.2...v8.0.0) (2022-05-25)
 
 

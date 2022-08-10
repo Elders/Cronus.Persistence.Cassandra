@@ -1,3 +1,10 @@
+## [8.0.4](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v8.0.3...v8.0.4) (2022-08-10)
+
+
+### Bug Fixes
+
+* Try to deploy again [#2](https://github.com/Elders/Cronus.Persistence.Cassandra/issues/2) ([3477883](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/3477883161f3ff6b12da32f9790b458552d84038))
+
 ## [8.0.3](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v8.0.2...v8.0.3) (2022-08-10)
 
 

@@ -1,3 +1,10 @@
+## [8.0.5](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v8.0.4...v8.0.5) (2022-08-15)
+
+
+### Bug Fixes
+
+* pipeline fix attempt 1 ([977c120](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/977c1206b7abc2fe5144cb0ad6c81e1090d5631e))
+
 ## [8.0.4](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v8.0.3...v8.0.4) (2022-08-10)
 
 

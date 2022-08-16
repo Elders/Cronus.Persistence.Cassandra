@@ -1,19 +1,15 @@
 ---
+variables:
+  PROJECT_DIR: Elders.Cronus.Persistence.Cassandra
+
 trigger:
-    branches:
-      include:
-      - master
-      - beta
-      - preview
-    paths:
-      exclude:
-      - CHANGELOG.md
+  branches:
+    include: [master,beta,preview]
+  paths:
+    exclude: [CHANGELOG.md]
 
 pool:
-  vmImage: 'ubuntu-latest'
-
-variables:
-  buildConfiguration: 'Release'
+  vmImage: ubuntu-latest
 
 jobs:
 - job: build_pack_publish
@@ -23,26 +19,23 @@ jobs:
     clean: true
     persistCredentials: true
 
-  - task: UseDotNet@2
-    displayName: 'Use .NET 6 Core sdk'
-    enabled: false
+  - task: DotNetCoreCLI@2
+    name: test
     inputs:
-      packageType: sdk
-      version: 6.0.x
-      installationPath: $(Agent.ToolsDirectory)/dotnet
+      command: test
+      projects: '**/*Tests.csproj'
 
   - task: DotNetCoreCLI@2
     name: build
     inputs:
-      command: 'build'
-      projects: 'src/Elders.Cronus.Persistence.Cassandra/*.csproj'
+      command: build
+      projects: 'src/$(PROJECT_DIR)/*.csproj'
 
   - task: Bash@3
     name: release
-    displayName: release+pack (SemRel)
+    displayName: semantic release + pack
     env:
       STAGING_PATH: $(Build.StagingDirectory)
-      LOCAL_PATH: $(Build.Repository.LocalPath)
     inputs:
       targetType: 'inline'
       script: |
@@ -50,12 +43,14 @@ jobs:
         time npx semantic-release --no-ci
         # few commands for debugging purposes
         ls -l $STAGING_PATH/*.nupkg
-        dotnet msbuild --version
-        dotnet nuget --version
-        dotnet --version
+        echo dotnet msbuild `dotnet msbuild --version`
+        echo dotnet nuget `dotnet nuget --version`
+        echo dotnet `dotnet --version`
 
   - task: NuGetCommand@2
     name: publish
+    enabled: true
+    condition: and(eq(variables['newVer'], 'yes'), succeeded())
     inputs:
       command: 'push'
       packagesToPush: '$(Build.StagingDirectory)/*.nupkg'

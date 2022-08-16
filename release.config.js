@@ -15,7 +15,7 @@ module.exports={
             set -e
             VER=\${nextRelease.version}
             ##vso[build.updatebuildnumber]\${nextRelease.version}
-            dotnet pack src/*/*.csproj -o "$STAGING_PATH" -p:Configuration=Release -p:PackageVersion=$VER --verbosity Detailed
+            dotnet pack "src/$PROJECT_DIR/"*.csproj -o "$STAGING_PATH" -p:Configuration=Release -p:PackageVersion=$VER --verbosity Detailed
         `,
         successCmd: `
             set -e

@@ -31,9 +31,9 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         protected virtual IEnumerable<DiscoveredModel> DiscoverCassandraTableNameStrategy(DiscoveryContext context)
         {
-            yield return new DiscoveredModel(typeof(ITableNamingStrategy), typeof(TablePerBoundedContextNew), ServiceLifetime.Singleton);
-            yield return new DiscoveredModel(typeof(TablePerBoundedContextNew), typeof(TablePerBoundedContextNew), ServiceLifetime.Singleton);
-            yield return new DiscoveredModel(typeof(NoTableNamingStrategyStiopa), typeof(NoTableNamingStrategyStiopa), ServiceLifetime.Singleton);
+            yield return new DiscoveredModel(typeof(ITableNamingStrategy), typeof(TablePerBoundedContext), ServiceLifetime.Singleton);
+            yield return new DiscoveredModel(typeof(TablePerBoundedContext), typeof(TablePerBoundedContext), ServiceLifetime.Singleton);
+            yield return new DiscoveredModel(typeof(NoTableNamingStrategy), typeof(NoTableNamingStrategy), ServiceLifetime.Singleton);
         }
 
         IEnumerable<DiscoveredModel> GetModels(DiscoveryContext context)

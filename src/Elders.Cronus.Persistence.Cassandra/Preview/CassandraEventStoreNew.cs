@@ -1,6 +1,7 @@
 using Cassandra;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.EventStore.Index;
+using Elders.Cronus.Testing;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -9,7 +10,6 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using static Elders.Cronus.Persistence.Cassandra.Preview.AggregateCommitBlock;
 
 namespace Elders.Cronus.Persistence.Cassandra.Preview
 {
@@ -32,9 +32,6 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         private const string LoadAggregateCommitsQueryWithoutDataTemplate = @"SELECT ts FROM {0} WHERE id = ? AND rev = ? AND pos = ?;";
 
         private const string LoadAggregateEventsRebuildQueryTemplate = @"SELECT data FROM {0} WHERE id = ? AND rev = ? AND pos = ?;";
-
-
-
         private const string LoadAggregateCommitsMetaQueryTemplate = @"SELECT ts,rev,pos,data FROM {0} WHERE id = ? AND rev = ? AND pos = ?;";
 
         private readonly ISerializer serializer;
@@ -115,14 +112,20 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
         public async Task<EventStream> LoadAsync(IAggregateRootId aggregateId)
         {
-            List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
+            List<AggregateCommit> aggregateCommits = await LoadAggregateCommitsAsync(aggregateId).ConfigureAwait(false);
+
+            return new EventStream(aggregateCommits);
+        }
+
+        private async Task<List<AggregateCommit>> LoadAggregateCommitsAsync(IBlobId id)
+        {
             PreparedStatement bs = await GetReadStatementAsync().ConfigureAwait(false);
-            BoundStatement boundStatement = bs.Bind(aggregateId.RawId);
+            BoundStatement boundStatement = bs.Bind(id.RawId);
 
             ISession session = await GetSessionAsync().ConfigureAwait(false);
             var result = await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
 
-            var block = new AggregateCommitBlock(aggregateId);
+            var block = new AggregateCommitBlock(id);
             foreach (var row in result.GetRows())
             {
                 int revision = row.GetValue<int>("rev");
@@ -137,7 +140,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                 }
             }
 
-            return new EventStream(block.Complete());
+            return block.Complete();
         }
 
         public async Task<LoadAggregateCommitsResult> LoadAggregateCommitsAsync(ReplayOptions replayOptions)
@@ -175,14 +178,13 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
         public async Task<LoadAggregateCommitsResult> LoadAggregateCommitsAsync(string paginationToken, int pageSize = 5000)
         {
-
             PagingInfo pagingInfo = GetPagingInfo(paginationToken);
             if (pagingInfo.HasMore == false)
                 return new LoadAggregateCommitsResult() { PaginationToken = paginationToken };
 
             List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
 
-            var statement = await GetReplayStatementAsync().ConfigureAwait(false);
+            PreparedStatement statement = await GetReplayStatementAsync().ConfigureAwait(false);
             IStatement queryStatement = statement.Bind().SetPageSize(pageSize).SetAutoPage(false);
 
             if (pagingInfo.HasToken())
@@ -192,9 +194,10 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
 
 
+            IBlobId firstElementId = null;
             AggregateCommitBlock block = null;
             AggregateCommitBlock.CassandraRawId currentId = null;
-            foreach (var row in result.GetRows())
+            foreach (Row row in result.GetRows())
             {
                 byte[] loadedId = row.GetValue<byte[]>("id");
 
@@ -203,7 +206,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                     currentId = new AggregateCommitBlock.CassandraRawId(loadedId);
                     block = new AggregateCommitBlock(currentId);
                 }
-                else if (ByteArrayHelper.Compare(currentId.RawId, loadedId) == false)
+                if (ByteArrayHelper.Compare(currentId.RawId, loadedId) == false)
                 {
                     aggregateCommits.AddRange(block.Complete());
 
@@ -211,17 +214,41 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                     block = new AggregateCommitBlock(currentId);
                 }
 
-                var revision = row.GetValue<int>("rev");
-                var position = row.GetValue<int>("pos");
+                var stringId = System.Text.Encoding.UTF8.GetString(currentId.RawId);
+                if(stringId == "urn:pruvit:order:70bf7392-7751-4e97-9d11-70d26eec606e")
+                    Console.WriteLine("sadfg");
+
+                int revision = row.GetValue<int>("rev");
+                int position = row.GetValue<int>("pos");
                 long timestamp = row.GetValue<long>("ts");
-                var data = row.GetValue<byte[]>("data");
+                byte[] data = row.GetValue<byte[]>("data");
+
+                if (firstElementId != null && ByteArrayHelper.Compare(firstElementId.RawId, loadedId))
+                {
+                    continue;
+                }
+
+                if (firstElementId is null && revision > 1 && position > 0)
+                {
+                    firstElementId = currentId;
+                    var firstIdAggregates = await LoadAggregateCommitsAsync(firstElementId).ConfigureAwait(false);
+                    aggregateCommits.AddRange(firstIdAggregates);
+                    continue;
+                }
 
                 using (var stream = new MemoryStream(data))
                 {
                     try
                     {
                         var @event = (IEvent)serializer.Deserialize(stream);
-                        block.AppendBlock(revision, position, @event, timestamp);
+                        try
+                        {
+                            block.AppendBlock(revision, position, @event, timestamp);
+                        }
+                        catch (Exception)
+                        {
+                        }
+                        
                     }
                     catch (Exception ex)
                     {
@@ -232,12 +259,14 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                 }
             }
 
+            var finalAggregateCommits = await LoadAggregateCommitsAsync(currentId).ConfigureAwait(false);
+
             if (result.IsFullyFetched == false)
             {
                 logger.Warn(() => "Not implemented logic. => if (result.IsFullyFetched == false)");
             }
 
-            aggregateCommits.AddRange(block.Complete());
+            aggregateCommits.AddRange(finalAggregateCommits);
 
             return new LoadAggregateCommitsResult()
             {
@@ -455,7 +484,14 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                         try
                         {
                             var @event = (IEvent)serializer.Deserialize(stream);
-                            block.AppendBlock(revision, position, @event, timestamp);
+                            try
+                            {
+                                block.AppendBlock(revision, position, @event, timestamp);
+                            }
+                            catch (Exception)
+                            {
+                            }
+                            
                         }
                         catch (Exception ex)
                         {
@@ -473,7 +509,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             }
         }
 
-        public async Task<IEvent> LoadEventWithRebuildProjection(IndexRecord indexRecord)
+        public async Task<IEvent> LoadEventWithRebuildProjectionAsync(IndexRecord indexRecord)
         {
             PreparedStatement bs = await GetRebuildWithoutDataStatementAsync().ConfigureAwait(false);
             /*byte[] theId = Encoding.UTF8.GetBytes(indexRecord.Id);
@@ -604,7 +640,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
         private int GetNextExpectedEventPosition() => Events.Count;
 
-        private int GetNextExpectedPublicEventPosition() => Events.Count + PublicEventsOffset;
+        private int GetNextExpectedPublicEventPosition() => Events.Count + PublicEventsOffset + PublicEvents.Count;
 
         private List<IEvent> Events { get; set; }
 
@@ -637,7 +673,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
         private void AttachDataAtPosition(IMessage data, int position)
         {
-            if (GetNextExpectedEventPosition() == position)
+            if (GetNextExpectedEventPosition() == position) // If the event we want to attach is IEvent (not public) and it is the first one 
                 Events.Add((IEvent)data);
             else if (GetNextExpectedPublicEventPosition() >= position)
                 PublicEvents.Add((IPublicEvent)data);
@@ -658,7 +694,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         }
 
 
-        internal class CassandraRawId : IBlobId
+        internal class CassandraRawId : IBlobId 
         {
             public CassandraRawId(byte[] rawId)
             {

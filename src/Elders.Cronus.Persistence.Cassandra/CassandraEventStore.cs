@@ -18,8 +18,6 @@ namespace Elders.Cronus.Persistence.Cassandra
         private readonly ILogger<OldCassandraEventStorePlayer> logger;
 
         private const string LoadAggregateCommitsQueryTemplate = @"SELECT id,ts,rev,data FROM {0};";
-
-
         private const string LoadAggregateCommitsMetaQueryTemplate = @"SELECT ts,rev,data FROM {0} WHERE id = ?;";
 
         private readonly ISerializer serializer;
@@ -259,56 +257,5 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             throw new NotImplementedException();
         }
-
-        public async Task AppendAsync(AggregateCommitRaw aggregateCommitRaw)
-        {
-            try
-            {
-                PreparedStatement statement = await GetWriteStatementAsync().ConfigureAwait(false);
-                BoundStatement boundStatement = statement.Bind(aggregateCommitRaw.AggregateRootId, aggregateCommitRaw.Timestamp, aggregateCommitRaw.Revision, aggregateCommitRaw.Data);
-
-                ISession session = await GetSessionAsync().ConfigureAwait(false);
-                await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
-            }
-            catch (WriteTimeoutException ex)
-            {
-                logger.WarnException(ex, () => "Write timeout while persisting an aggregate commit");
-            }
-        }
-
-        public async Task<LoadAggregateCommitsResult> LoadAggregateCommitsAsync(ReplayOptions replayOptions)
-        {
-            List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
-
-            string paginationToken = replayOptions.PaginationToken;
-            int pageSize = replayOptions.BatchSize;
-
-            PagingInfo pagingInfo = GetPagingInfo(paginationToken);
-            if (pagingInfo.HasMore == false)
-                return new LoadAggregateCommitsResult() { PaginationToken = paginationToken };
-
-            #region TerribleCode
-            // AAAAAAAAAAAAAAAAA why did you expand this. Now you have to fix it.
-            bool hasTimeRangeFilter = replayOptions.After.HasValue || replayOptions.Before.HasValue;
-            long afterTimestamp = 0; // 1/1/1601 2:00:00 AM +02:00
-            long beforeStamp = 2650381343999999999; // DateTimeOffset.MaxValue.Subtract(TimeSpan.FromDays(100)).ToFileTime()
-            if (replayOptions.After.HasValue)
-                afterTimestamp = replayOptions.After.Value.ToFileTime();
-            if (replayOptions.Before.HasValue)
-                beforeStamp = replayOptions.Before.Value.ToFileTime();
-            #endregion
-
-            var found = LoadAggregateCommitsMetaAsync(replayOptions.AggregateIds, afterTimestamp, beforeStamp).ConfigureAwait(false);
-            await foreach (var meta in found)
-                aggregateCommits.Add(meta);
-
-
-            return new LoadAggregateCommitsResult()
-            {
-                Commits = aggregateCommits,
-                PaginationToken = null
-            };
-        }
     }
 }
-

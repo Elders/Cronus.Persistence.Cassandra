@@ -39,7 +39,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         {
             Task[] createESTasks = new Task[]
             {
-                CreateEventStorageAsync(),
+                CreateEventsStorageAsync(),
                 CreateIndeciesAsync(),
                 CreateSnapshotsStorageAsync()
             };
@@ -47,7 +47,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             return Task.WhenAll(createESTasks);
         }
 
-        public Task CreateEventStorageAsync()
+        public Task CreateEventsStorageAsync()
         {
             string tableName = tableNameStrategy.GetName();
             return CreateEventStoragePersistanseAsync(tableName);

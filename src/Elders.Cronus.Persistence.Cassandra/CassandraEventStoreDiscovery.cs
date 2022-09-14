@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Elders.Cronus.Discoveries;
 using Elders.Cronus.EventStore;
@@ -8,7 +7,6 @@ using Elders.Cronus.Persistence.Cassandra.Counters;
 using Elders.Cronus.Persistence.Cassandra.Migrations;
 using Elders.Cronus.Persistence.Cassandra.Preview;
 using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Elders.Cronus.Persistence.Cassandra

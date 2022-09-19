@@ -14,8 +14,8 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
     {
         private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(IndexByEventTypeStore));
 
-        private const string Read = @"SELECT aid,rev,pos,ts FROM new_index_by_eventtype WHERE et = ?;";
-        private const string Write = @"INSERT INTO new_index_by_eventtype (et,aid,rev,pos,ts) VALUES (?,?,?,?,?);";
+        private const string Read = @"SELECT aid,rev,pos,ts FROM index_by_eventtype WHERE et = ?;";
+        private const string Write = @"INSERT INTO index_by_eventtype (et,aid,rev,pos,ts) VALUES (?,?,?,?,?);";
 
         const int MaxConcurrencyLevel = 16;
 

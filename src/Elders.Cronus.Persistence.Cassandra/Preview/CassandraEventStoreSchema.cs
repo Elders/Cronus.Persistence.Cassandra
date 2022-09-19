@@ -12,15 +12,15 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
     {
         private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(CassandraEventStoreSchema));
 
-        private const string NEW_CREATE_EVENTS_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id blob, ts bigint, rev int, pos int, data blob, PRIMARY KEY (id,rev,pos)) WITH CLUSTERING ORDER BY (rev ASC, pos ASC);";
+        private const string CREATE_EVENTS_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id blob, ts bigint, rev int, pos int, data blob, PRIMARY KEY (id,rev,pos)) WITH CLUSTERING ORDER BY (rev ASC, pos ASC);";
         private const string INDEX_REV = @"CREATE INDEX IF NOT EXISTS ""{0}_idx_rev"" ON ""{0}"" (rev);";
         private const string INDEX_POS = @"CREATE INDEX IF NOT EXISTS ""{0}_idx_pos"" ON ""{0}"" (pos);";
 
-        private const string CREATE_NEW_INDEX_STATUS_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id blob, status text, PRIMARY KEY (id));";
-        private const string CREATE_NEW_INDEX_BY_EVENT_TYPE_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (et text, aid blob, rev int, pos int, ts bigint, PRIMARY KEY (et,ts,aid,rev,pos)) WITH CLUSTERING ORDER BY (ts ASC);"; // ASC element required to be in second position in primary key https://stackoverflow.com/questions/23185331/cql-bad-request-missing-clustering-order-for-column
+        private const string CREATE_INDEX_STATUS_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id blob, status text, PRIMARY KEY (id));";
+        private const string CREATE_INDEX_BY_EVENT_TYPE_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (et text, aid blob, rev int, pos int, ts bigint, PRIMARY KEY (et,ts,aid,rev,pos)) WITH CLUSTERING ORDER BY (ts ASC);"; // ASC element required to be in second position in primary key https://stackoverflow.com/questions/23185331/cql-bad-request-missing-clustering-order-for-column
 
-        private const string NEW_INDEX_STATUS_TABLE_NAME = "new_index_status";
-        private const string NEW_INDEX_BY_EVENT_TYPE_TABLE_NAME = "new_index_by_eventtype";
+        private const string INDEX_STATUS_TABLE_NAME = "index_status";
+        private const string INDEX_BY_EVENT_TYPE_TABLE_NAME = "index_by_eventtype";
 
 
         private readonly ICassandraProvider cassandraProvider;
@@ -64,8 +64,8 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         {
             Task[] createTableTasks = new Task[]
                 {
-                    CreateTableAsync(CREATE_NEW_INDEX_STATUS_TABLE_TEMPLATE, NEW_INDEX_STATUS_TABLE_NAME),
-                    CreateTableAsync(CREATE_NEW_INDEX_BY_EVENT_TYPE_TABLE_TEMPLATE, NEW_INDEX_BY_EVENT_TYPE_TABLE_NAME),
+                    CreateTableAsync(CREATE_INDEX_STATUS_TABLE_TEMPLATE, INDEX_STATUS_TABLE_NAME),
+                    CreateTableAsync(CREATE_INDEX_BY_EVENT_TYPE_TABLE_TEMPLATE, INDEX_BY_EVENT_TYPE_TABLE_NAME),
                     CreateTableAsync(MessageCounter.CreateTableTemplate, "EventCounter")
                 };
 
@@ -100,7 +100,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
                 logger.Debug(() => $"[EventStore] Creating table `{tableName}` with `{session.Cluster.AllHosts().First().Address}` in keyspace `{session.Keyspace}`...");
 
-                string tableQuery = string.Format(NEW_CREATE_EVENTS_TABLE_TEMPLATE, tableName).ToLower();
+                string tableQuery = string.Format(CREATE_EVENTS_TABLE_TEMPLATE, tableName).ToLower();
                 string rev = string.Format(INDEX_REV, tableName).ToLower();
                 string pos = string.Format(INDEX_POS, tableName).ToLower();
 

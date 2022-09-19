@@ -4,9 +4,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra.Migrations
 {
-    public class CassandraMigratorEventStorePlayer : CassandraEventStoreNew<MigratorCassandraReplaySettings>, IMigrationEventStorePlayer
+    public class CassandraMigratorEventStorePlayer : CassandraEventStore<MigratorCassandraReplaySettings>, IMigrationEventStorePlayer
     {
-        public CassandraMigratorEventStorePlayer(MigratorCassandraReplaySettings settings, ILogger<CassandraEventStoreNew> logger) : base(settings, logger)
+        public CassandraMigratorEventStorePlayer(MigratorCassandraReplaySettings settings, ILogger<CassandraEventStore> logger) : base(settings, logger)
         {
 
         }

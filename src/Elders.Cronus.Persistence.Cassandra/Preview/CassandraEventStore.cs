@@ -13,18 +13,18 @@ using System.Threading.Tasks;
 
 namespace Elders.Cronus.Persistence.Cassandra.Preview
 {
-    public class CassandraEventStoreNew<TSettings> : CassandraEventStoreNew, IEventStorePlayer<TSettings>
+    public class CassandraEventStore<TSettings> : CassandraEventStore, IEventStorePlayer<TSettings>
         where TSettings : class, ICassandraEventStoreSettings
     {
-        public CassandraEventStoreNew(TSettings settings, ILogger<CassandraEventStoreNew> logger)
+        public CassandraEventStore(TSettings settings, ILogger<CassandraEventStore> logger)
             : base(settings.CassandraProvider, settings.TableNameStrategy, settings.Serializer)
         {
         }
     }
 
-    public class CassandraEventStoreNew : IEventStore, IEventStorePlayer
+    public class CassandraEventStore : IEventStore, IEventStorePlayer
     {
-        private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(CassandraEventStoreNew));
+        private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(CassandraEventStore));
 
         private const string LoadAggregateEventsQueryTemplate = @"SELECT rev,pos,ts,data FROM {0} WHERE id = ?;";
         private const string InsertEventsQueryTemplate = @"INSERT INTO {0} (id,rev,pos,ts,data) VALUES (?,?,?,?,?);";
@@ -46,7 +46,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         private PreparedStatement replayWithoutDataStatement;
         private PreparedStatement loadAggregateCommitsMetaStatement;
 
-        public CassandraEventStoreNew(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ISerializer serializer)
+        public CassandraEventStore(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ISerializer serializer)
         {
             if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
             this.cassandraProvider = cassandraProvider;
@@ -215,7 +215,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                 }
 
                 var stringId = System.Text.Encoding.UTF8.GetString(currentId.RawId);
-                if(stringId == "urn:pruvit:order:70bf7392-7751-4e97-9d11-70d26eec606e")
+                if (stringId == "urn:pruvit:order:70bf7392-7751-4e97-9d11-70d26eec606e")
                     Console.WriteLine("sadfg");
 
                 int revision = row.GetValue<int>("rev");
@@ -248,7 +248,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                         catch (Exception)
                         {
                         }
-                        
+
                     }
                     catch (Exception ex)
                     {
@@ -491,7 +491,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                             catch (Exception)
                             {
                             }
-                            
+
                         }
                         catch (Exception ex)
                         {
@@ -694,7 +694,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         }
 
 
-        internal class CassandraRawId : IBlobId 
+        internal class CassandraRawId : IBlobId
         {
             public CassandraRawId(byte[] rawId)
             {

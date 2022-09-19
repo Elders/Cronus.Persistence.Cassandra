@@ -8,9 +8,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra.Preview
 {
-    public class CassandraEventStoreSchemaNew : ICassandraEventStoreSchema
+    public class CassandraEventStoreSchema : ICassandraEventStoreSchema
     {
-        private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(CassandraEventStoreSchemaNew));
+        private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(CassandraEventStoreSchema));
 
         private const string NEW_CREATE_EVENTS_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id blob, ts bigint, rev int, pos int, data blob, PRIMARY KEY (id,rev,pos)) WITH CLUSTERING ORDER BY (rev ASC, pos ASC);";
         private const string INDEX_REV = @"CREATE INDEX IF NOT EXISTS ""{0}_idx_rev"" ON ""{0}"" (rev);";
@@ -27,7 +27,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         private readonly ITableNamingStrategy tableNameStrategy;
 
         private Task<ISession> GetSessionAsync() => cassandraProvider.GetSessionAsync();// In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
-        public CassandraEventStoreSchemaNew(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ILock @lock)
+        public CassandraEventStoreSchema(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ILock @lock)
         {
             if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
 

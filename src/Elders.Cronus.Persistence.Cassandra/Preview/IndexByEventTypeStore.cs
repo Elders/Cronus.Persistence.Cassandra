@@ -1,21 +1,21 @@
-﻿/*using System;
+﻿using Cassandra;
+using Elders.Cronus.EventStore.Index;
+using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Cassandra;
-using Elders.Cronus.EventStore.Index;
-using Microsoft.Extensions.Logging;
 
-namespace Elders.Cronus.Persistence.Cassandra
+namespace Elders.Cronus.Persistence.Cassandra.Preview
 {
     public class IndexByEventTypeStore : IIndexStore
     {
         private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(IndexByEventTypeStore));
 
-        private const string Read = @"SELECT aid FROM index_by_eventtype WHERE et = ?;";
-        private const string Write = @"INSERT INTO index_by_eventtype (et,aid) VALUES (?,?);";
+        private const string Read = @"SELECT aid,rev,pos,ts FROM new_index_by_eventtype WHERE et = ?;";
+        private const string Write = @"INSERT INTO new_index_by_eventtype (et,aid,rev,pos,ts) VALUES (?,?,?,?,?);";
 
         const int MaxConcurrencyLevel = 16;
 
@@ -57,7 +57,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                     skip += take;
                 }
 
-                await Task.WhenAll(tasks).ConfigureAwait(false);
+                Task.WhenAll(tasks).ConfigureAwait(false).GetAwaiter().GetResult();
 
             }
             catch (WriteTimeoutException ex)
@@ -68,10 +68,10 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private async Task ExecuteOneAtATimeAsync(ISession session, PreparedStatement preparedStatement, IEnumerable<IndexRecord> indexRecords)
         {
-            foreach (var record in indexRecords)
+            foreach (IndexRecord record in indexRecords)
             {
-                string arId = Convert.ToBase64String(record.AggregateRootId);
-                var bs = preparedStatement.Bind(record.Id, arId).SetIdempotence(true);
+                byte[] arId = record.AggregateRootId;
+                var bs = preparedStatement.Bind(record.Id, arId, record.Revision, record.Position, record.TimeStamp).SetIdempotence(true);
                 await session.ExecuteAsync(bs).ConfigureAwait(false);
             }
         }
@@ -100,7 +100,6 @@ namespace Elders.Cronus.Persistence.Cassandra
             return readStatement;
         }
 
-
         public async IAsyncEnumerable<IndexRecord> GetAsync(string indexRecordId)
         {
             PreparedStatement statement = await GetReadPreparedStatementAsync().ConfigureAwait(false);
@@ -110,7 +109,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             RowSet result = await session.ExecuteAsync(bs).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
-                yield return new IndexRecord(indexRecordId, Convert.FromBase64String(row.GetValue<string>("aid")));
+                yield return new IndexRecord(indexRecordId, row.GetValue<byte[]>("aid"), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
             }
         }
 
@@ -132,7 +131,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
-                var indexRecord = new IndexRecord(indexRecordId, Convert.FromBase64String(row.GetValue<string>("aid")));
+                IndexRecord indexRecord = new IndexRecord(indexRecordId, row.GetValue<byte[]>("aid"), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
                 indexRecords.Add(indexRecord);
             }
 
@@ -160,4 +159,3 @@ namespace Elders.Cronus.Persistence.Cassandra
         }
     }
 }
-*/

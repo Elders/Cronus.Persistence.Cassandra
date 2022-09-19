@@ -1,3 +1,10 @@
+# [9.0.0-preview.2](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.1...v9.0.0-preview.2) (2022-09-19)
+
+
+### Bug Fixes
+
+* Code refactoring ([6e45892](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/6e45892f804c9ca5a9d06158a3b059dd8453d88a))
+
 # [9.0.0-preview.1](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v8.0.5...v9.0.0-preview.1) (2022-09-14)
 
 

@@ -1,3 +1,10 @@
+# [9.0.0-preview.3](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.2...v9.0.0-preview.3) (2022-09-19)
+
+
+### Bug Fixes
+
+* Remove all 'new' occurrences ([193deeb](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/193deebdd8a4c2ed03825a8f8f36b046e94e82d1))
+
 # [9.0.0-preview.2](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.1...v9.0.0-preview.2) (2022-09-19)
 
 

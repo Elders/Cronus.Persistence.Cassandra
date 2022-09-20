@@ -1,3 +1,10 @@
+# [9.0.0-preview.4](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.3...v9.0.0-preview.4) (2022-09-20)
+
+
+### Bug Fixes
+
+* Resurrects CassandraEventStorePlayer_v8 ([73b6e31](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/73b6e31739a0a6f68e19eb3def2ebacf5a45f982))
+
 # [9.0.0-preview.3](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.2...v9.0.0-preview.3) (2022-09-19)
 
 

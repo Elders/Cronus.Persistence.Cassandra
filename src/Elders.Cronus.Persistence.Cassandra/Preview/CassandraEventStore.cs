@@ -313,7 +313,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                 {
                     try
                     {
-                        var @event = (IEvent)serializer.Deserialize(stream);
+                        var @event = (IMessage)serializer.Deserialize(stream);
                         block.AppendBlock(revision, position, @event, timestamp);
                     }
                     catch (Exception ex)
@@ -358,7 +358,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                     // TODO: What if we have missing blocks?
                     try
                     {
-                        var @event = (IEvent)serializer.Deserialize(stream);
+                        var @event = (IMessage)serializer.Deserialize(stream);
                         block.AppendBlock(revision, position, @event, timestamp);
                         if (isBlockCompleted)
                         {
@@ -483,7 +483,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                     {
                         try
                         {
-                            var @event = (IEvent)serializer.Deserialize(stream);
+                            var @event = (IMessage)serializer.Deserialize(stream);
                             try
                             {
                                 block.AppendBlock(revision, position, @event, timestamp);

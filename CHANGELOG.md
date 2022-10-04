@@ -1,3 +1,10 @@
+# [9.0.0-preview.5](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.4...v9.0.0-preview.5) (2022-10-04)
+
+
+### Bug Fixes
+
+* Try fixing deserialize problem ([71d0552](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/71d0552fe48a56d31272258a97f5f4f714c95441))
+
 # [9.0.0-preview.4](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.3...v9.0.0-preview.4) (2022-09-20)
 
 

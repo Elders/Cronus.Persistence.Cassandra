@@ -206,6 +206,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                     currentId = new AggregateCommitBlock.CassandraRawId(loadedId);
                     block = new AggregateCommitBlock(currentId);
                 }
+
                 if (ByteArrayHelper.Compare(currentId.RawId, loadedId) == false)
                 {
                     aggregateCommits.AddRange(block.Complete());
@@ -213,10 +214,6 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                     currentId = new AggregateCommitBlock.CassandraRawId(loadedId);
                     block = new AggregateCommitBlock(currentId);
                 }
-
-                var stringId = System.Text.Encoding.UTF8.GetString(currentId.RawId);
-                if (stringId == "urn:pruvit:order:70bf7392-7751-4e97-9d11-70d26eec606e")
-                    Console.WriteLine("sadfg");
 
                 int revision = row.GetValue<int>("rev");
                 int position = row.GetValue<int>("pos");
@@ -449,7 +446,6 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
                 foreach (var row in result.GetRows())
                 {
-
                     byte[] loadedId = row.GetValue<byte[]>("id");
 
                     if (currentId is null)
@@ -512,8 +508,6 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         public async Task<IEvent> LoadEventWithRebuildProjectionAsync(IndexRecord indexRecord)
         {
             PreparedStatement bs = await GetRebuildWithoutDataStatementAsync().ConfigureAwait(false);
-            /*byte[] theId = Encoding.UTF8.GetBytes(indexRecord.Id);
-            IBlobId LoadedId = new AggregateCommitBlock.CassandraRawId(theId);*/
 
             BoundStatement boundStatement = bs.Bind(indexRecord.AggregateRootId, indexRecord.Revision, indexRecord.Position);
             ISession session = await GetSessionAsync().ConfigureAwait(false);

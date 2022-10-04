@@ -135,7 +135,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
                 using (var stream = new MemoryStream(data))
                 {
-                    var @event = (IEvent)serializer.Deserialize(stream);
+                    var @event = (IMessage)serializer.Deserialize(stream);
                     block.AppendBlock(revision, position, @event, timestamp);
                 }
             }

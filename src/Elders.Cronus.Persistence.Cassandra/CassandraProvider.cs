@@ -120,7 +120,6 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
             catch (ObjectDisposedException) { }
 
-
             return session;
         }
 

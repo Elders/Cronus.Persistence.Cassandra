@@ -135,8 +135,8 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
                 using (var stream = new MemoryStream(data))
                 {
-                    var @event = (IMessage)serializer.Deserialize(stream);
-                    block.AppendBlock(revision, position, @event, timestamp);
+                    IMessage messageData = (IMessage)serializer.Deserialize(stream);
+                    block.AppendBlock(revision, position, messageData, timestamp);
                 }
             }
 
@@ -192,7 +192,6 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
             ISession session = await GetSessionAsync().ConfigureAwait(false);
             RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
-
 
             IBlobId firstElementId = null;
             AggregateCommitBlock block = null;
@@ -301,17 +300,17 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                     block = new AggregateCommitBlock(currentId);
                 }
 
-                var revision = row.GetValue<int>("rev");
-                var position = row.GetValue<int>("pos");
+                int revision = row.GetValue<int>("rev");
+                int position = row.GetValue<int>("pos");
                 long timestamp = row.GetValue<long>("ts");
-                var data = row.GetValue<byte[]>("data");
+                byte[] data = row.GetValue<byte[]>("data");
 
-                using (var stream = new MemoryStream(data))
+                using (MemoryStream stream = new MemoryStream(data))
                 {
                     try
                     {
-                        var @event = (IMessage)serializer.Deserialize(stream);
-                        block.AppendBlock(revision, position, @event, timestamp);
+                        IMessage eventMessage = (IMessage)serializer.Deserialize(stream);
+                        block.AppendBlock(revision, position, eventMessage, timestamp);
                     }
                     catch (Exception ex)
                     {
@@ -507,10 +506,11 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
         public async Task<IEvent> LoadEventWithRebuildProjectionAsync(IndexRecord indexRecord)
         {
-            PreparedStatement bs = await GetRebuildWithoutDataStatementAsync().ConfigureAwait(false);
+            ISession session = await GetSessionAsync().ConfigureAwait(false);
+            PreparedStatement bs = await GetRebuildDataStatementAsync(session).ConfigureAwait(false);
 
             BoundStatement boundStatement = bs.Bind(indexRecord.AggregateRootId, indexRecord.Revision, indexRecord.Position);
-            ISession session = await GetSessionAsync().ConfigureAwait(false);
+            
             var result = await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
             var row = result.GetRows().Single();
             byte[] data = row.GetValue<byte[]>("data");
@@ -602,11 +602,10 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             return replayWithoutDataStatement;
         }
 
-        private async Task<PreparedStatement> GetRebuildWithoutDataStatementAsync()
+        private async Task<PreparedStatement> GetRebuildDataStatementAsync(ISession session)
         {
             if (replayWithoutDataStatement is null)
             {
-                ISession session = await GetSessionAsync().ConfigureAwait(false);
                 string tableName = tableNameStrategy.GetName();
                 replayWithoutDataStatement = await session.PrepareAsync(string.Format(LoadAggregateEventsRebuildQueryTemplate, tableName)).ConfigureAwait(false);
                 replayWithoutDataStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);

@@ -14,10 +14,8 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
     {
         private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(IndexByEventTypeStore));
 
-        private const string Read = @"SELECT aid,rev,pos,ts FROM index_by_eventtype WHERE et = ?;";
+        private const string Read = @"SELECT aid,rev,pos,ts FROM index_by_eventtype WHERE et=?;";
         private const string Write = @"INSERT INTO index_by_eventtype (et,aid,rev,pos,ts) VALUES (?,?,?,?,?);";
-
-        const int MaxConcurrencyLevel = 16;
 
         private PreparedStatement readStatement;
         private PreparedStatement writeStatement;
@@ -33,31 +31,15 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             this.cassandraProvider = cassandraProvider;
         }
 
-        public async Task ApendAsync(IEnumerable<IndexRecord> indexRecords)
+        public async Task ApendAsync(IndexRecord record)
         {
             try
             {
-                PreparedStatement statement = await GetWritePreparedStatementAsync().ConfigureAwait(false);
-                var session = await GetSessionAsync().ConfigureAwait(false);
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
+                PreparedStatement statement = await GetWritePreparedStatementAsync(session).ConfigureAwait(false);
 
-                int totalLength = indexRecords.Count();
-                var concurrencyLevel = MaxConcurrencyLevel >= totalLength ? totalLength : MaxConcurrencyLevel;
-
-                int maxCount = (int)Math.Ceiling(totalLength / (double)concurrencyLevel);   // Compute operations per Task (rounded up, so the first tasks will process more operations)
-                List<Task> tasks = new List<Task>(concurrencyLevel);   // The maximum amount of async executions that are going to be launched in parallel at any given time
-
-                var skip = 0;
-                while (skip < totalLength)
-                {
-                    var take = maxCount;
-                    if (skip + maxCount > totalLength)
-                        take = (totalLength - skip);
-
-                    tasks.Add(ExecuteOneAtATimeAsync(session, statement, indexRecords.Skip(skip).Take(take)));
-                    skip += take;
-                }
-
-                Task.WhenAll(tasks).ConfigureAwait(false).GetAwaiter().GetResult();
+                var bs = statement.Bind(record.Id, record.AggregateRootId, record.Revision, record.Position, record.TimeStamp).SetIdempotence(true);
+                await session.ExecuteAsync(bs).ConfigureAwait(false);
 
             }
             catch (WriteTimeoutException ex)
@@ -66,21 +48,10 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             }
         }
 
-        private async Task ExecuteOneAtATimeAsync(ISession session, PreparedStatement preparedStatement, IEnumerable<IndexRecord> indexRecords)
-        {
-            foreach (IndexRecord record in indexRecords)
-            {
-                byte[] arId = record.AggregateRootId;
-                var bs = preparedStatement.Bind(record.Id, arId, record.Revision, record.Position, record.TimeStamp).SetIdempotence(true);
-                await session.ExecuteAsync(bs).ConfigureAwait(false);
-            }
-        }
-
-        private async Task<PreparedStatement> GetWritePreparedStatementAsync()
+        private async Task<PreparedStatement> GetWritePreparedStatementAsync(ISession session)
         {
             if (writeStatement is null)
             {
-                ISession session = await GetSessionAsync().ConfigureAwait(false);
                 writeStatement = await session.PrepareAsync(Write).ConfigureAwait(false);
                 writeStatement.SetConsistencyLevel(ConsistencyLevel.Any);
             }
@@ -88,11 +59,10 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             return writeStatement;
         }
 
-        private async Task<PreparedStatement> GetReadPreparedStatementAsync()
+        private async Task<PreparedStatement> GetReadPreparedStatementAsync(ISession session)
         {
             if (readStatement is null)
             {
-                ISession session = await GetSessionAsync().ConfigureAwait(false);
                 readStatement = await session.PrepareAsync(Read).ConfigureAwait(false);
                 readStatement.SetConsistencyLevel(ConsistencyLevel.One);
             }
@@ -100,12 +70,25 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             return readStatement;
         }
 
+        public async Task<long> GetCountAsync(string indexRecordId)
+        {
+            ISession session = await GetSessionAsync().ConfigureAwait(false);
+
+            IStatement countStatement = new SimpleStatement($"SELECT count(*) FROM index_by_eventtype WHERE et='{indexRecordId}'")
+                .SetReadTimeoutMillis(1000 * 60 * 10)
+                .SetConsistencyLevel(ConsistencyLevel.Any);
+
+            RowSet result = await session.ExecuteAsync(countStatement).ConfigureAwait(false);
+
+            return result.GetRows().First().GetValue<long>("count");
+        }
+
         public async IAsyncEnumerable<IndexRecord> GetAsync(string indexRecordId)
         {
-            PreparedStatement statement = await GetReadPreparedStatementAsync().ConfigureAwait(false);
+            ISession session = await GetSessionAsync().ConfigureAwait(false);
+            PreparedStatement statement = await GetReadPreparedStatementAsync(session).ConfigureAwait(false);
 
             BoundStatement bs = statement.Bind(indexRecordId);
-            ISession session = await GetSessionAsync().ConfigureAwait(false);
             RowSet result = await session.ExecuteAsync(bs).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
@@ -115,19 +98,19 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
         public async Task<LoadIndexRecordsResult> GetAsync(string indexRecordId, string paginationToken, int pageSize)
         {
-            PagingInfo pagingInfo = GetPagingInfo(paginationToken);
+            PagingInfo pagingInfo = ParsePaginationToken(paginationToken);
             if (pagingInfo.HasMore == false)
                 return new LoadIndexRecordsResult() { PaginationToken = paginationToken };
 
             List<IndexRecord> indexRecords = new List<IndexRecord>();
 
-            PreparedStatement statement = await GetReadPreparedStatementAsync().ConfigureAwait(false);
+            ISession session = await GetSessionAsync().ConfigureAwait(false);
+            PreparedStatement statement = await GetReadPreparedStatementAsync(session).ConfigureAwait(false);
             IStatement queryStatement = statement.Bind(indexRecordId).SetPageSize(pageSize).SetAutoPage(false);
 
             if (pagingInfo.HasToken())
                 queryStatement.SetPagingState(pagingInfo.Token);
 
-            ISession session = await GetSessionAsync().ConfigureAwait(false);
             RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
@@ -147,7 +130,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             };
         }
 
-        private PagingInfo GetPagingInfo(string paginationToken)
+        private static PagingInfo ParsePaginationToken(string paginationToken)
         {
             PagingInfo pagingInfo = new PagingInfo();
             if (string.IsNullOrEmpty(paginationToken) == false)
@@ -156,6 +139,11 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                 pagingInfo = JsonSerializer.Deserialize<PagingInfo>(paginationJson);
             }
             return pagingInfo;
+        }
+
+        public IAsyncEnumerable<LoadIndexRecordsResult> GetRecordsAsync(string indexRecordId, string paginationToken, int pageSize)
+        {
+            throw new NotImplementedException();
         }
     }
 }

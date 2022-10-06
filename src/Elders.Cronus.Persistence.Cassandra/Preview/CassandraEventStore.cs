@@ -29,7 +29,6 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         private const string LoadAggregateEventsQueryTemplate = @"SELECT rev,pos,ts,data FROM {0} WHERE id = ?;";
         private const string InsertEventsQueryTemplate = @"INSERT INTO {0} (id,rev,pos,ts,data) VALUES (?,?,?,?,?);";
         private const string LoadAggregateCommitsQueryTemplate = @"SELECT id,rev,pos,ts,data FROM {0};";
-        private const string LoadAggregateCommitsQueryWithoutDataTemplate = @"SELECT ts FROM {0} WHERE id = ? AND rev = ? AND pos = ?;";
 
         private const string LoadAggregateEventsRebuildQueryTemplate = @"SELECT data FROM {0} WHERE id = ? AND rev = ? AND pos = ?;";
         private const string LoadAggregateCommitsMetaQueryTemplate = @"SELECT ts,rev,pos,data FROM {0} WHERE id = ? AND rev = ? AND pos = ?;";
@@ -507,9 +506,9 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         public async Task<IEvent> LoadEventWithRebuildProjectionAsync(IndexRecord indexRecord)
         {
             ISession session = await GetSessionAsync().ConfigureAwait(false);
-            PreparedStatement bs = await GetRebuildDataStatementAsync(session).ConfigureAwait(false);
+            PreparedStatement statement = await GetRebuildDataStatementAsync(session).ConfigureAwait(false);
 
-            BoundStatement boundStatement = bs.Bind(indexRecord.AggregateRootId, indexRecord.Revision, indexRecord.Position);
+            BoundStatement boundStatement = statement.Bind(indexRecord.AggregateRootId, indexRecord.Revision, indexRecord.Position);
             
             var result = await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
             var row = result.GetRows().Single();
@@ -587,19 +586,6 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             }
 
             return replayStatement;
-        }
-
-        private async Task<PreparedStatement> GetReplayWithoutDataStatementAsync()
-        {
-            if (replayWithoutDataStatement is null)
-            {
-                ISession session = await GetSessionAsync().ConfigureAwait(false);
-                string tableName = tableNameStrategy.GetName();
-                replayWithoutDataStatement = await session.PrepareAsync(string.Format(LoadAggregateCommitsQueryWithoutDataTemplate, tableName)).ConfigureAwait(false);
-                replayWithoutDataStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-            }
-
-            return replayWithoutDataStatement;
         }
 
         private async Task<PreparedStatement> GetRebuildDataStatementAsync(ISession session)

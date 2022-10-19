@@ -1,3 +1,11 @@
+# [9.0.0-preview.11](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.10...v9.0.0-preview.11) (2022-10-19)
+
+
+### Bug Fixes
+
+* Adds method to load PublicEvents when we do replay ([a9afdda](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/a9afdda5fe10fe5e4701b27869366228a8fa2bc4))
+* Code cleanup ([636495b](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/636495bf14866030ea30805ecdb736e4aaf163a5))
+
 # [9.0.0-preview.10](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.9...v9.0.0-preview.10) (2022-10-06)
 
 

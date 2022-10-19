@@ -7,8 +7,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Elders.Cronus.Persistence.Cassandra.Preview
@@ -31,7 +33,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         private const string LoadAggregateCommitsQueryTemplate = @"SELECT id,rev,pos,ts,data FROM {0};";
 
         private const string LoadAggregateEventsRebuildQueryTemplate = @"SELECT data FROM {0} WHERE id = ? AND rev = ? AND pos = ?;";
-        private const string LoadAggregateCommitsMetaQueryTemplate = @"SELECT ts,rev,pos,data FROM {0} WHERE id = ? AND rev = ? AND pos = ?;";
+        private const string LoadEventQueryTemplate = @"SELECT data,ts FROM {0} WHERE id = ? AND rev = ? AND pos = ?;";
 
         private readonly ISerializer serializer;
         private readonly ICassandraProvider cassandraProvider;
@@ -144,35 +146,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
         public async Task<LoadAggregateCommitsResult> LoadAggregateCommitsAsync(ReplayOptions replayOptions)
         {
-            List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
-
-            string paginationToken = replayOptions.PaginationToken;
-            int pageSize = replayOptions.BatchSize;
-
-            PagingInfo pagingInfo = GetPagingInfo(paginationToken);
-            if (pagingInfo.HasMore == false)
-                return new LoadAggregateCommitsResult() { PaginationToken = paginationToken };
-
-            #region TerribleCode
-            // AAAAAAAAAAAAAAAAA why did you expand this. Now you have to fix it.
-            bool hasTimeRangeFilter = replayOptions.After.HasValue || replayOptions.Before.HasValue;
-            long afterTimestamp = 0; // 1/1/1601 2:00:00 AM +02:00
-            long beforeStamp = 2650381343999999999; // DateTimeOffset.MaxValue.Subtract(TimeSpan.FromDays(100)).ToFileTime()
-            if (replayOptions.After.HasValue)
-                afterTimestamp = replayOptions.After.Value.ToFileTime();
-            if (replayOptions.Before.HasValue)
-                beforeStamp = replayOptions.Before.Value.ToFileTime();
-            #endregion
-
-            var found = LoadAggregateCommitsMetaAsync(replayOptions.AggregateIds, afterTimestamp, beforeStamp).ConfigureAwait(false);
-            await foreach (var meta in found)
-                aggregateCommits.Add(meta);
-
-            return new LoadAggregateCommitsResult()
-            {
-                Commits = aggregateCommits,
-                PaginationToken = null
-            };
+            throw new NotImplementedException();
         }
 
         public async Task<LoadAggregateCommitsResult> LoadAggregateCommitsAsync(string paginationToken, int pageSize = 5000)
@@ -418,89 +392,16 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             }
         }
 
-        private async Task<PreparedStatement> LoadAggregateCommitsMetaStatementAsync()
+        private async Task<PreparedStatement> PrepareLoadEventQueryStatementAsync(ISession session)
         {
             if (loadAggregateCommitsMetaStatement is null)
             {
-                ISession session = await GetSessionAsync().ConfigureAwait(false);
                 string tableName = tableNameStrategy.GetName();
-                loadAggregateCommitsMetaStatement = await session.PrepareAsync(string.Format(LoadAggregateCommitsMetaQueryTemplate, tableName)).ConfigureAwait(false);
+                loadAggregateCommitsMetaStatement = await session.PrepareAsync(string.Format(LoadEventQueryTemplate, tableName)).ConfigureAwait(false);
                 loadAggregateCommitsMetaStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
             }
 
             return loadAggregateCommitsMetaStatement;
-        }
-
-        private async IAsyncEnumerable<AggregateCommit> LoadAggregateCommitsMetaAsync(IEnumerable<IAggregateRootId> arIds, long afterTimestamp, long beforeStamp)
-        {
-            PreparedStatement queryStatement = await LoadAggregateCommitsMetaStatementAsync().ConfigureAwait(false);
-            foreach (IAggregateRootId arId in arIds)
-            {
-                BoundStatement q = queryStatement.Bind(Convert.ToBase64String(arId.RawId));
-                ISession session = await GetSessionAsync().ConfigureAwait(false);
-                RowSet result = await session.ExecuteAsync(q).ConfigureAwait(false);
-                AggregateCommitBlock block = null;
-                AggregateCommitBlock.CassandraRawId currentId = null;
-
-                foreach (var row in result.GetRows())
-                {
-                    byte[] loadedId = row.GetValue<byte[]>("id");
-
-                    if (currentId is null)
-                    {
-                        currentId = new AggregateCommitBlock.CassandraRawId(loadedId);
-                        block = new AggregateCommitBlock(currentId);
-                    }
-                    else if (ByteArrayHelper.Compare(currentId.RawId, loadedId) == false)
-                    {
-                        foreach (var arCommit in block.Complete())
-                        {
-                            yield return arCommit;
-                        }
-
-                        currentId = new AggregateCommitBlock.CassandraRawId(loadedId);
-                        block = new AggregateCommitBlock(currentId);
-                    }
-
-                    long timestamp = row.GetValue<long>("ts");
-                    if (afterTimestamp > timestamp || timestamp > beforeStamp)
-                        continue;
-
-                    var data = row.GetValue<byte[]>("data");
-                    int revision = row.GetValue<int>("rev");
-                    int position = row.GetValue<int>("pos");
-
-                    if (block is null)
-                        block = new AggregateCommitBlock(arId);
-
-                    using (var stream = new MemoryStream(data))
-                    {
-                        try
-                        {
-                            var @event = (IMessage)serializer.Deserialize(stream);
-                            try
-                            {
-                                block.AppendBlock(revision, position, @event, timestamp);
-                            }
-                            catch (Exception)
-                            {
-                            }
-
-                        }
-                        catch (Exception ex)
-                        {
-                            string error = "Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
-                            logger.ErrorException(ex, () => error);
-                            continue;
-                        }
-                    }
-                }
-
-                foreach (var arCommit in block.Complete())
-                {
-                    yield return arCommit;
-                }
-            }
         }
 
         public async Task<IEvent> LoadEventWithRebuildProjectionAsync(IndexRecord indexRecord)
@@ -594,10 +495,49 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             {
                 string tableName = tableNameStrategy.GetName();
                 replayWithoutDataStatement = await session.PrepareAsync(string.Format(LoadAggregateEventsRebuildQueryTemplate, tableName)).ConfigureAwait(false);
-                replayWithoutDataStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+                replayWithoutDataStatement.SetConsistencyLevel(ConsistencyLevel.LocalOne);
             }
 
             return replayWithoutDataStatement;
+        }
+
+        public async IAsyncEnumerable<IPublicEvent> LoadPublicEventsAsync(ReplayOptions replayOptions, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            ISession session = await GetSessionAsync().ConfigureAwait(false);
+            PreparedStatement queryStatement = await PrepareLoadEventQueryStatementAsync(session).ConfigureAwait(false);
+
+            foreach (IndexRecord indexRecord in replayOptions.IndexRecords)
+            {
+                BoundStatement query = queryStatement.Bind(indexRecord.AggregateRootId, indexRecord.Revision, indexRecord.Position);
+                RowSet rowSet = await session.ExecuteAsync(query).ConfigureAwait(false);
+
+                Row row = rowSet.SingleOrDefault();
+                if (row is not null)
+                {
+                    // Use the code bellow to skip events which are not within the specified time frame.
+                    //#region TerribleCode
+                    //// AAAAAAAAAAAAAAAAA why did you expand this. Now you have to fix it.
+                    //bool hasTimeRangeFilter = replayOptions.After.HasValue || replayOptions.Before.HasValue;
+                    //long afterTimestamp = 0; // 1/1/1601 2:00:00 AM +02:00
+                    //long beforeStamp = 2650381343999999999; // DateTimeOffset.MaxValue.Subtract(TimeSpan.FromDays(100)).ToFileTime()
+                    //if (replayOptions.After.HasValue)
+                    //    afterTimestamp = replayOptions.After.Value.ToFileTime();
+                    //if (replayOptions.Before.HasValue)
+                    //    beforeStamp = replayOptions.Before.Value.ToFileTime();
+                    //#endregion
+                    //long timestamp = row.GetValue<long>("ts");
+                    //if (afterTimestamp > timestamp || timestamp > beforeStamp)
+                    //    continue;
+
+                    var data = row.GetValue<byte[]>("data");
+                    using (var stream = new MemoryStream(data))
+                    {
+                        IPublicEvent @event = serializer.Deserialize(stream) as IPublicEvent;
+                        if(@event is not null)
+                            yield return @event;
+                    }
+                }
+            }
         }
     }
 

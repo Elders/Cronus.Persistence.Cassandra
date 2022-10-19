@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Cassandra;
 using Elders.Cronus.EventStore;
@@ -256,6 +257,11 @@ namespace Elders.Cronus.Persistence.Cassandra
         public Task<IEvent> LoadEventWithRebuildProjectionAsync(IndexRecord indexRecord)
         {
             throw new NotImplementedException();
+        }
+
+        public IAsyncEnumerable<IPublicEvent> LoadPublicEventsAsync(ReplayOptions replayOptions, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException("This method does not exist in v8");
         }
     }
 }

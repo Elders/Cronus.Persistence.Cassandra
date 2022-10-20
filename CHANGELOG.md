@@ -1,3 +1,10 @@
+# [9.0.0-preview.12](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.11...v9.0.0-preview.12) (2022-10-20)
+
+
+### Bug Fixes
+
+* Updates Cronus ([1716502](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/171650285fcebb94768e77ad03e6276a01c99bf7))
+
 # [9.0.0-preview.11](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.10...v9.0.0-preview.11) (2022-10-19)
 
 

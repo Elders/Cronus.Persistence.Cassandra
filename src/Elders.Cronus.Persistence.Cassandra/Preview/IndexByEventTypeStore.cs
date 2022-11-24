@@ -4,8 +4,10 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Elders.Cronus.Persistence.Cassandra.Preview
@@ -15,9 +17,11 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(IndexByEventTypeStore));
 
         private const string Read = @"SELECT aid,rev,pos,ts FROM index_by_eventtype WHERE et=?;";
+        private const string ReadRange = @"SELECT aid,rev,pos,ts FROM index_by_eventtype WHERE et=? AND ts>=? AND ts<=?;";
         private const string Write = @"INSERT INTO index_by_eventtype (et,aid,rev,pos,ts) VALUES (?,?,?,?,?);";
 
         private PreparedStatement readStatement;
+        private PreparedStatement readRangeStatement;
         private PreparedStatement writeStatement;
 
         private readonly ICassandraProvider cassandraProvider;
@@ -70,6 +74,17 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             return readStatement;
         }
 
+        private async Task<PreparedStatement> GetReadRangePreparedStatementAsync(ISession session)
+        {
+            if (readRangeStatement is null)
+            {
+                readRangeStatement = await session.PrepareAsync(ReadRange).ConfigureAwait(false);
+                readRangeStatement.SetConsistencyLevel(ConsistencyLevel.One);
+            }
+
+            return readRangeStatement;
+        }
+
         public async Task<long> GetCountAsync(string indexRecordId)
         {
             ISession session = await GetSessionAsync().ConfigureAwait(false);
@@ -98,7 +113,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
         public async Task<LoadIndexRecordsResult> GetAsync(string indexRecordId, string paginationToken, int pageSize)
         {
-            PagingInfo pagingInfo = ParsePaginationToken(paginationToken);
+            PagingInfo pagingInfo = PagingInfo.Parse(paginationToken);
             if (pagingInfo.HasMore == false)
                 return new LoadIndexRecordsResult() { PaginationToken = paginationToken };
 
@@ -130,20 +145,32 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             };
         }
 
-        private static PagingInfo ParsePaginationToken(string paginationToken)
+        internal async IAsyncEnumerable<IndexRecord> GetRecordsAsync(string indexRecordId, long from, long to, string paginationToken, int pageSize, Action<PagingInfo> onPagingInfoChanged = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            PagingInfo pagingInfo = new PagingInfo();
-            if (string.IsNullOrEmpty(paginationToken) == false)
+            PagingInfo pagingInfo = PagingInfo.Parse(paginationToken);
+            while (pagingInfo.HasMore)
             {
-                string paginationJson = Encoding.UTF8.GetString(Convert.FromBase64String(paginationToken));
-                pagingInfo = JsonSerializer.Deserialize<PagingInfo>(paginationJson);
-            }
-            return pagingInfo;
-        }
+                if (onPagingInfoChanged is not null)
+                    onPagingInfoChanged(pagingInfo);
 
-        public IAsyncEnumerable<LoadIndexRecordsResult> GetRecordsAsync(string indexRecordId, string paginationToken, int pageSize)
-        {
-            throw new NotImplementedException();
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
+                PreparedStatement statement = await GetReadRangePreparedStatementAsync(session).ConfigureAwait(false);
+                IStatement queryStatement = statement.Bind(indexRecordId, from, to).SetPageSize(pageSize).SetAutoPage(false);
+
+                if (pagingInfo.HasToken())
+                    queryStatement.SetPagingState(pagingInfo.Token);
+
+                RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
+                foreach (var row in result.GetRows())
+                {
+                    IndexRecord indexRecord = new IndexRecord(indexRecordId, row.GetValue<byte[]>("aid"), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
+                    yield return indexRecord;
+
+                    if (cancellationToken.CanBeCanceled && cancellationToken.IsCancellationRequested) break;
+                }
+
+                pagingInfo = PagingInfo.From(result);
+            }
         }
     }
 }

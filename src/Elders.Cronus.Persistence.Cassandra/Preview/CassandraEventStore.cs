@@ -18,8 +18,8 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
     public class CassandraEventStore<TSettings> : CassandraEventStore, IEventStorePlayer<TSettings>
         where TSettings : class, ICassandraEventStoreSettings
     {
-        public CassandraEventStore(TSettings settings, ILogger<CassandraEventStore> logger)
-            : base(settings.CassandraProvider, settings.TableNameStrategy, settings.Serializer)
+        public CassandraEventStore(TSettings settings, IndexByEventTypeStore indexByEventTypeStore, ILogger<CassandraEventStore> logger)
+            : base(settings.CassandraProvider, settings.TableNameStrategy, settings.Serializer, indexByEventTypeStore)
         {
         }
     }
@@ -36,6 +36,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         private const string LoadEventQueryTemplate = @"SELECT data,ts FROM {0} WHERE id = ? AND rev = ? AND pos = ?;";
 
         private readonly ISerializer serializer;
+        private readonly IndexByEventTypeStore indexByEventTypeStore;
         private readonly ICassandraProvider cassandraProvider;
         private readonly ITableNamingStrategy tableNameStrategy;
 
@@ -47,12 +48,13 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         private PreparedStatement replayWithoutDataStatement;
         private PreparedStatement loadAggregateCommitsMetaStatement;
 
-        public CassandraEventStore(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ISerializer serializer)
+        public CassandraEventStore(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ISerializer serializer, IndexByEventTypeStore indexByEventTypeStore)
         {
             if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
             this.cassandraProvider = cassandraProvider;
             this.tableNameStrategy = tableNameStrategy ?? throw new ArgumentNullException(nameof(tableNameStrategy));
-            this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer)); ;
+            this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
+            this.indexByEventTypeStore = indexByEventTypeStore ?? throw new ArgumentNullException(nameof(indexByEventTypeStore));
         }
 
         public async Task AppendAsync(AggregateCommit aggregateCommit)
@@ -68,7 +70,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                 try
                 {
                     BoundStatement boundStatement = writeStatement.Bind(aggregateCommit.AggregateRootId, aggregateCommit.Revision, ++pos, aggregateCommit.Timestamp, data);
-                    
+
                     await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
                 }
                 catch (WriteTimeoutException ex)
@@ -410,7 +412,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             PreparedStatement statement = await GetRebuildDataStatementAsync(session).ConfigureAwait(false);
 
             BoundStatement boundStatement = statement.Bind(indexRecord.AggregateRootId, indexRecord.Revision, indexRecord.Position);
-            
+
             var result = await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
             var row = result.GetRows().Single();
             byte[] data = row.GetValue<byte[]>("data");
@@ -500,44 +502,43 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             return replayWithoutDataStatement;
         }
 
-        public async IAsyncEnumerable<IPublicEvent> LoadPublicEventsAsync(ReplayOptions replayOptions, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        public async IAsyncEnumerable<IPublicEvent> LoadPublicEventsAsync(ReplayOptions replayOptions, Action<ReplayOptions> notifyProgress = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             ISession session = await GetSessionAsync().ConfigureAwait(false);
             PreparedStatement queryStatement = await PrepareLoadEventQueryStatementAsync(session).ConfigureAwait(false);
 
-            foreach (IndexRecord indexRecord in replayOptions.IndexRecords)
+            long after = replayOptions.After.Value.ToFileTime();
+            long before = replayOptions.Before.Value.ToFileTime();
+
+            // var indexRecords = indexByEventTypeStore.GetRecordsAsync(replayOptions.EventTypeId, after, before, replayOptions.PaginationToken, replayOptions.BatchSize, null, cancellationToken).ConfigureAwait(false);
+
+            var indexRecords = indexByEventTypeStore.GetRecordsAsync(replayOptions.EventTypeId, after, before, replayOptions.PaginationToken, replayOptions.BatchSize, (pagingInfo) =>
             {
+                if (notifyProgress is not null)
+                {
+                    var gg = replayOptions.WithPaginationToken(pagingInfo.ToString());
+                    notifyProgress(gg);
+                }
+            }, cancellationToken).ConfigureAwait(false);
+
+            await foreach (IndexRecord indexRecord in indexRecords)
+            {
+                counters++;
                 BoundStatement query = queryStatement.Bind(indexRecord.AggregateRootId, indexRecord.Revision, indexRecord.Position);
                 RowSet rowSet = await session.ExecuteAsync(query).ConfigureAwait(false);
-
                 Row row = rowSet.SingleOrDefault();
                 if (row is not null)
                 {
-                    // Use the code bellow to skip events which are not within the specified time frame.
-                    //#region TerribleCode
-                    //// AAAAAAAAAAAAAAAAA why did you expand this. Now you have to fix it.
-                    //bool hasTimeRangeFilter = replayOptions.After.HasValue || replayOptions.Before.HasValue;
-                    //long afterTimestamp = 0; // 1/1/1601 2:00:00 AM +02:00
-                    //long beforeStamp = 2650381343999999999; // DateTimeOffset.MaxValue.Subtract(TimeSpan.FromDays(100)).ToFileTime()
-                    //if (replayOptions.After.HasValue)
-                    //    afterTimestamp = replayOptions.After.Value.ToFileTime();
-                    //if (replayOptions.Before.HasValue)
-                    //    beforeStamp = replayOptions.Before.Value.ToFileTime();
-                    //#endregion
-                    //long timestamp = row.GetValue<long>("ts");
-                    //if (afterTimestamp > timestamp || timestamp > beforeStamp)
-                    //    continue;
-
-                    var data = row.GetValue<byte[]>("data");
+                    byte[] data = row.GetValue<byte[]>("data");
                     using (var stream = new MemoryStream(data))
                     {
-                        IPublicEvent @event = serializer.Deserialize(stream) as IPublicEvent;
-                        if(@event is not null)
-                            yield return @event;
+                        if (serializer.Deserialize(stream) is IPublicEvent publicEvent)
+                            yield return publicEvent;
                     }
                 }
             }
         }
+        static int counters = 1;
     }
 
     internal class AggregateCommitBlock

@@ -5,26 +5,42 @@ using Cassandra;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
-    public class PagingInfo
+    public sealed class PagingInfo
     {
-        public byte[] Token { get; set; }
+        public PagingInfo()
+        {
+            HasMore = true;
+        }
 
-        public bool HasMore { get; set; } = true;
+        public byte[] Token { get; private set; }
+
+        public bool HasMore { get; private set; }
 
         public bool HasToken() => Token is null == false;
+
+        public override string ToString()
+        {
+            return Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(this)));
+        }
 
         public static PagingInfo From(RowSet result)
         {
             return new PagingInfo()
             {
-                HasMore = result.PagingState is null == false,
-                Token = result.PagingState
+                Token = result.PagingState,
+                HasMore = result.PagingState is null == false
             };
         }
 
-        public override string ToString()
+        public static PagingInfo Parse(string paginationToken)
         {
-            return Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(this)));
+            PagingInfo pagingInfo = new PagingInfo();
+            if (string.IsNullOrEmpty(paginationToken) == false)
+            {
+                string paginationJson = Encoding.UTF8.GetString(Convert.FromBase64String(paginationToken));
+                pagingInfo = JsonSerializer.Deserialize<PagingInfo>(paginationJson);
+            }
+            return pagingInfo;
         }
     }
 }

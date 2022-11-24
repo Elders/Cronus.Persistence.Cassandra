@@ -263,5 +263,10 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             throw new NotImplementedException("This method does not exist in v8");
         }
+
+        public IAsyncEnumerable<IPublicEvent> LoadPublicEventsAsync(ReplayOptions replayOptions, Action<ReplayOptions> notifyProgress = null, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

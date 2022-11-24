@@ -1,3 +1,10 @@
+# [9.0.0-preview.13](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.12...v9.0.0-preview.13) (2022-11-24)
+
+
+### Bug Fixes
+
+* Implements public event replay with IAsyncEnumerable ([525157a](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/525157ad4948a722b328a69b9984a0ce27e539cf))
+
 # [9.0.0-preview.12](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.11...v9.0.0-preview.12) (2022-10-20)
 
 

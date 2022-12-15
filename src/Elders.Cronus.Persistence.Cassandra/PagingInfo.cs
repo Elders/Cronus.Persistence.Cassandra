@@ -12,9 +12,9 @@ namespace Elders.Cronus.Persistence.Cassandra
             HasMore = true;
         }
 
-        public byte[] Token { get; private set; }
+        public byte[] Token { get; set; }
 
-        public bool HasMore { get; private set; }
+        public bool HasMore { get; set; }
 
         public bool HasToken() => Token is null == false;
 

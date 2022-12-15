@@ -153,7 +153,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
         public async Task<LoadAggregateCommitsResult> LoadAggregateCommitsAsync(string paginationToken, int pageSize = 5000)
         {
-            PagingInfo pagingInfo = GetPagingInfo(paginationToken);
+            PagingInfo pagingInfo = PagingInfo.Parse(paginationToken);
             if (pagingInfo.HasMore == false)
                 return new LoadAggregateCommitsResult() { PaginationToken = paginationToken };
 
@@ -171,6 +171,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             IBlobId firstElementId = null;
             AggregateCommitBlock block = null;
             AggregateCommitBlock.CassandraRawId currentId = null;
+
             foreach (Row row in result.GetRows())
             {
                 byte[] loadedId = row.GetValue<byte[]>("id");
@@ -239,10 +240,13 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
             aggregateCommits.AddRange(finalAggregateCommits);
 
+            PagingInfo pi = PagingInfo.From(result);
+
             return new LoadAggregateCommitsResult()
             {
                 Commits = aggregateCommits,
-                PaginationToken = PagingInfo.From(result).ToString()
+                PaginationToken = pi.ToString(),
+                HasMoreResults = pi.HasMore
             };
         }
 
@@ -421,17 +425,6 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             {
                 return (IEvent)serializer.Deserialize(stream);
             }
-        }
-
-        private PagingInfo GetPagingInfo(string paginationToken)
-        {
-            PagingInfo pagingInfo = new PagingInfo();
-            if (string.IsNullOrEmpty(paginationToken) == false)
-            {
-                string paginationJson = Encoding.UTF8.GetString(Convert.FromBase64String(paginationToken));
-                pagingInfo = JsonSerializer.Deserialize<PagingInfo>(paginationJson);
-            }
-            return pagingInfo;
         }
 
         private byte[] SerializeEvent(IEvent @event)

@@ -1,3 +1,10 @@
+# [9.0.0-preview.14](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.13...v9.0.0-preview.14) (2022-12-15)
+
+
+### Bug Fixes
+
+* fixes pagination when loading AR Commits ([00c641c](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/00c641c216336a1d980f1879818ee819c6f3cdc7))
+
 # [9.0.0-preview.13](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.12...v9.0.0-preview.13) (2022-11-24)
 
 

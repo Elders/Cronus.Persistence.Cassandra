@@ -1,15 +1,12 @@
 using Cassandra;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.EventStore.Index;
-using Elders.Cronus.Testing;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -131,10 +128,10 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             var block = new AggregateCommitBlock(id);
             foreach (var row in result.GetRows())
             {
-                int revision = row.GetValue<int>("rev");
-                int position = row.GetValue<int>("pos");
-                long timestamp = row.GetValue<long>("ts");
-                byte[] data = row.GetValue<byte[]>("data");
+                int revision = row.GetValue<int>(CassandraColumn.Revision);
+                int position = row.GetValue<int>(CassandraColumn.Position);
+                long timestamp = row.GetValue<long>(CassandraColumn.Timestamp);
+                byte[] data = row.GetValue<byte[]>(CassandraColumn.Data);
 
                 using (var stream = new MemoryStream(data))
                 {
@@ -174,7 +171,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
             foreach (Row row in result.GetRows())
             {
-                byte[] loadedId = row.GetValue<byte[]>("id");
+                byte[] loadedId = row.GetValue<byte[]>(CassandraColumn.Id);
 
                 if (currentId is null)
                 {
@@ -190,10 +187,10 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                     block = new AggregateCommitBlock(currentId);
                 }
 
-                int revision = row.GetValue<int>("rev");
-                int position = row.GetValue<int>("pos");
-                long timestamp = row.GetValue<long>("ts");
-                byte[] data = row.GetValue<byte[]>("data");
+                int revision = row.GetValue<int>(CassandraColumn.Revision);
+                int position = row.GetValue<int>(CassandraColumn.Position);
+                long timestamp = row.GetValue<long>(CassandraColumn.Timestamp);
+                byte[] data = row.GetValue<byte[]>(CassandraColumn.Data);
 
                 if (firstElementId != null && ByteArrayHelper.Compare(firstElementId.RawId, loadedId))
                 {
@@ -261,7 +258,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             AggregateCommitBlock.CassandraRawId currentId = null;
             foreach (var row in result.GetRows())
             {
-                byte[] loadedId = row.GetValue<byte[]>("id");
+                byte[] loadedId = row.GetValue<byte[]>(CassandraColumn.Id);
 
                 if (currentId is null)
                 {
@@ -279,10 +276,10 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                     block = new AggregateCommitBlock(currentId);
                 }
 
-                int revision = row.GetValue<int>("rev");
-                int position = row.GetValue<int>("pos");
-                long timestamp = row.GetValue<long>("ts");
-                byte[] data = row.GetValue<byte[]>("data");
+                int revision = row.GetValue<int>(CassandraColumn.Revision);
+                int position = row.GetValue<int>(CassandraColumn.Position);
+                long timestamp = row.GetValue<long>(CassandraColumn.Timestamp);
+                byte[] data = row.GetValue<byte[]>(CassandraColumn.Data);
 
                 using (MemoryStream stream = new MemoryStream(data))
                 {
@@ -316,11 +313,11 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
             foreach (var row in result.GetRows())
             {
-                var id = new AggregateCommitBlock.CassandraRawId(row.GetValue<byte[]>("id"));
-                var revision = row.GetValue<int>("rev");
-                var position = row.GetValue<int>("pos");
-                long timestamp = row.GetValue<long>("ts");
-                var data = row.GetValue<byte[]>("data");
+                var id = new AggregateCommitBlock.CassandraRawId(row.GetValue<byte[]>(CassandraColumn.Id));
+                var revision = row.GetValue<int>(CassandraColumn.Revision);
+                var position = row.GetValue<int>(CassandraColumn.Position);
+                long timestamp = row.GetValue<long>(CassandraColumn.Timestamp);
+                var data = row.GetValue<byte[]>(CassandraColumn.Data);
 
                 if (block is null)
                     block = new AggregateCommitBlock(id);
@@ -361,11 +358,11 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             var result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
-                byte[] id = row.GetValue<byte[]>("id");
-                byte[] data = row.GetValue<byte[]>("data");
-                var position = row.GetValue<int>("pos");
-                int revision = row.GetValue<int>("rev");
-                long timestamp = row.GetValue<long>("ts");
+                byte[] id = row.GetValue<byte[]>(CassandraColumn.Id);
+                byte[] data = row.GetValue<byte[]>(CassandraColumn.Data);
+                var position = row.GetValue<int>(CassandraColumn.Position);
+                int revision = row.GetValue<int>(CassandraColumn.Revision);
+                long timestamp = row.GetValue<long>(CassandraColumn.Timestamp);
 
                 using (var stream = new MemoryStream(data))
                 {
@@ -383,11 +380,11 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             var result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             foreach (var row in result.GetRows())
             {
-                byte[] id = row.GetValue<byte[]>("id");
-                byte[] data = row.GetValue<byte[]>("data");
-                var position = row.GetValue<int>("pos");
-                int revision = row.GetValue<int>("rev");
-                long timestamp = row.GetValue<long>("ts");
+                byte[] id = row.GetValue<byte[]>(CassandraColumn.Id);
+                byte[] data = row.GetValue<byte[]>(CassandraColumn.Data);
+                var position = row.GetValue<int>(CassandraColumn.Position);
+                int revision = row.GetValue<int>(CassandraColumn.Revision);
+                long timestamp = row.GetValue<long>(CassandraColumn.Timestamp);
 
                 using (var stream = new MemoryStream(data))
                 {
@@ -419,7 +416,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
             var result = await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
             var row = result.GetRows().Single();
-            byte[] data = row.GetValue<byte[]>("data");
+            byte[] data = row.GetValue<byte[]>(CassandraColumn.Data);
 
             using (var stream = new MemoryStream(data))
             {
@@ -503,14 +500,12 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             long after = replayOptions.After.Value.ToFileTime();
             long before = replayOptions.Before.Value.ToFileTime();
 
-            // var indexRecords = indexByEventTypeStore.GetRecordsAsync(replayOptions.EventTypeId, after, before, replayOptions.PaginationToken, replayOptions.BatchSize, null, cancellationToken).ConfigureAwait(false);
-
             var indexRecords = indexByEventTypeStore.GetRecordsAsync(replayOptions.EventTypeId, after, before, replayOptions.PaginationToken, replayOptions.BatchSize, (pagingInfo) =>
             {
                 if (notifyProgress is not null)
                 {
-                    var gg = replayOptions.WithPaginationToken(pagingInfo.ToString());
-                    notifyProgress(gg);
+                    ReplayOptions newReplayOptions = replayOptions.WithPaginationToken(pagingInfo.ToString());
+                    notifyProgress(newReplayOptions);
                 }
             }, cancellationToken).ConfigureAwait(false);
 
@@ -522,7 +517,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                 Row row = rowSet.SingleOrDefault();
                 if (row is not null)
                 {
-                    byte[] data = row.GetValue<byte[]>("data");
+                    byte[] data = row.GetValue<byte[]>(CassandraColumn.Data);
                     using (var stream = new MemoryStream(data))
                     {
                         if (serializer.Deserialize(stream) is IPublicEvent publicEvent)

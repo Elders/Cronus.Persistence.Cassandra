@@ -52,7 +52,6 @@ namespace Elders.Cronus.Persistence.Cassandra
                 yield return new DiscoveredModel(setting, setting, ServiceLifetime.Transient);
             }
 
-            yield return new DiscoveredModel(typeof(IEventStoreJobIndex), typeof(EventToAggregateRootId), ServiceLifetime.Transient) { CanOverrideDefaults = true };
             yield return new DiscoveredModel(typeof(ICronusEventStoreIndex), typeof(EventToAggregateRootId), ServiceLifetime.Transient) { CanOverrideDefaults = true };
 
             yield return new DiscoveredModel(typeof(CassandraProvider), typeof(CassandraProvider), ServiceLifetime.Transient);

@@ -9,6 +9,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using static Cassandra.QueryTrace;
 
 namespace Elders.Cronus.Persistence.Cassandra.Preview
 {
@@ -16,24 +17,23 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         where TSettings : class, ICassandraEventStoreSettings
     {
         public CassandraEventStore(TSettings settings, IndexByEventTypeStore indexByEventTypeStore, ILogger<CassandraEventStore> logger)
-            : base(settings.CassandraProvider, settings.TableNameStrategy, settings.Serializer, indexByEventTypeStore)
+            : base(settings.CassandraProvider, settings.TableNameStrategy, settings.Serializer, indexByEventTypeStore, logger)
         {
         }
     }
 
     public class CassandraEventStore : IEventStore, IEventStorePlayer
     {
-        private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(CassandraEventStore));
-
         private const string LoadAggregateEventsQueryTemplate = @"SELECT rev,pos,ts,data FROM {0} WHERE id = ?;";
         private const string InsertEventsQueryTemplate = @"INSERT INTO {0} (id,rev,pos,ts,data) VALUES (?,?,?,?,?);";
-        private const string LoadAggregateCommitsQueryTemplate = @"SELECT id,rev,pos,ts,data FROM {0};";
+        private const string LoadEventsQueryTemplate = @"SELECT id,rev,pos,ts,data FROM {0};";
 
         private const string LoadAggregateEventsRebuildQueryTemplate = @"SELECT data FROM {0} WHERE id = ? AND rev = ? AND pos = ?;";
         private const string LoadEventQueryTemplate = @"SELECT data,ts FROM {0} WHERE id = ? AND rev = ? AND pos = ?;";
 
         private readonly ISerializer serializer;
         private readonly IndexByEventTypeStore indexByEventTypeStore;
+        private readonly ILogger<CassandraEventStore> logger;
         private readonly ICassandraProvider cassandraProvider;
         private readonly ITableNamingStrategy tableNameStrategy;
 
@@ -45,56 +45,54 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         private PreparedStatement replayWithoutDataStatement;
         private PreparedStatement loadAggregateCommitsMetaStatement;
 
-        public CassandraEventStore(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ISerializer serializer, IndexByEventTypeStore indexByEventTypeStore)
+        public CassandraEventStore(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ISerializer serializer, IndexByEventTypeStore indexByEventTypeStore, ILogger<CassandraEventStore> logger)
         {
             if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
             this.cassandraProvider = cassandraProvider;
             this.tableNameStrategy = tableNameStrategy ?? throw new ArgumentNullException(nameof(tableNameStrategy));
             this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
             this.indexByEventTypeStore = indexByEventTypeStore ?? throw new ArgumentNullException(nameof(indexByEventTypeStore));
+            this.logger = logger;
         }
 
         public async Task AppendAsync(AggregateCommit aggregateCommit)
         {
-            ISession session = await GetSessionAsync().ConfigureAwait(false);
-            PreparedStatement writeStatement = await GetWriteStatementAsync(session).ConfigureAwait(false);
-
-            var pos = -1;
-            foreach (var @event in aggregateCommit.Events)
+            try
             {
-                byte[] data = SerializeEvent(@event);
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
+                PreparedStatement writeStatement = await GetWriteStatementAsync(session).ConfigureAwait(false);
 
-                try
+                List<Task> tasks = new List<Task>();
+
+                var pos = -1;
+                for (int idx = 0; idx < aggregateCommit.Events.Count; idx++)
                 {
+                    byte[] data = SerializeEvent(aggregateCommit.Events[idx]);
                     BoundStatement boundStatement = writeStatement.Bind(aggregateCommit.AggregateRootId, aggregateCommit.Revision, ++pos, aggregateCommit.Timestamp, data);
 
-                    await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
+                    var saveTask = session.ExecuteAsync(boundStatement);
+                    tasks.Add(saveTask);
                 }
-                catch (WriteTimeoutException ex)
+
+                pos += AggregateCommitBlock.PublicEventsOffset;
+                for (int idx = 0; idx < aggregateCommit.PublicEvents.Count; idx++)
                 {
-                    logger.WarnException(ex, () => "Write timeout while persisting an aggregate commit.");
-                }
-            }
-
-            pos += AggregateCommitBlock.PublicEventsOffset;
-
-            foreach (var @event in aggregateCommit.PublicEvents)
-            {
-                byte[] data = SerializeEvent(@event);
-
-                try
-                {
+                    byte[] data = SerializeEvent(aggregateCommit.PublicEvents[idx]);
                     BoundStatement boundStatement = writeStatement.Bind(aggregateCommit.AggregateRootId, aggregateCommit.Revision, pos++, aggregateCommit.Timestamp, data);
-                    await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
+
+                    var saveTask = session.ExecuteAsync(boundStatement);
+                    tasks.Add(saveTask);
                 }
-                catch (WriteTimeoutException ex)
-                {
-                    logger.WarnException(ex, () => "Write timeout while persisting an aggregate commit.");
-                }
+
+                await Task.WhenAll(tasks).ConfigureAwait(false);
+            }
+            catch (WriteTimeoutException ex)
+            {
+                logger.WarnException(ex, () => "Write timeout while persisting an aggregate commit.");
             }
         }
 
-        public async Task AppendAsync(AggregateCommitRaw aggregateCommitRaw)
+        public async Task AppendAsync(AggregateEventRaw aggregateCommitRaw)
         {
             try
             {
@@ -110,7 +108,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             }
         }
 
-        public async Task<EventStream> LoadAsync(IAggregateRootId aggregateId)
+        public async Task<EventStream> LoadAsync(IBlobId aggregateId)
         {
             List<AggregateCommit> aggregateCommits = await LoadAggregateCommitsAsync(aggregateId).ConfigureAwait(false);
 
@@ -143,171 +141,127 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             return block.Complete();
         }
 
-        public async Task<LoadAggregateCommitsResult> LoadAggregateCommitsAsync(ReplayOptions replayOptions)
+        public async Task EnumerateEventStore(PlayerOperator @operator, PlayerOptions replayOptions)
         {
-            throw new NotImplementedException();
+            if (replayOptions.EventTypeId is null)
+            {
+                List<Task> tasks = new List<Task>();
+                await foreach (AggregateEventRaw @event in LoadEntireEventStoreAsync(replayOptions, @operator.NotifyProgressAsync))
+                {
+                    if (@operator.OnLoadAsync is not null)
+                    {
+                        Task opTask = @operator.OnLoadAsync(@event);
+                        tasks.Add(opTask);
+
+                        if (tasks.Count > 100)
+                        {
+                            Task completedTask = await Task.WhenAny(tasks);
+                            tasks.Remove(completedTask);
+                        }
+                    }
+                }
+                await Task.WhenAll(tasks).ConfigureAwait(false);
+            }
+            else
+            {
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
+                PreparedStatement queryStatement = await PrepareLoadEventQueryStatementAsync(session).ConfigureAwait(false);
+
+                List<Task> tasks = new List<Task>();
+                await foreach (IndexRecord indexRecord in indexByEventTypeStore.GetRecordsAsync(replayOptions, @operator.NotifyProgressAsync))
+                {
+                    if (@operator.OnLoadAsync is not null)
+                    {
+                        Task task = LoadAggregateEventRaw(indexRecord, queryStatement, session).ContinueWith(input => @operator.OnLoadAsync(input.Result));
+                        tasks.Add(task);
+
+                        if (tasks.Count > 100)
+                        {
+                            Task completedTask = await Task.WhenAny(tasks);
+                            tasks.Remove(completedTask);
+                        }
+                    }
+                }
+                await Task.WhenAll(tasks).ConfigureAwait(false);
+            }
         }
 
-        public async Task<LoadAggregateCommitsResult> LoadAggregateCommitsAsync(string paginationToken, int pageSize = 5000)
+        private async Task<AggregateEventRaw> LoadAggregateEventRaw(IndexRecord indexRecord, PreparedStatement queryStatement, ISession session)
         {
-            PagingInfo pagingInfo = PagingInfo.Parse(paginationToken);
-            if (pagingInfo.HasMore == false)
-                return new LoadAggregateCommitsResult() { PaginationToken = paginationToken };
-
-            List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
-
-            PreparedStatement statement = await GetReplayStatementAsync().ConfigureAwait(false);
-            IStatement queryStatement = statement.Bind().SetPageSize(pageSize).SetAutoPage(false);
-
-            if (pagingInfo.HasToken())
-                queryStatement.SetPagingState(pagingInfo.Token);
-
-            ISession session = await GetSessionAsync().ConfigureAwait(false);
-            RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
-
-            IBlobId firstElementId = null;
-            AggregateCommitBlock block = null;
-            AggregateCommitBlock.CassandraRawId currentId = null;
-
-            foreach (Row row in result.GetRows())
+            BoundStatement query = queryStatement.Bind(indexRecord.AggregateRootId, indexRecord.Revision, indexRecord.Position);
+            RowSet rowSet = await session.ExecuteAsync(query).ConfigureAwait(false);
+            Row row = rowSet.SingleOrDefault();
+            if (row is not null)
             {
-                byte[] loadedId = row.GetValue<byte[]>(CassandraColumn.Id);
-
-                if (currentId is null)
-                {
-                    currentId = new AggregateCommitBlock.CassandraRawId(loadedId);
-                    block = new AggregateCommitBlock(currentId);
-                }
-
-                if (ByteArrayHelper.Compare(currentId.RawId, loadedId) == false)
-                {
-                    aggregateCommits.AddRange(block.Complete());
-
-                    currentId = new AggregateCommitBlock.CassandraRawId(loadedId);
-                    block = new AggregateCommitBlock(currentId);
-                }
-
-                int revision = row.GetValue<int>(CassandraColumn.Revision);
-                int position = row.GetValue<int>(CassandraColumn.Position);
-                long timestamp = row.GetValue<long>(CassandraColumn.Timestamp);
                 byte[] data = row.GetValue<byte[]>(CassandraColumn.Data);
-
-                if (firstElementId != null && ByteArrayHelper.Compare(firstElementId.RawId, loadedId))
-                {
-                    continue;
-                }
-
-                if (firstElementId is null && revision > 1 && position > 0)
-                {
-                    firstElementId = currentId;
-                    var firstIdAggregates = await LoadAggregateCommitsAsync(firstElementId).ConfigureAwait(false);
-                    aggregateCommits.AddRange(firstIdAggregates);
-                    continue;
-                }
-
-                using (var stream = new MemoryStream(data))
-                {
-                    try
-                    {
-                        var @event = (IMessage)serializer.Deserialize(stream);
-                        try
-                        {
-                            block.AppendBlock(revision, position, @event, timestamp);
-                        }
-                        catch (Exception)
-                        {
-                        }
-
-                    }
-                    catch (Exception ex)
-                    {
-                        string error = "Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
-                        logger.ErrorException(ex, () => error);
-                        continue;
-                    }
-                }
+                return new AggregateEventRaw(indexRecord.AggregateRootId, data, indexRecord.Revision, indexRecord.Position, indexRecord.TimeStamp);
             }
-
-            var finalAggregateCommits = await LoadAggregateCommitsAsync(currentId).ConfigureAwait(false);
-
-            if (result.IsFullyFetched == false)
-            {
-                logger.Warn(() => "Not implemented logic. => if (result.IsFullyFetched == false)");
-            }
-
-            aggregateCommits.AddRange(finalAggregateCommits);
-
-            PagingInfo pi = PagingInfo.From(result);
-
-            return new LoadAggregateCommitsResult()
-            {
-                Commits = aggregateCommits,
-                PaginationToken = pi.ToString(),
-                HasMoreResults = pi.HasMore
-            };
+            return default;
         }
 
-        public async IAsyncEnumerable<AggregateCommit> LoadAggregateCommitsAsync(int batchSize)
+        private async IAsyncEnumerable<AggregateEventRaw> LoadEntireEventStoreAsync(PlayerOptions replayOptions, Func<PlayerOptions, Task> onPagingInfoChanged = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            PreparedStatement statement = await GetReplayStatementAsync().ConfigureAwait(false);
-            IStatement queryStatement = statement.Bind().SetPageSize(batchSize);
+            PagingInfo pagingInfo = PagingInfo.Parse(replayOptions.PaginationToken);
+            long after = replayOptions.After.HasValue ? replayOptions.After.Value.ToFileTime() : 0;
+            long before = replayOptions.Before.HasValue ? replayOptions.Before.Value.ToFileTime() : 0;
+
             ISession session = await GetSessionAsync().ConfigureAwait(false);
-            RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
+            PreparedStatement statement = await GetReplayStatementAsync(session).ConfigureAwait(false);
 
-            AggregateCommitBlock block = null;
-            AggregateCommitBlock.CassandraRawId currentId = null;
-            foreach (var row in result.GetRows())
+            IStatement queryStatement = statement.Bind();
+
+            while (pagingInfo.HasMore)
             {
-                byte[] loadedId = row.GetValue<byte[]>(CassandraColumn.Id);
+                if (pagingInfo.HasToken())
+                    queryStatement.SetPagingState(pagingInfo.Token);
 
-                if (currentId is null)
+                RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
+
+                foreach (var row in result.GetRows())
                 {
-                    currentId = new AggregateCommitBlock.CassandraRawId(loadedId);
-                    block = new AggregateCommitBlock(currentId);
-                }
-                else if (ByteArrayHelper.Compare(currentId.RawId, loadedId) == false)
-                {
-                    foreach (var arCommit in block.Complete())
+                    long timestamp = row.GetValue<long>(CassandraColumn.Timestamp);
+                    if (after <= timestamp && timestamp <= before)
                     {
-                        yield return arCommit;
+                        byte[] id = row.GetValue<byte[]>(CassandraColumn.Id);
+                        int revision = row.GetValue<int>(CassandraColumn.Revision);
+                        int position = row.GetValue<int>(CassandraColumn.Position);
+                        byte[] data = row.GetValue<byte[]>(CassandraColumn.Data);
+
+                        var @event = new AggregateEventRaw(id, data, revision, position, timestamp);
+                        yield return @event;
                     }
 
-                    currentId = new AggregateCommitBlock.CassandraRawId(loadedId);
-                    block = new AggregateCommitBlock(currentId);
+                    if (cancellationToken.CanBeCanceled && cancellationToken.IsCancellationRequested)
+                        break;
                 }
 
-                int revision = row.GetValue<int>(CassandraColumn.Revision);
-                int position = row.GetValue<int>(CassandraColumn.Position);
-                long timestamp = row.GetValue<long>(CassandraColumn.Timestamp);
-                byte[] data = row.GetValue<byte[]>(CassandraColumn.Data);
+                pagingInfo = HandlePaginationStateChanges(replayOptions, onPagingInfoChanged, pagingInfo, result);
+            }
+        }
 
-                using (MemoryStream stream = new MemoryStream(data))
-                {
-                    try
-                    {
-                        IMessage eventMessage = (IMessage)serializer.Deserialize(stream);
-                        block.AppendBlock(revision, position, eventMessage, timestamp);
-                    }
-                    catch (Exception ex)
-                    {
-                        string error = "Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
-                        logger.ErrorException(ex, () => error);
-                        continue;
-                    }
-                }
+        private PagingInfo HandlePaginationStateChanges(PlayerOptions replayOptions, Func<PlayerOptions, Task> onPagingInfoChanged, PagingInfo pagingInfo, RowSet result)
+        {
+            PagingInfo nextPagingInfo = PagingInfo.From(result);
+
+            bool isFirstTime = pagingInfo.Token is null;
+            bool hasMoreRecords = result.PagingState is not null;
+
+            bool weHaveNewPagingState = (isFirstTime && hasMoreRecords) || (isFirstTime == false && hasMoreRecords && ByteArrayHelper.Compare(pagingInfo.Token, nextPagingInfo.Token) == false);
+            pagingInfo = nextPagingInfo;
+            if (onPagingInfoChanged is not null && weHaveNewPagingState)
+            {
+                try { Task notify = onPagingInfoChanged(replayOptions.WithPaginationToken(pagingInfo.ToString())); }
+                catch (Exception ex) when (logger.ErrorException(ex, () => "Failed to execute onPagingInfoChanged() function.")) { }
             }
 
-            foreach (var arCommit in block.Complete())
-            {
-                yield return arCommit;
-            }
+            return pagingInfo;
         }
 
         public async IAsyncEnumerable<AggregateCommit> LoadAggregateCommitsAsync()
         {
-            var statement = await GetReplayStatementAsync().ConfigureAwait(false);
-            var queryStatement = statement.Bind();
             ISession session = await GetSessionAsync().ConfigureAwait(false);
+            var statement = await GetReplayStatementAsync(session).ConfigureAwait(false);
+            var queryStatement = statement.Bind();
             RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
             AggregateCommitBlock block = null;
 
@@ -350,63 +304,6 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             }
         }
 
-        public async IAsyncEnumerable<AggregateCommitRaw> LoadAggregateCommitsRawAsync(int batchSize = 5000)
-        {
-            var statement = await GetReplayStatementAsync().ConfigureAwait(false);
-            var queryStatement = statement.Bind().SetPageSize(batchSize);
-            ISession session = await GetSessionAsync().ConfigureAwait(false);
-            var result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
-            foreach (var row in result.GetRows())
-            {
-                byte[] id = row.GetValue<byte[]>(CassandraColumn.Id);
-                byte[] data = row.GetValue<byte[]>(CassandraColumn.Data);
-                var position = row.GetValue<int>(CassandraColumn.Position);
-                int revision = row.GetValue<int>(CassandraColumn.Revision);
-                long timestamp = row.GetValue<long>(CassandraColumn.Timestamp);
-
-                using (var stream = new MemoryStream(data))
-                {
-                    AggregateCommitRaw commitRaw = new AggregateCommitRaw(id, data, revision, position, timestamp);
-
-                    yield return commitRaw;
-                }
-            }
-        }
-
-        public async IAsyncEnumerable<AggregateCommitRaw> LoadAggregateCommitsRawAsync()
-        {
-            ISession session = await GetSessionAsync().ConfigureAwait(false);
-            var queryStatement = (await GetReplayStatementAsync().ConfigureAwait(false)).Bind();
-            var result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
-            foreach (var row in result.GetRows())
-            {
-                byte[] id = row.GetValue<byte[]>(CassandraColumn.Id);
-                byte[] data = row.GetValue<byte[]>(CassandraColumn.Data);
-                var position = row.GetValue<int>(CassandraColumn.Position);
-                int revision = row.GetValue<int>(CassandraColumn.Revision);
-                long timestamp = row.GetValue<long>(CassandraColumn.Timestamp);
-
-                using (var stream = new MemoryStream(data))
-                {
-                    AggregateCommitRaw commitRaw = new AggregateCommitRaw(id, data, revision, position, timestamp);
-
-                    yield return commitRaw;
-                }
-            }
-        }
-
-        private async Task<PreparedStatement> PrepareLoadEventQueryStatementAsync(ISession session)
-        {
-            if (loadAggregateCommitsMetaStatement is null)
-            {
-                string tableName = tableNameStrategy.GetName();
-                loadAggregateCommitsMetaStatement = await session.PrepareAsync(string.Format(LoadEventQueryTemplate, tableName)).ConfigureAwait(false);
-                loadAggregateCommitsMetaStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-            }
-
-            return loadAggregateCommitsMetaStatement;
-        }
-
         public async Task<IEvent> LoadEventWithRebuildProjectionAsync(IndexRecord indexRecord)
         {
             ISession session = await GetSessionAsync().ConfigureAwait(false);
@@ -422,6 +319,30 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             {
                 return (IEvent)serializer.Deserialize(stream);
             }
+        }
+
+        private async Task<PreparedStatement> GetRebuildDataStatementAsync(ISession session)
+        {
+            if (replayWithoutDataStatement is null)
+            {
+                string tableName = tableNameStrategy.GetName();
+                replayWithoutDataStatement = await session.PrepareAsync(string.Format(LoadAggregateEventsRebuildQueryTemplate, tableName)).ConfigureAwait(false);
+                replayWithoutDataStatement.SetConsistencyLevel(ConsistencyLevel.LocalOne);
+            }
+
+            return replayWithoutDataStatement;
+        }
+
+        private async Task<PreparedStatement> PrepareLoadEventQueryStatementAsync(ISession session)
+        {
+            if (loadAggregateCommitsMetaStatement is null)
+            {
+                string tableName = tableNameStrategy.GetName();
+                loadAggregateCommitsMetaStatement = await session.PrepareAsync(string.Format(LoadEventQueryTemplate, tableName)).ConfigureAwait(false);
+                loadAggregateCommitsMetaStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
+
+            return loadAggregateCommitsMetaStatement;
         }
 
         private byte[] SerializeEvent(IEvent @event)
@@ -467,149 +388,21 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             return readStatement;
         }
 
-        private async Task<PreparedStatement> GetReplayStatementAsync()
+        private async Task<PreparedStatement> GetReplayStatementAsync(ISession session)
         {
             if (replayStatement is null)
             {
-                ISession session = await GetSessionAsync().ConfigureAwait(false);
                 string tableName = tableNameStrategy.GetName();
-                replayStatement = await session.PrepareAsync(string.Format(LoadAggregateCommitsQueryTemplate, tableName)).ConfigureAwait(false);
-                replayStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+                replayStatement = await session.PrepareAsync(string.Format(LoadEventsQueryTemplate, tableName)).ConfigureAwait(false);
+                replayStatement.SetConsistencyLevel(ConsistencyLevel.LocalOne);
             }
 
             return replayStatement;
         }
 
-        private async Task<PreparedStatement> GetRebuildDataStatementAsync(ISession session)
+        public IAsyncEnumerable<AggregateCommit> LoadAggregateCommitsAsync(int batchSize = 5000)
         {
-            if (replayWithoutDataStatement is null)
-            {
-                string tableName = tableNameStrategy.GetName();
-                replayWithoutDataStatement = await session.PrepareAsync(string.Format(LoadAggregateEventsRebuildQueryTemplate, tableName)).ConfigureAwait(false);
-                replayWithoutDataStatement.SetConsistencyLevel(ConsistencyLevel.LocalOne);
-            }
-
-            return replayWithoutDataStatement;
-        }
-
-        public async IAsyncEnumerable<IPublicEvent> LoadPublicEventsAsync(ReplayOptions replayOptions, Action<ReplayOptions> notifyProgress = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
-        {
-            ISession session = await GetSessionAsync().ConfigureAwait(false);
-            PreparedStatement queryStatement = await PrepareLoadEventQueryStatementAsync(session).ConfigureAwait(false);
-
-            long after = replayOptions.After.Value.ToFileTime();
-            long before = replayOptions.Before.Value.ToFileTime();
-
-            var indexRecords = indexByEventTypeStore.GetRecordsAsync(replayOptions.EventTypeId, after, before, replayOptions.PaginationToken, replayOptions.BatchSize, (pagingInfo) =>
-            {
-                if (notifyProgress is not null)
-                {
-                    ReplayOptions newReplayOptions = replayOptions.WithPaginationToken(pagingInfo.ToString());
-                    notifyProgress(newReplayOptions);
-                }
-            }, cancellationToken).ConfigureAwait(false);
-
-            await foreach (IndexRecord indexRecord in indexRecords)
-            {
-                counters++;
-                BoundStatement query = queryStatement.Bind(indexRecord.AggregateRootId, indexRecord.Revision, indexRecord.Position);
-                RowSet rowSet = await session.ExecuteAsync(query).ConfigureAwait(false);
-                Row row = rowSet.SingleOrDefault();
-                if (row is not null)
-                {
-                    byte[] data = row.GetValue<byte[]>(CassandraColumn.Data);
-                    using (var stream = new MemoryStream(data))
-                    {
-                        if (serializer.Deserialize(stream) is IPublicEvent publicEvent)
-                            yield return publicEvent;
-                    }
-                }
-            }
-        }
-        static int counters = 1;
-    }
-
-    internal class AggregateCommitBlock
-    {
-        private readonly IBlobId id;
-        private int revision;
-        private long timestamp;
-        public const int PublicEventsOffset = 5;
-
-        public AggregateCommitBlock(IBlobId id)
-        {
-            this.id = id;
-            revision = 1;
-            Events = new List<IEvent>();
-            PublicEvents = new List<IPublicEvent>();
-            aggregateCommits = new List<AggregateCommit>();
-        }
-
-        private int GetNextExpectedEventPosition() => Events.Count;
-
-        private int GetNextExpectedPublicEventPosition() => Events.Count + PublicEventsOffset + PublicEvents.Count;
-
-        private List<IEvent> Events { get; set; }
-
-        private List<IPublicEvent> PublicEvents { get; set; }
-
-        List<AggregateCommit> aggregateCommits;
-
-        internal void AppendBlock(int revision, int position, IMessage data, long timestamp)
-        {
-            if (this.timestamp == 0)
-                this.timestamp = timestamp;
-
-            if (this.revision == revision)
-            {
-                AttachDataAtPosition(data, position);
-            }
-            else if (this.revision < revision)
-            {
-                var aggregateCommit = new AggregateCommit(id.RawId, this.revision, Events.ToList(), PublicEvents.ToList(), this.timestamp);
-                aggregateCommits.Add(aggregateCommit);
-
-                Events.Clear();
-                PublicEvents.Clear();
-
-                this.revision = revision;
-                this.timestamp = timestamp;
-                AttachDataAtPosition(data, position);
-            }
-        }
-
-        private void AttachDataAtPosition(IMessage data, int position)
-        {
-            if (GetNextExpectedEventPosition() == position) // If the event we want to attach is IEvent (not public) and it is the first one 
-                Events.Add((IEvent)data);
-            else if (GetNextExpectedPublicEventPosition() >= position)
-                PublicEvents.Add((IPublicEvent)data);
-            else
-                throw new NotSupportedException("How?!?!?");
-        }
-
-        public List<AggregateCommit> Complete()
-        {
-            if (Events.Any())
-            {
-                // Appends the everything we have in memory to the final result
-                var aggregateCommit = new AggregateCommit(id.RawId, this.revision, Events.ToList(), PublicEvents.ToList(), this.timestamp);
-                aggregateCommits.Add(aggregateCommit);
-            }
-
-            return aggregateCommits;
-        }
-
-
-        internal class CassandraRawId : IBlobId
-        {
-            public CassandraRawId(byte[] rawId)
-            {
-                RawId = rawId;
-            }
-
-            public byte[] RawId { get; private set; }
+            throw new NotImplementedException();
         }
     }
-
 }

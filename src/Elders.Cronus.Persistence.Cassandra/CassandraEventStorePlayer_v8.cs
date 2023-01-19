@@ -40,40 +40,6 @@ namespace Elders.Cronus.Persistence.Cassandra
             this.logger = logger;
         }
 
-        public async Task<LoadAggregateCommitsResult> LoadAggregateCommitsAsync(ReplayOptions replayOptions)
-        {
-            List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
-
-            string paginationToken = replayOptions.PaginationToken;
-            int pageSize = replayOptions.BatchSize;
-
-            PagingInfo pagingInfo = GetPagingInfo(paginationToken);
-            if (pagingInfo.HasMore == false)
-                return new LoadAggregateCommitsResult() { PaginationToken = paginationToken };
-
-            #region TerribleCode
-            // AAAAAAAAAAAAAAAAA why did you expand this. Now you have to fix it.
-            bool hasTimeRangeFilter = replayOptions.After.HasValue || replayOptions.Before.HasValue;
-            long afterTimestamp = 0; // 1/1/1601 2:00:00 AM +02:00
-            long beforeStamp = 2650381343999999999; // DateTimeOffset.MaxValue.Subtract(TimeSpan.FromDays(100)).ToFileTime()
-            if (replayOptions.After.HasValue)
-                afterTimestamp = replayOptions.After.Value.ToFileTime();
-            if (replayOptions.Before.HasValue)
-                beforeStamp = replayOptions.Before.Value.ToFileTime();
-            #endregion
-
-            var found = LoadAggregateCommitsMetaAsync(replayOptions.AggregateIds, afterTimestamp, beforeStamp).ConfigureAwait(false);
-            await foreach (var meta in found)
-                aggregateCommits.Add(meta);
-
-
-            return new LoadAggregateCommitsResult()
-            {
-                Commits = aggregateCommits,
-                PaginationToken = null
-            };
-        }
-
         public async Task<LoadAggregateCommitsResult> LoadAggregateCommitsAsync(string paginationToken, int pageSize = 5000)
         {
             PagingInfo pagingInfo = GetPagingInfo(paginationToken);
@@ -149,7 +115,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
-        public async IAsyncEnumerable<AggregateCommitRaw> LoadAggregateCommitsRawAsync(int batchSize = 5000)
+        public async IAsyncEnumerable<AggregateEventRaw> LoadAggregateCommitsRawAsync(int batchSize = 5000)
         {
             var queryStatement = (await GetReplayStatementAsync().ConfigureAwait(false)).Bind().SetPageSize(batchSize);
             ISession session = await GetSessionAsync().ConfigureAwait(false);
@@ -163,7 +129,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
                 using (var stream = new MemoryStream(data))
                 {
-                    AggregateCommitRaw commitRaw = new AggregateCommitRaw(id, data, revision, 0, timestamp);
+                    AggregateEventRaw commitRaw = new AggregateEventRaw(id, data, revision, 0, timestamp);
 
                     yield return commitRaw;
                 }
@@ -183,10 +149,10 @@ namespace Elders.Cronus.Persistence.Cassandra
             return loadAggregateCommitsMetaStatement;
         }
 
-        private async IAsyncEnumerable<AggregateCommit> LoadAggregateCommitsMetaAsync(IEnumerable<IAggregateRootId> arIds, long afterTimestamp, long beforeStamp)
+        private async IAsyncEnumerable<AggregateCommit> LoadAggregateCommitsMetaAsync(IEnumerable<AggregateRootId> arIds, long afterTimestamp, long beforeStamp)
         {
             PreparedStatement queryStatement = await LoadAggregateCommitsMetaStatementAsync().ConfigureAwait(false);
-            foreach (IAggregateRootId arId in arIds)
+            foreach (AggregateRootId arId in arIds)
             {
                 BoundStatement q = queryStatement.Bind(Convert.ToBase64String(arId.RawId));
                 ISession session = await GetSessionAsync().ConfigureAwait(false);
@@ -259,12 +225,12 @@ namespace Elders.Cronus.Persistence.Cassandra
             throw new NotImplementedException();
         }
 
-        public IAsyncEnumerable<IPublicEvent> LoadPublicEventsAsync(ReplayOptions replayOptions, CancellationToken cancellationToken = default)
+        public Task EnumerateEventStore(PlayerOperator @operator)
         {
-            throw new NotImplementedException("This method does not exist in v8");
+            throw new NotImplementedException();
         }
 
-        public IAsyncEnumerable<IPublicEvent> LoadPublicEventsAsync(ReplayOptions replayOptions, Action<ReplayOptions> notifyProgress = null, CancellationToken cancellationToken = default)
+        public Task EnumerateEventStore(PlayerOperator @operator, PlayerOptions replayOptions)
         {
             throw new NotImplementedException();
         }

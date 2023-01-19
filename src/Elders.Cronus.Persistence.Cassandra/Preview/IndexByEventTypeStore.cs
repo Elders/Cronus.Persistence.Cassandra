@@ -1,4 +1,5 @@
 ﻿using Cassandra;
+using Elders.Cronus.EventStore;
 using Elders.Cronus.EventStore.Index;
 using Microsoft.Extensions.Logging;
 using System;
@@ -145,31 +146,53 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             };
         }
 
-        internal async IAsyncEnumerable<IndexRecord> GetRecordsAsync(string indexRecordId, long from, long to, string paginationToken, int pageSize, Action<PagingInfo> onPagingInfoChanged = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        internal async IAsyncEnumerable<IndexRecord> GetRecordsAsync(PlayerOptions replayOptions, Func<PlayerOptions, Task> onPagingInfoChanged = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            PagingInfo pagingInfo = PagingInfo.Parse(paginationToken);
+            if (replayOptions.EventTypeId is null)
+            {
+                logger.Warn(() => "The PlayerOptions did not specify what EventTypeId should be replayed. Exiting...");
+                yield break;
+            }
+
+            PagingInfo pagingInfo = PagingInfo.Parse(replayOptions.PaginationToken);
+            long after = replayOptions.After.HasValue ? replayOptions.After.Value.ToFileTime() : 0;
+            long before = replayOptions.Before.HasValue ? replayOptions.Before.Value.ToFileTime() : 0;
+
+            ISession session = await GetSessionAsync().ConfigureAwait(false);
+            PreparedStatement statement = await GetReadRangePreparedStatementAsync(session).ConfigureAwait(false);
+
+            IStatement queryStatement = statement.Bind(replayOptions.EventTypeId, after, before);
+            queryStatement
+                .SetPageSize(replayOptions.BatchSize)
+                .SetAutoPage(false);
+
             while (pagingInfo.HasMore)
             {
-                if (onPagingInfoChanged is not null)
-                    onPagingInfoChanged(pagingInfo);
-
-                ISession session = await GetSessionAsync().ConfigureAwait(false);
-                PreparedStatement statement = await GetReadRangePreparedStatementAsync(session).ConfigureAwait(false);
-                IStatement queryStatement = statement.Bind(indexRecordId, from, to).SetPageSize(pageSize).SetAutoPage(false);
-
                 if (pagingInfo.HasToken())
                     queryStatement.SetPagingState(pagingInfo.Token);
 
                 RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
+
                 foreach (var row in result.GetRows())
                 {
-                    IndexRecord indexRecord = new IndexRecord(indexRecordId, row.GetValue<byte[]>("aid"), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
+                    IndexRecord indexRecord = new IndexRecord(replayOptions.EventTypeId, row.GetValue<byte[]>("aid"), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
                     yield return indexRecord;
 
                     if (cancellationToken.CanBeCanceled && cancellationToken.IsCancellationRequested) break;
                 }
 
-                pagingInfo = PagingInfo.From(result);
+                PagingInfo nextPagingInfo = PagingInfo.From(result);
+
+                bool isFirstTime = pagingInfo.Token is null;
+                bool hasMoreRecords = result.PagingState is not null;
+
+                bool weHaveNewPagingState = (isFirstTime && hasMoreRecords) || (isFirstTime == false && hasMoreRecords && ByteArrayHelper.Compare(pagingInfo.Token, nextPagingInfo.Token) == false);
+                pagingInfo = nextPagingInfo;
+                if (onPagingInfoChanged is not null && weHaveNewPagingState)
+                {
+                    try { Task notify = onPagingInfoChanged(replayOptions.WithPaginationToken(pagingInfo.ToString())); }
+                    catch (Exception ex) when (logger.ErrorException(ex, () => "Failed to execute onPagingInfoChanged() function.")) { }
+                }
             }
         }
     }

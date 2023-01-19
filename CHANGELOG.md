@@ -1,3 +1,10 @@
+# [9.0.0-preview.17](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.16...v9.0.0-preview.17) (2023-01-19)
+
+
+### Bug Fixes
+
+* Consistency level fix ([907a1d9](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/907a1d95afea37c408defaa472a084eaeeb5e73d))
+
 # [9.0.0-preview.16](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.15...v9.0.0-preview.16) (2023-01-19)
 
 

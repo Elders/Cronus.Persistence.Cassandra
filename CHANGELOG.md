@@ -1,3 +1,10 @@
+# [9.0.0-preview.16](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.15...v9.0.0-preview.16) (2023-01-19)
+
+
+### Bug Fixes
+
+* Adds error handling when counting messages ([0e697cc](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/0e697cc1a308ca0616e41a0caca1f2fd7c26789a))
+
 # [9.0.0-preview.15](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.14...v9.0.0-preview.15) (2023-01-19)
 
 # [9.0.0-preview.14](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.13...v9.0.0-preview.14) (2022-12-15)

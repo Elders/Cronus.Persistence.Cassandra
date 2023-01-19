@@ -93,8 +93,8 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                 ISession session = await GetSessionAsync().ConfigureAwait(false);
 
                 IStatement countStatement = new SimpleStatement($"SELECT count(*) FROM index_by_eventtype WHERE et='{indexRecordId}'")
-                    .SetReadTimeoutMillis(1000 * 60 * 10)
-                    .SetConsistencyLevel(ConsistencyLevel.LocalOne);
+                    .SetConsistencyLevel(ConsistencyLevel.LocalQuorum)
+                    .SetReadTimeoutMillis(1000 * 60 * 10);
 
                 RowSet result = await session.ExecuteAsync(countStatement).ConfigureAwait(false);
 

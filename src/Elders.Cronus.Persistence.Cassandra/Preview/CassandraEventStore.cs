@@ -327,7 +327,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             {
                 string tableName = tableNameStrategy.GetName();
                 replayWithoutDataStatement = await session.PrepareAsync(string.Format(LoadAggregateEventsRebuildQueryTemplate, tableName)).ConfigureAwait(false);
-                replayWithoutDataStatement.SetConsistencyLevel(ConsistencyLevel.LocalOne);
+                replayWithoutDataStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
             }
 
             return replayWithoutDataStatement;
@@ -394,7 +394,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             {
                 string tableName = tableNameStrategy.GetName();
                 replayStatement = await session.PrepareAsync(string.Format(LoadEventsQueryTemplate, tableName)).ConfigureAwait(false);
-                replayStatement.SetConsistencyLevel(ConsistencyLevel.LocalOne);
+                replayStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
             }
 
             return replayStatement;

@@ -15,8 +15,6 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 {
     public class IndexByEventTypeStore : IIndexStore
     {
-        private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(IndexByEventTypeStore));
-
         private const string Read = @"SELECT aid,rev,pos,ts FROM index_by_eventtype WHERE et=?;";
         private const string ReadRange = @"SELECT aid,rev,pos,ts FROM index_by_eventtype WHERE et=? AND ts>=? AND ts<=?;";
         private const string Write = @"INSERT INTO index_by_eventtype (et,aid,rev,pos,ts) VALUES (?,?,?,?,?);";
@@ -26,14 +24,16 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         private PreparedStatement writeStatement;
 
         private readonly ICassandraProvider cassandraProvider;
+        private readonly ILogger<IndexByEventTypeStore> logger;
 
         private Task<ISession> GetSessionAsync() => cassandraProvider.GetSessionAsync(); // In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
 
-        public IndexByEventTypeStore(ICassandraProvider cassandraProvider)
+        public IndexByEventTypeStore(ICassandraProvider cassandraProvider, ILogger<IndexByEventTypeStore> logger)
         {
             if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
 
             this.cassandraProvider = cassandraProvider;
+            this.logger = logger;
         }
 
         public async Task ApendAsync(IndexRecord record)
@@ -88,15 +88,26 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
         public async Task<long> GetCountAsync(string indexRecordId)
         {
-            ISession session = await GetSessionAsync().ConfigureAwait(false);
+            try
+            {
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
 
-            IStatement countStatement = new SimpleStatement($"SELECT count(*) FROM index_by_eventtype WHERE et='{indexRecordId}'")
-                .SetReadTimeoutMillis(1000 * 60 * 10)
-                .SetConsistencyLevel(ConsistencyLevel.LocalOne);
+                IStatement countStatement = new SimpleStatement($"SELECT count(*) FROM index_by_eventtype WHERE et='{indexRecordId}'")
+                    .SetReadTimeoutMillis(1000 * 60 * 10)
+                    .SetConsistencyLevel(ConsistencyLevel.LocalOne);
 
-            RowSet result = await session.ExecuteAsync(countStatement).ConfigureAwait(false);
+                RowSet result = await session.ExecuteAsync(countStatement).ConfigureAwait(false);
 
-            return result.GetRows().First().GetValue<long>("count");
+                long count = result.GetRows().First().GetValue<long>("count");
+
+                logger.Info(() => $"Number of messages for {indexRecordId}: {count}");
+
+                return count;
+            }
+            catch (Exception ex) when (logger.ErrorException(ex, () => $"Failed to count number of messages for {indexRecordId}."))
+            {
+                return 0;
+            }
         }
 
         public async IAsyncEnumerable<IndexRecord> GetAsync(string indexRecordId)

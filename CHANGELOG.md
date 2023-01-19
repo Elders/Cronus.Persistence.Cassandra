@@ -1,3 +1,5 @@
+# [9.0.0-preview.15](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.14...v9.0.0-preview.15) (2023-01-19)
+
 # [9.0.0-preview.14](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.13...v9.0.0-preview.14) (2022-12-15)
 
 

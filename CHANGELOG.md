@@ -1,3 +1,10 @@
+# [9.0.0-preview.18](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.17...v9.0.0-preview.18) (2023-02-08)
+
+
+### Features
+
+* Delete AggregateEventRaw from the event store ([26bdbba](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/26bdbbad3fccf619b45e27d9ad49b09ff3534efa))
+
 # [9.0.0-preview.17](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.16...v9.0.0-preview.17) (2023-01-19)
 
 

@@ -9,7 +9,6 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using static Cassandra.QueryTrace;
 
 namespace Elders.Cronus.Persistence.Cassandra.Preview
 {
@@ -31,6 +30,8 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         private const string LoadAggregateEventsRebuildQueryTemplate = @"SELECT data FROM {0} WHERE id = ? AND rev = ? AND pos = ?;";
         private const string LoadEventQueryTemplate = @"SELECT data,ts FROM {0} WHERE id = ? AND rev = ? AND pos = ?;";
 
+        public const string DeleteEventQueryTemplate = @"DELETE FROM {0} WHERE id = ? and rev=? and pos=?;";
+
         private readonly ISerializer serializer;
         private readonly IndexByEventTypeStore indexByEventTypeStore;
         private readonly ILogger<CassandraEventStore> logger;
@@ -44,6 +45,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         private PreparedStatement replayStatement;
         private PreparedStatement replayWithoutDataStatement;
         private PreparedStatement loadAggregateCommitsMetaStatement;
+        private PreparedStatement deleteStatement;
 
         public CassandraEventStore(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ISerializer serializer, IndexByEventTypeStore indexByEventTypeStore, ILogger<CassandraEventStore> logger)
         {
@@ -104,7 +106,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             }
             catch (WriteTimeoutException ex)
             {
-                logger.WarnException(ex, () => "Write timeout while persisting an aggregate commit");
+                logger.WarnException(ex, () => "Write timeout while persisting an aggregate commit.");
             }
         }
 
@@ -113,6 +115,28 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             List<AggregateCommit> aggregateCommits = await LoadAggregateCommitsAsync(aggregateId).ConfigureAwait(false);
 
             return new EventStream(aggregateCommits);
+        }
+
+        public async Task<bool> DeleteAsync(AggregateEventRaw eventRaw)
+        {
+            try
+            {
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
+                PreparedStatement statement = await GetDeleteStatement(session).ConfigureAwait(false);
+                BoundStatement boundStatement = statement.Bind(eventRaw.AggregateRootId, eventRaw.Revision, eventRaw.Position);
+
+                await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
+
+                return true;
+            }
+            catch (WriteTimeoutException ex) when (logger.WarnException(ex, () => "Failed to delete event."))
+            {
+                return false;
+            }
+            catch (Exception ex) when (logger.ErrorException(ex, () => $"Failed to delete event.")) { }
+            {
+                return false;
+            }
         }
 
         private async Task<List<AggregateCommit>> LoadAggregateCommitsAsync(IBlobId id)
@@ -145,45 +169,72 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         {
             if (replayOptions.EventTypeId is null)
             {
-                List<Task> tasks = new List<Task>();
-                await foreach (AggregateEventRaw @event in LoadEntireEventStoreAsync(replayOptions, @operator.NotifyProgressAsync))
-                {
-                    if (@operator.OnLoadAsync is not null)
-                    {
-                        Task opTask = @operator.OnLoadAsync(@event);
-                        tasks.Add(opTask);
-
-                        if (tasks.Count > 100)
-                        {
-                            Task completedTask = await Task.WhenAny(tasks);
-                            tasks.Remove(completedTask);
-                        }
-                    }
-                }
-                await Task.WhenAll(tasks).ConfigureAwait(false);
+                await EnumerateEventStoreGG(@operator, replayOptions).ConfigureAwait(false);
             }
             else
             {
-                ISession session = await GetSessionAsync().ConfigureAwait(false);
-                PreparedStatement queryStatement = await PrepareLoadEventQueryStatementAsync(session).ConfigureAwait(false);
+                await EnumerateEventStoreForSpecifiedEvent(@operator, replayOptions).ConfigureAwait(false);
+            }
+        }
 
-                List<Task> tasks = new List<Task>();
-                await foreach (IndexRecord indexRecord in indexByEventTypeStore.GetRecordsAsync(replayOptions, @operator.NotifyProgressAsync))
+        private async Task EnumerateEventStoreForSpecifiedEvent(PlayerOperator @operator, PlayerOptions replayOptions)
+        {
+            ISession session = await GetSessionAsync().ConfigureAwait(false);
+            PreparedStatement queryStatement = await PrepareLoadEventQueryStatementAsync(session).ConfigureAwait(false);
+
+            List<Task> tasks = new List<Task>();
+            await foreach (IndexRecord indexRecord in indexByEventTypeStore.GetRecordsAsync(replayOptions, @operator.NotifyProgressAsync))
+            {
+                if (@operator.OnLoadAsync is not null)
                 {
-                    if (@operator.OnLoadAsync is not null)
-                    {
-                        Task task = LoadAggregateEventRaw(indexRecord, queryStatement, session).ContinueWith(input => @operator.OnLoadAsync(input.Result));
-                        tasks.Add(task);
+                    Task task = LoadAggregateEventRaw(indexRecord, queryStatement, session).ContinueWith(input => @operator.OnLoadAsync(input.Result));
+                    tasks.Add(task);
 
-                        if (tasks.Count > 100)
-                        {
-                            Task completedTask = await Task.WhenAny(tasks);
-                            tasks.Remove(completedTask);
-                        }
+                    if (tasks.Count > 100)
+                    {
+                        Task completedTask = await Task.WhenAny(tasks);
+                        tasks.Remove(completedTask);
                     }
                 }
-                await Task.WhenAll(tasks).ConfigureAwait(false);
             }
+
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+        }
+
+        private async Task EnumerateEventStoreGG(PlayerOperator @operator, PlayerOptions replayOptions)
+        {
+            List<AggregateEventRaw> aggregateEventRaws = new List<AggregateEventRaw>();
+
+            List<Task> tasks = new List<Task>();
+            await foreach (AggregateEventRaw @event in LoadEntireEventStoreAsync(replayOptions, @operator.NotifyProgressAsync))
+            {
+                if (@operator.OnLoadAsync is not null)
+                {
+                    Task opTask = @operator.OnLoadAsync(@event);
+                    tasks.Add(opTask);
+
+                    if (tasks.Count > 100)
+                    {
+                        Task completedTask = await Task.WhenAny(tasks);
+                        tasks.Remove(completedTask);
+                    }
+                }
+
+                if (@operator.OnAggregateStreamLoadedAsync is not null)
+                {
+                    if (aggregateEventRaws.Any() && ByteArrayHelper.Compare(aggregateEventRaws.First().AggregateRootId, @event.AggregateRootId) == false)
+                    {
+                        AggregateStream stream = new AggregateStream(aggregateEventRaws);
+                        await @operator.OnAggregateStreamLoadedAsync(stream);
+
+                        aggregateEventRaws.Clear();
+                    }
+
+                    aggregateEventRaws.Add(@event);
+                }
+            }
+
+            await Task.WhenAll(tasks).ConfigureAwait(false);
         }
 
         private async Task<AggregateEventRaw> LoadAggregateEventRaw(IndexRecord indexRecord, PreparedStatement queryStatement, ISession session)
@@ -386,6 +437,19 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             }
 
             return readStatement;
+        }
+
+        private async Task<PreparedStatement> GetDeleteStatement(ISession session)
+        {
+            if (deleteStatement is null)
+            {
+
+                string tableName = tableNameStrategy.GetName();
+                deleteStatement = await session.PrepareAsync(string.Format(DeleteEventQueryTemplate, tableName)).ConfigureAwait(false);
+                deleteStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
+
+            return deleteStatement;
         }
 
         private async Task<PreparedStatement> GetReplayStatementAsync(ISession session)

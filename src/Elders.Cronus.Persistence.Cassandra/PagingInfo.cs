@@ -5,7 +5,7 @@ using Cassandra;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
-    public sealed class PagingInfo
+    internal sealed class PagingInfo
     {
         public PagingInfo()
         {

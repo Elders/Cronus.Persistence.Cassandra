@@ -78,6 +78,8 @@ namespace Elders.Cronus.Persistence.Cassandra
             SocketOptions so = new SocketOptions();
             so.SetConnectTimeoutMillis(TenMinutes);
             so.SetReadTimeoutMillis(TenMinutes);
+            so.SetStreamMode(true);
+            so.SetTcpNoDelay(true);
 
 
             var builder = DataStax.Cluster.Builder();

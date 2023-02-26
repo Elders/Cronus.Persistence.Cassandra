@@ -93,7 +93,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                 ISession session = await (cassandraProvider as CassandraProvider).GetSessionHighTimeoutAsync();
 
                 IStatement countStatement = new SimpleStatement($"SELECT count(*) FROM index_by_eventtype WHERE et='{indexRecordId}'")
-                    .SetConsistencyLevel(ConsistencyLevel.LocalQuorum)
+                    .SetConsistencyLevel(ConsistencyLevel.One)
                     .SetReadTimeoutMillis(1000 * 60 * 10);
 
                 RowSet result = await session.ExecuteAsync(countStatement).ConfigureAwait(false);

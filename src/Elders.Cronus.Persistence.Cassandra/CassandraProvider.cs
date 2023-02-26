@@ -98,6 +98,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             cluster = connStrBuilder
                 .ApplyToBuilder(builder)
                 .WithReconnectionPolicy(new ExponentialReconnectionPolicy(100, 100000))
+                .WithRetryPolicy(new IgnoreRetryPolicy())
             .Build();
 
             return await cluster.ConnectAsync(GetKeyspace()).ConfigureAwait(false);
@@ -173,6 +174,24 @@ namespace Elders.Cronus.Persistence.Cassandra
             return receivedResponses >= requiredResponses && !dataRetrieved
                        ? RetryDecision.Retry(cl)
                        : RetryDecision.Rethrow();
+        }
+
+        public RetryDecision OnUnavailable(IStatement query, ConsistencyLevel cl, int requiredReplica, int aliveReplica, int nbRetry)
+        {
+            return RetryDecision.Rethrow();
+        }
+
+        public RetryDecision OnWriteTimeout(IStatement query, ConsistencyLevel cl, string writeType, int requiredAcks, int receivedAcks, int nbRetry)
+        {
+            return RetryDecision.Rethrow();
+        }
+    }
+
+    class IgnoreRetryPolicy : IRetryPolicy
+    {
+        public RetryDecision OnReadTimeout(IStatement query, ConsistencyLevel cl, int requiredResponses, int receivedResponses, bool dataRetrieved, int nbRetry)
+        {
+            return RetryDecision.Ignore();
         }
 
         public RetryDecision OnUnavailable(IStatement query, ConsistencyLevel cl, int requiredReplica, int aliveReplica, int nbRetry)

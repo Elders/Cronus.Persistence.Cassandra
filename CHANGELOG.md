@@ -1,3 +1,10 @@
+# [9.0.0-preview.21](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.20...v9.0.0-preview.21) (2023-02-26)
+
+
+### Bug Fixes
+
+* Try using high level of timeouts when counting ([f6fa2d3](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/f6fa2d3b55bbc483e4258ef4f97f6ee470fcfc73))
+
 # [9.0.0-preview.20](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.19...v9.0.0-preview.20) (2023-02-26)
 
 

@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using DataStax = Cassandra;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Hosting.Server;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
@@ -63,13 +64,41 @@ namespace Elders.Cronus.Persistence.Cassandra
 
                 await cluster.RefreshSchemaAsync().ConfigureAwait(false);
             }
-
             else
             {
                 cluster = DataStax.Cluster.BuildFrom(initializer);
             }
 
             return cluster;
+        }
+
+        internal async Task<ISession> GetSessionHighTimeoutAsync()
+        {
+            int TenMinutes = 1000 * 60 * 10;
+            SocketOptions so = new SocketOptions();
+            so.SetConnectTimeoutMillis(TenMinutes);
+            so.SetReadTimeoutMillis(TenMinutes);
+
+
+            var builder = DataStax.Cluster.Builder();
+            builder = builder.WithSocketOptions(so);
+
+            string connectionString = options.ConnectionString;
+
+            var hackyBuilder = new CassandraConnectionStringBuilder(connectionString);
+            if (string.IsNullOrEmpty(hackyBuilder.DefaultKeyspace) == false)
+                connectionString = connectionString.Replace(hackyBuilder.DefaultKeyspace, string.Empty);
+            baseConfigurationKeyspace = hackyBuilder.DefaultKeyspace;
+
+            var connStrBuilder = new CassandraConnectionStringBuilder(connectionString);
+
+            cluster?.Shutdown(30000);
+            cluster = connStrBuilder
+                .ApplyToBuilder(builder)
+                .WithReconnectionPolicy(new ExponentialReconnectionPolicy(100, 100000))
+            .Build();
+
+            return await cluster.ConnectAsync(GetKeyspace()).ConfigureAwait(false);
         }
 
         protected virtual string GetKeyspace()

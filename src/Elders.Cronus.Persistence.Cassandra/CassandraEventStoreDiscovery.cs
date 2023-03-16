@@ -7,6 +7,8 @@ using Elders.Cronus.Persistence.Cassandra.Counters;
 using Elders.Cronus.Persistence.Cassandra.Migrations;
 using Elders.Cronus.Persistence.Cassandra.Preview;
 using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
+using Elders.Cronus.Persistence.Cassandra.Snapshots;
+using Elders.Cronus.Snapshots;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Elders.Cronus.Persistence.Cassandra
@@ -32,6 +34,9 @@ namespace Elders.Cronus.Persistence.Cassandra
             yield return new DiscoveredModel(typeof(ITableNamingStrategy), typeof(TablePerBoundedContext), ServiceLifetime.Singleton);
             yield return new DiscoveredModel(typeof(TablePerBoundedContext), typeof(TablePerBoundedContext), ServiceLifetime.Singleton);
             yield return new DiscoveredModel(typeof(NoTableNamingStrategy), typeof(NoTableNamingStrategy), ServiceLifetime.Singleton);
+
+            yield return new DiscoveredModel(typeof(ISnapshotsTableNamingStrategy), typeof(SnapshotsTablePerBoundedContext), ServiceLifetime.Singleton);
+            yield return new DiscoveredModel(typeof(SnapshotsTablePerBoundedContext), typeof(SnapshotsTablePerBoundedContext), ServiceLifetime.Singleton);
         }
 
         IEnumerable<DiscoveredModel> GetModels(DiscoveryContext context)
@@ -73,6 +78,11 @@ namespace Elders.Cronus.Persistence.Cassandra
             yield return new DiscoveredModel(typeof(MessageCounter), typeof(MessageCounter), ServiceLifetime.Transient) { CanOverrideDefaults = true };
 
             yield return new DiscoveredModel(typeof(IRebuildIndex_EventToAggregateRootId_JobFactory), typeof(RebuildIndex_EventToAggregateRootId_JobFactory), ServiceLifetime.Transient);
+
+            yield return new DiscoveredModel(typeof(ISnapshotReader), typeof(CassandraSnapshotReader), ServiceLifetime.Transient) { CanOverrideDefaults = true };
+            yield return new DiscoveredModel(typeof(CassandraSnapshotReader), typeof(CassandraSnapshotReader), ServiceLifetime.Transient) { CanOverrideDefaults = true };
+            yield return new DiscoveredModel(typeof(ISnapshotWriter), typeof(CassandraSnapshotWriter), ServiceLifetime.Transient) { CanOverrideDefaults = true };
+            yield return new DiscoveredModel(typeof(CassandraSnapshotWriter), typeof(CassandraSnapshotWriter), ServiceLifetime.Transient) { CanOverrideDefaults = true };
         }
     }
 }

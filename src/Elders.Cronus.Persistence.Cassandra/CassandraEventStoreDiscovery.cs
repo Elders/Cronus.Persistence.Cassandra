@@ -8,7 +8,7 @@ using Elders.Cronus.Persistence.Cassandra.Migrations;
 using Elders.Cronus.Persistence.Cassandra.Preview;
 using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
 using Elders.Cronus.Persistence.Cassandra.Snapshots;
-using Elders.Cronus.Snapshots;
+using Elders.Cronus.Snapshots.SnapshotStore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Elders.Cronus.Persistence.Cassandra

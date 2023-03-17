@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Cassandra;
 using Elders.Cronus.Persistence.Cassandra.Preview;
-using Elders.Cronus.Snapshots;
+using Elders.Cronus.Snapshots.SnapshotStore;
 using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra.Snapshots

@@ -2,7 +2,7 @@
 using System.IO;
 using System.Threading.Tasks;
 using Cassandra;
-using Elders.Cronus.Snapshots;
+using Elders.Cronus.Snapshots.SnapshotStore;
 using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra.Snapshots

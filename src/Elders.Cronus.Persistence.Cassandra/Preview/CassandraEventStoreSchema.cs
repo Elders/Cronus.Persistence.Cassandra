@@ -2,8 +2,8 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Cassandra;
-using Elders.Cronus.AtomicAction;
 using Elders.Cronus.Persistence.Cassandra.Counters;
+using Elders.Cronus.Persistence.Cassandra.Snapshots;
 using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra.Preview
@@ -13,6 +13,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(CassandraEventStoreSchema));
 
         private const string CREATE_EVENTS_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id blob, ts bigint, rev int, pos int, data blob, PRIMARY KEY (id,rev,pos)) WITH CLUSTERING ORDER BY (rev ASC, pos ASC);";
+        private const string CREATE_SNAPSHOTS_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id blob, rev int, data blob, PRIMARY KEY (id,rev)) WITH CLUSTERING ORDER BY (rev ASC);";
         private const string INDEX_REV = @"CREATE INDEX IF NOT EXISTS ""{0}_idx_rev"" ON ""{0}"" (rev);";
         private const string INDEX_POS = @"CREATE INDEX IF NOT EXISTS ""{0}_idx_pos"" ON ""{0}"" (pos);";
 
@@ -25,14 +26,16 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
         private readonly ICassandraProvider cassandraProvider;
         private readonly ITableNamingStrategy tableNameStrategy;
+        private readonly ISnapshotsTableNamingStrategy snapshotsTableNamingStrategy;
 
         private Task<ISession> GetSessionAsync() => cassandraProvider.GetSessionAsync();// In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
-        public CassandraEventStoreSchema(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ILock @lock)
+        public CassandraEventStoreSchema(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ISnapshotsTableNamingStrategy snapshotsTableNamingStrategy)
         {
             if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
 
             this.cassandraProvider = cassandraProvider;
             this.tableNameStrategy = tableNameStrategy ?? throw new ArgumentNullException(nameof(tableNameStrategy));
+            this.snapshotsTableNamingStrategy = snapshotsTableNamingStrategy;
         }
 
         public Task CreateStorageAsync()
@@ -55,9 +58,8 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
         public Task CreateSnapshotsStorageAsync()
         {
-            //var createSnapshotsTable = String.Format(CreateSnapshotsTableTemplate, tableNameStrategy.GetSnapshotsTableName()).ToLower();
-            //session.Execute(createSnapshotsTable);
-            return Task.CompletedTask;
+            string tableName = snapshotsTableNamingStrategy.GetName();
+            return CreateSnapshotPersistanseAsync(tableName);
         }
 
         public Task CreateIndeciesAsync()
@@ -117,6 +119,34 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                 await session.ExecuteAsync(tableStatement.Bind()).ConfigureAwait(false);
                 await session.ExecuteAsync(revStatement.Bind()).ConfigureAwait(false);
                 await session.ExecuteAsync(posStatement.Bind()).ConfigureAwait(false);
+
+                logger.Debug(() => $"[EventStore] Created table `{tableName}` in keyspace `{session.Keyspace}`...");
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
+        private async Task CreateSnapshotPersistanseAsync(string tableName)
+        {
+            try
+            {
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
+
+                logger.Debug(() => $"[EventStore] Creating table `{tableName}` with `{session.Cluster.AllHosts().First().Address}` in keyspace `{session.Keyspace}`...");
+
+                string tableQuery = string.Format(CREATE_SNAPSHOTS_TABLE_TEMPLATE, tableName).ToLower();
+                string rev = string.Format(INDEX_REV, tableName).ToLower();
+
+                PreparedStatement tableStatement = await session.PrepareAsync(string.Format(tableQuery, tableName).ToLower()).ConfigureAwait(false);
+                tableStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+
+                PreparedStatement revStatement = await session.PrepareAsync(string.Format(rev, tableName).ToLower()).ConfigureAwait(false);
+                tableStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+
+                await session.ExecuteAsync(tableStatement.Bind()).ConfigureAwait(false);
+                await session.ExecuteAsync(revStatement.Bind()).ConfigureAwait(false);
 
                 logger.Debug(() => $"[EventStore] Created table `{tableName}` in keyspace `{session.Keyspace}`...");
             }

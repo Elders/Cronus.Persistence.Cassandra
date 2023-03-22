@@ -1,7 +1,3 @@
-using Cassandra;
-using Elders.Cronus.EventStore;
-using Elders.Cronus.EventStore.Index;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -9,6 +5,10 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Cassandra;
+using Elders.Cronus.EventStore;
+using Elders.Cronus.EventStore.Index;
+using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra.Preview
 {
@@ -24,6 +24,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
     public class CassandraEventStore : IEventStore, IEventStorePlayer
     {
         private const string LoadAggregateEventsQueryTemplate = @"SELECT rev,pos,ts,data FROM {0} WHERE id = ?;";
+        private const string LoadAggregateEventsAfterRevisionQueryTemplate = @"SELECT rev,pos,ts,data FROM {0} WHERE id = ? and rev > ?;";
         private const string InsertEventsQueryTemplate = @"INSERT INTO {0} (id,rev,pos,ts,data) VALUES (?,?,?,?,?);";
         private const string LoadEventsQueryTemplate = @"SELECT id,rev,pos,ts,data FROM {0};";
 
@@ -42,6 +43,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
         private PreparedStatement writeStatement;
         private PreparedStatement readStatement;
+        private PreparedStatement readAfterRevisionStatement;
         private PreparedStatement replayStatement;
         private PreparedStatement replayWithoutDataStatement;
         private PreparedStatement loadAggregateCommitsMetaStatement;
@@ -117,6 +119,13 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             return new EventStream(aggregateCommits);
         }
 
+        public async Task<EventStream> LoadAsync(IBlobId aggregateId, int afterRevision)
+        {
+            List<AggregateCommit> aggregateCommits = await LoadAggregateCommitsAsync(aggregateId, afterRevision).ConfigureAwait(false);
+
+            return new EventStream(aggregateCommits);
+        }
+
         public async Task<bool> DeleteAsync(AggregateEventRaw eventRaw)
         {
             try
@@ -139,11 +148,25 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             }
         }
 
-        private async Task<List<AggregateCommit>> LoadAggregateCommitsAsync(IBlobId id)
+        private Task<List<AggregateCommit>> LoadAggregateCommitsAsync(IBlobId id)
+        {
+            return LoadAggregateCommitsAsync(id, null);
+        }
+
+        private async Task<List<AggregateCommit>> LoadAggregateCommitsAsync(IBlobId id, int? afterRevision)
         {
             ISession session = await GetSessionAsync().ConfigureAwait(false);
-            PreparedStatement bs = await GetReadStatementAsync(session).ConfigureAwait(false);
-            BoundStatement boundStatement = bs.Bind(id.RawId);
+            BoundStatement boundStatement;
+            if (afterRevision.HasValue)
+            {
+                PreparedStatement ps = await GetReadAfterRevisionStatementAsync(session).ConfigureAwait(false);
+                boundStatement = ps.Bind(id.RawId, afterRevision.Value);
+            }
+            else
+            {
+                PreparedStatement ps = await GetReadStatementAsync(session).ConfigureAwait(false);
+                boundStatement = ps.Bind(id.RawId);
+            }
 
             var result = await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
 
@@ -430,13 +453,24 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         {
             if (readStatement is null)
             {
-
                 string tableName = tableNameStrategy.GetName();
                 readStatement = await session.PrepareAsync(string.Format(LoadAggregateEventsQueryTemplate, tableName)).ConfigureAwait(false);
                 readStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
             }
 
             return readStatement;
+        }
+
+        private async Task<PreparedStatement> GetReadAfterRevisionStatementAsync(ISession session)
+        {
+            if (readAfterRevisionStatement is null)
+            {
+                string tableName = tableNameStrategy.GetName();
+                readAfterRevisionStatement = await session.PrepareAsync(string.Format(LoadAggregateEventsAfterRevisionQueryTemplate, tableName)).ConfigureAwait(false);
+                readAfterRevisionStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
+
+            return readAfterRevisionStatement;
         }
 
         private async Task<PreparedStatement> GetDeleteStatement(ISession session)

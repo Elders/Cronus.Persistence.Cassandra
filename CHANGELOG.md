@@ -1,3 +1,10 @@
+# [9.0.0-preview.22](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.21...v9.0.0-preview.22) (2023-03-29)
+
+
+### Bug Fixes
+
+* Adds error  logs when replaying ([84a180b](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/84a180bbbaae3b37dc1901247000d22e893ebe8e))
+
 # [9.0.0-preview.21](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.20...v9.0.0-preview.21) (2023-02-26)
 
 

@@ -1,3 +1,10 @@
+# [9.0.0-preview.24](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.23...v9.0.0-preview.24) (2023-03-29)
+
+
+### Bug Fixes
+
+* Configures pagination when enumerating the event store ([5abd74e](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/5abd74e0937bf38a2c6c50ab3af83403bfa25996))
+
 # [9.0.0-preview.23](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.22...v9.0.0-preview.23) (2023-03-29)
 
 

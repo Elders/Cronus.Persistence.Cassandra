@@ -187,7 +187,13 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             {
                 if (@operator.OnLoadAsync is not null)
                 {
-                    Task task = LoadAggregateEventRaw(indexRecord, queryStatement, session).ContinueWith(input => @operator.OnLoadAsync(input.Result));
+                    Task task =
+                        LoadAggregateEventRaw(indexRecord, queryStatement, session)
+                        .ContinueWith(input =>
+                        {
+                            if (input.Result is not null)
+                                @operator.OnLoadAsync(input.Result);
+                        });
                     tasks.Add(task);
 
                     if (tasks.Count > 100)
@@ -195,8 +201,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                         Task completedTask = await Task.WhenAny(tasks);
                         if (completedTask.Status == TaskStatus.Faulted)
                         {
-                            string indexRecordAsJson = System.Text.Json.JsonSerializer.Serialize(indexRecord);
-                            logger.ErrorException(completedTask.Exception, () => $"Failed to replay event for index record: {indexRecordAsJson}");
+                            logger.ErrorException(completedTask.Exception, () => $"Failed to replay event for index record: {indexRecord.ToJson()}");
                         }
                         tasks.Remove(completedTask);
                     }
@@ -257,6 +262,9 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                 byte[] data = row.GetValue<byte[]>(CassandraColumn.Data);
                 return new AggregateEventRaw(indexRecord.AggregateRootId, data, indexRecord.Revision, indexRecord.Position, indexRecord.TimeStamp);
             }
+
+            logger.Error(() => $"Unable to load aggregate event by index record: {indexRecord.ToJson()}");
+
             return default;
         }
 

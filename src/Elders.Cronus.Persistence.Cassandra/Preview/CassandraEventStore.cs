@@ -193,6 +193,11 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                     if (tasks.Count > 100)
                     {
                         Task completedTask = await Task.WhenAny(tasks);
+                        if (completedTask.Status == TaskStatus.Faulted)
+                        {
+                            string indexRecordAsJson = System.Text.Json.JsonSerializer.Serialize(indexRecord);
+                            logger.ErrorException(completedTask.Exception, () => $"Failed to replay event for index record: {indexRecordAsJson}");
+                        }
                         tasks.Remove(completedTask);
                     }
                 }
@@ -216,6 +221,11 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                     if (tasks.Count > 100)
                     {
                         Task completedTask = await Task.WhenAny(tasks);
+                        if (completedTask.Status == TaskStatus.Faulted)
+                        {
+                            string dataAsJson = System.Text.Json.JsonSerializer.Serialize(@event);
+                            logger.ErrorException(completedTask.Exception, () => $"Failed to replay event: {dataAsJson}");
+                        }
                         tasks.Remove(completedTask);
                     }
                 }

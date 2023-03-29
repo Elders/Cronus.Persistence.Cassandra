@@ -278,6 +278,9 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             PreparedStatement statement = await GetReplayStatementAsync(session).ConfigureAwait(false);
 
             IStatement queryStatement = statement.Bind();
+            queryStatement
+                .SetPageSize(replayOptions.BatchSize)
+                .SetAutoPage(false);
 
             while (pagingInfo.HasMore)
             {

@@ -1,3 +1,10 @@
+# [9.0.0-preview.23](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.22...v9.0.0-preview.23) (2023-03-29)
+
+
+### Bug Fixes
+
+* Fixes flow and logs ([360ccbf](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/360ccbffea1de03920473954b97567b5f5ffbd64))
+
 # [9.0.0-preview.22](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.21...v9.0.0-preview.22) (2023-03-29)
 
 

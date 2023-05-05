@@ -1,3 +1,10 @@
+# [9.0.0-preview.25](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.24...v9.0.0-preview.25) (2023-05-05)
+
+
+### Bug Fixes
+
+* Executes all statements in a BatchStatement when doing append ([ab74902](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/ab74902866d6088d382665d76cd58ebb0cafb275))
+
 # [9.0.0-preview.24](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.23...v9.0.0-preview.24) (2023-03-29)
 
 

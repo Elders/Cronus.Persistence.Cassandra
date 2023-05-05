@@ -63,17 +63,17 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             {
                 ISession session = await GetSessionAsync().ConfigureAwait(false);
                 PreparedStatement writeStatement = await GetWriteStatementAsync(session).ConfigureAwait(false);
-
-                List<Task> tasks = new List<Task>();
+                BatchStatement batch = new BatchStatement();
+                batch.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+                batch.SetIdempotence(false);
+                batch.SetBatchType(BatchType.Unlogged);
 
                 var pos = -1;
                 for (int idx = 0; idx < aggregateCommit.Events.Count; idx++)
                 {
                     byte[] data = SerializeEvent(aggregateCommit.Events[idx]);
                     BoundStatement boundStatement = writeStatement.Bind(aggregateCommit.AggregateRootId, aggregateCommit.Revision, ++pos, aggregateCommit.Timestamp, data);
-
-                    var saveTask = session.ExecuteAsync(boundStatement);
-                    tasks.Add(saveTask);
+                    batch.Add(boundStatement);
                 }
 
                 pos += AggregateCommitBlock.PublicEventsOffset;
@@ -81,12 +81,10 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                 {
                     byte[] data = SerializeEvent(aggregateCommit.PublicEvents[idx]);
                     BoundStatement boundStatement = writeStatement.Bind(aggregateCommit.AggregateRootId, aggregateCommit.Revision, pos++, aggregateCommit.Timestamp, data);
-
-                    var saveTask = session.ExecuteAsync(boundStatement);
-                    tasks.Add(saveTask);
+                    batch.Add(boundStatement);
                 }
 
-                await Task.WhenAll(tasks).ConfigureAwait(false);
+                await session.ExecuteAsync(batch).ConfigureAwait(false);
             }
             catch (WriteTimeoutException ex)
             {

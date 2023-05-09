@@ -60,6 +60,8 @@ namespace Elders.Cronus.Persistence.Cassandra
                     .ApplyToBuilder(builder)
                     .WithReconnectionPolicy(new ExponentialReconnectionPolicy(100, 100000))
                     .WithRetryPolicy(new NoHintedHandOffRetryPolicy())
+                    .WithPoolingOptions(new PoolingOptions()
+                        .SetMaxRequestsPerConnection(options.MaxRequestsPerConnection))
                     .Build();
 
                 await cluster.RefreshSchemaAsync().ConfigureAwait(false);
@@ -80,7 +82,6 @@ namespace Elders.Cronus.Persistence.Cassandra
             so.SetReadTimeoutMillis(TenMinutes);
             so.SetStreamMode(true);
             so.SetTcpNoDelay(true);
-
 
             var builder = DataStax.Cluster.Builder();
             builder = builder.WithSocketOptions(so);

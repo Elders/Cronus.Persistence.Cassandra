@@ -1,3 +1,10 @@
+# [9.0.0-preview.26](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.25...v9.0.0-preview.26) (2023-05-09)
+
+
+### Features
+
+* Allow configuring MaxRequestsPerConnection ([6cecc57](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/6cecc575c7e1222064f4415a33c60d99ed6ffce3))
+
 # [9.0.0-preview.25](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.24...v9.0.0-preview.25) (2023-05-05)
 
 

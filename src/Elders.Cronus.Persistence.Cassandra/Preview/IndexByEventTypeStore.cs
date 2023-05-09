@@ -45,7 +45,6 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
                 var bs = statement.Bind(record.Id, record.AggregateRootId, record.Revision, record.Position, record.TimeStamp).SetIdempotence(true);
                 await session.ExecuteAsync(bs).ConfigureAwait(false);
-
             }
             catch (WriteTimeoutException ex)
             {

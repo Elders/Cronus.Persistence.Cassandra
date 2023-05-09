@@ -1,3 +1,10 @@
+# [9.0.0-preview.27](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.26...v9.0.0-preview.27) (2023-05-09)
+
+
+### Bug Fixes
+
+* Updates packages ([558bfef](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/558bfefdcd27d8937a221e0dd012bb2d3f8ef3b7))
+
 # [9.0.0-preview.26](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.25...v9.0.0-preview.26) (2023-05-09)
 
 

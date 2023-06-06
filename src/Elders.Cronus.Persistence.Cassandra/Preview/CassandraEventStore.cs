@@ -194,7 +194,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                         });
                     tasks.Add(task);
 
-                    if (tasks.Count > 100)
+                    if (tasks.Count >= replayOptions.MaxDegreeOfParallelism)
                     {
                         Task completedTask = await Task.WhenAny(tasks);
                         if (completedTask.Status == TaskStatus.Faulted)
@@ -221,7 +221,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                     Task opTask = @operator.OnLoadAsync(@event);
                     tasks.Add(opTask);
 
-                    if (tasks.Count > 100)
+                    if (tasks.Count >= replayOptions.MaxDegreeOfParallelism)
                     {
                         Task completedTask = await Task.WhenAny(tasks);
                         if (completedTask.Status == TaskStatus.Faulted)

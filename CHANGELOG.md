@@ -1,3 +1,10 @@
+# [9.0.0-preview.28](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.27...v9.0.0-preview.28) (2023-06-06)
+
+
+### Features
+
+* Control MaxDegreeOfParallelism via parameter ([b08b0db](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/b08b0db037eaeca93a723126c8472136e856b231))
+
 # [9.0.0-preview.27](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.26...v9.0.0-preview.27) (2023-05-09)
 
 

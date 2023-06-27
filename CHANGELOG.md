@@ -1,3 +1,10 @@
+# [9.0.0-preview.29](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.28...v9.0.0-preview.29) (2023-06-27)
+
+
+### Features
+
+* Adds the ability to load ARs with paging ([817eb83](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/817eb83c805690a9975a301a6bbec9fa108d4d05))
+
 # [9.0.0-preview.28](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.27...v9.0.0-preview.28) (2023-06-06)
 
 

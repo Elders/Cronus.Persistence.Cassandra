@@ -32,7 +32,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Cronus" Version="9.0.0-preview.49" />
+    <PackageReference Include="Cronus" Version="9.0.0-preview.53" />
     <PackageReference Include="CassandraCSharpDriver" Version="3.19.2" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="6.0.0" />
   </ItemGroup>

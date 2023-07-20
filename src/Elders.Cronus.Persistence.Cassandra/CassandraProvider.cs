@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using DataStax = Cassandra;
 using Microsoft.Extensions.Logging;
-using Microsoft.AspNetCore.Hosting.Server;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {

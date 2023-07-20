@@ -2,7 +2,6 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Cassandra;
-using Elders.Cronus.AtomicAction;
 using Elders.Cronus.Persistence.Cassandra.Counters;
 using Microsoft.Extensions.Logging;
 

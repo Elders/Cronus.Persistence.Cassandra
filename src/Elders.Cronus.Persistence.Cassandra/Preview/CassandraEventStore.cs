@@ -73,7 +73,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                 var pos = -1;
                 for (int idx = 0; idx < aggregateCommit.Events.Count; idx++)
                 {
-                    byte[] data = SerializeEvent(aggregateCommit.Events[idx]);
+                    byte[] data = serializer.SerializeToBytes(aggregateCommit.Events[idx]);
                     BoundStatement boundStatement = writeStatement.Bind(aggregateCommit.AggregateRootId, aggregateCommit.Revision, ++pos, aggregateCommit.Timestamp, data);
                     batch.Add(boundStatement);
                 }
@@ -81,7 +81,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                 pos += AggregateCommitBlock.PublicEventsOffset;
                 for (int idx = 0; idx < aggregateCommit.PublicEvents.Count; idx++)
                 {
-                    byte[] data = SerializeEvent(aggregateCommit.PublicEvents[idx]);
+                    byte[] data = serializer.SerializeToBytes(aggregateCommit.PublicEvents[idx]);
                     BoundStatement boundStatement = writeStatement.Bind(aggregateCommit.AggregateRootId, aggregateCommit.Revision, pos++, aggregateCommit.Timestamp, data);
                     batch.Add(boundStatement);
                 }
@@ -178,30 +178,27 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                     block = new AggregateCommitBlock(id);
 
                 AggregateCommit commit = null;
-                using (var stream = new MemoryStream(data))
+
+                bool isBlockCompleted = false;
+
+                // TODO: What if we have missing blocks?
+                try
                 {
-                    bool isBlockCompleted = false;
-
-                    // TODO: What if we have missing blocks?
-                    try
-                    {
-                        var @event = (IMessage)serializer.Deserialize(stream);
-                        block.AppendBlock(revision, position, @event, timestamp);
-                        if (isBlockCompleted)
-                        {
-                            block = null;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        string error = "Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
-                        logger.ErrorException(ex, () => error);
-                        continue;
-                    }
-
-                    if (commit is not null)
-                        yield return commit;
+                    var @event = serializer.DeserializeFromBytes<IMessage>(data);
+                    block.AppendBlock(revision, position, @event, timestamp);
+                    if (isBlockCompleted)
+                        block = null;
                 }
+                catch (Exception ex)
+                {
+                    string error = "Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
+                    logger.ErrorException(ex, () => error);
+                    continue;
+                }
+
+                if (commit is not null)
+                    yield return commit;
+
             }
         }
 
@@ -216,10 +213,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             var row = result.GetRows().Single();
             byte[] data = row.GetValue<byte[]>(CassandraColumn.Data);
 
-            using (var stream = new MemoryStream(data))
-            {
-                return (IEvent)serializer.Deserialize(stream);
-            }
+            return serializer.DeserializeFromBytes<IEvent>(data);
         }
 
         public async Task<AggregateEventRaw> LoadAggregateEventRaw(IndexRecord indexRecord)
@@ -261,11 +255,8 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                 long timestamp = row.GetValue<long>(CassandraColumn.Timestamp);
                 byte[] data = row.GetValue<byte[]>(CassandraColumn.Data);
 
-                using (var stream = new MemoryStream(data))
-                {
-                    IMessage messageData = (IMessage)serializer.Deserialize(stream);
-                    block.AppendBlock(revision, position, messageData, timestamp);
-                }
+                IMessage messageData = serializer.DeserializeFromBytes<IMessage>(data);
+                block.AppendBlock(revision, position, messageData, timestamp);
             }
 
             return block.Complete();
@@ -473,24 +464,6 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             }
 
             return loadAggregateCommitsMetaStatement;
-        }
-
-        private byte[] SerializeEvent(IEvent @event)
-        {
-            using (var stream = new MemoryStream())
-            {
-                serializer.Serialize(stream, @event);
-                return stream.ToArray();
-            }
-        }
-
-        private byte[] SerializeEvent(IPublicEvent @event)
-        {
-            using (var stream = new MemoryStream())
-            {
-                serializer.Serialize(stream, @event);
-                return stream.ToArray();
-            }
         }
 
         private async Task<PreparedStatement> GetWriteStatementAsync(ISession session)

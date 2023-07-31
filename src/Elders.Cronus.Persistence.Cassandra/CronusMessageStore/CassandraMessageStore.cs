@@ -43,7 +43,7 @@ namespace Elders.Cronus.Persistence.Cassandra.CronusMessageStore
             if (msg.Headers.TryGetValue(MessageHeader.PublishTimestamp, out publishTime))
                 if (long.TryParse(publishTime, out resultTimestamp)) { }
 
-            byte[] data = SerializeEvent(msg);
+            byte[] data = serializer.SerializeToBytes(msg);
 
             PreparedStatement insertPreparedStatement = await session.PrepareAsync(string.Format(INSERT_MESSAGE_QUERY_TEMPLATE, MESSAGE_STORE_TABLE_NAME)).ConfigureAwait(false);
 
@@ -62,30 +62,9 @@ namespace Elders.Cronus.Persistence.Cassandra.CronusMessageStore
             foreach (var row in result.GetRows())
             {
                 var data = row.GetValue<byte[]>("data");
-                using (var stream = new MemoryStream(data))
-                {
-                    CronusMessage commit;
-                    try
-                    {
-                        commit = (CronusMessage)serializer.Deserialize(stream);
-                    }
-                    catch (Exception ex)
-                    {
-                        string error = "Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
-                        logger.ErrorException(ex, () => error);
-                        continue;
-                    }
-                    yield return commit;
-                }
-            }
-        }
+                CronusMessage commit = serializer.DeserializeFromBytes<CronusMessage>(data);
 
-        private byte[] SerializeEvent(CronusMessage msg)
-        {
-            using (var stream = new MemoryStream())
-            {
-                serializer.Serialize(stream, msg);
-                return stream.ToArray();
+                yield return commit;
             }
         }
     }

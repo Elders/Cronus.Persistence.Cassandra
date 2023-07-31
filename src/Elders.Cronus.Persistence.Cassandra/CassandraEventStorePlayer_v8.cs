@@ -55,24 +55,11 @@ namespace Elders.Cronus.Persistence.Cassandra
 
             ISession session = await GetSessionAsync().ConfigureAwait(false);
             RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
-            foreach (var row in result.GetRows())
+            foreach (Row row in result.GetRows())
             {
                 var data = row.GetValue<byte[]>("data");
-                using (var stream = new MemoryStream(data))
-                {
-                    AggregateCommit commit;
-                    try
-                    {
-                        commit = (AggregateCommit)serializer.Deserialize(stream);
-                    }
-                    catch (Exception ex)
-                    {
-                        string error = "Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
-                        logger.ErrorException(ex, () => error);
-                        continue;
-                    }
-                    aggregateCommits.Add(commit);
-                }
+                AggregateCommit commit = serializer.DeserializeFromBytes<AggregateCommit>(data);
+                aggregateCommits.Add(commit);
             }
 
             if (result.IsFullyFetched == false)
@@ -96,22 +83,9 @@ namespace Elders.Cronus.Persistence.Cassandra
             foreach (var row in result.GetRows())
             {
                 var data = row.GetValue<byte[]>("data");
-                using (var stream = new MemoryStream(data))
-                {
-                    AggregateCommit commit;
-                    try
-                    {
-                        commit = (AggregateCommit)serializer.Deserialize(stream);
-                    }
-                    catch (Exception ex)
-                    {
-                        string error = "[EventStore] Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
-                        logger.ErrorException(ex, () => error);
-                        continue;
-                    }
+                AggregateCommit commit = serializer.DeserializeFromBytes<AggregateCommit>(data);
 
-                    yield return commit;
-                }
+                yield return commit;
             }
         }
 
@@ -165,21 +139,9 @@ namespace Elders.Cronus.Persistence.Cassandra
                         continue;
 
                     var data = row.GetValue<byte[]>("data");
-                    using (var stream = new MemoryStream(data))
-                    {
-                        AggregateCommit commit;
-                        try
-                        {
-                            commit = (AggregateCommit)serializer.Deserialize(stream);
-                        }
-                        catch (Exception ex)
-                        {
-                            string error = "Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
-                            logger.ErrorException(ex, () => error);
-                            continue;
-                        }
-                        yield return commit;
-                    }
+                    AggregateCommit commit = serializer.DeserializeFromBytes<AggregateCommit>(data);
+
+                    yield return commit;
                 }
             }
         }

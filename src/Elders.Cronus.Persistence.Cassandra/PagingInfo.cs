@@ -20,7 +20,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public override string ToString()
         {
-            return Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(this)));
+            return Convert.ToBase64String(JsonSerializer.SerializeToUtf8Bytes(this));
         }
 
         public static PagingInfo From(RowSet result)

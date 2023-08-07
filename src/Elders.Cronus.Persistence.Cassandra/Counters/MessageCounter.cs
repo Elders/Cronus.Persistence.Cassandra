@@ -30,9 +30,9 @@ namespace Elders.Cronus.Persistence.Cassandra.Counters
         {
             try
             {
-                string eventType = Convert.ToBase64String(Encoding.UTF8.GetBytes(messageType.GetContractId()));
+                string eventType = messageType.GetContractId();
                 ISession session = await GetSessionAsync().ConfigureAwait(false);
-                PreparedStatement incrementedStatement = await GetIncrementStatementAsync().ConfigureAwait(false);
+                PreparedStatement incrementedStatement = await GetIncrementStatementAsync(session).ConfigureAwait(false);
                 await session.ExecuteAsync(incrementedStatement.Bind(incrementWith, eventType)).ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -45,9 +45,9 @@ namespace Elders.Cronus.Persistence.Cassandra.Counters
         {
             try
             {
-                string eventType = Convert.ToBase64String(Encoding.UTF8.GetBytes(messageType.GetContractId()));
+                string eventType = messageType.GetContractId();
                 ISession session = await GetSessionAsync().ConfigureAwait(false);
-                PreparedStatement decrementedStatement = await GetDecrementStatementAsync().ConfigureAwait(false);
+                PreparedStatement decrementedStatement = await GetDecrementStatementAsync(session).ConfigureAwait(false);
                 await session.ExecuteAsync(decrementedStatement.Bind(decrementWith, eventType)).ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -60,10 +60,10 @@ namespace Elders.Cronus.Persistence.Cassandra.Counters
         {
             try
             {
-                string eventType = Convert.ToBase64String(Encoding.UTF8.GetBytes(messageType.GetContractId()));
-                PreparedStatement ps = await GetReadStatementAsync().ConfigureAwait(false);
-                BoundStatement bs = ps.Bind(eventType);
+                string eventType = messageType.GetContractId();
                 ISession session = await GetSessionAsync().ConfigureAwait(false);
+                PreparedStatement ps = await GetReadStatementAsync(session).ConfigureAwait(false);
+                BoundStatement bs = ps.Bind(eventType);
                 RowSet result = await session.ExecuteAsync(bs).ConfigureAwait(false);
                 Row row = result.GetRows().SingleOrDefault();
                 if (row is null)
@@ -90,11 +90,10 @@ namespace Elders.Cronus.Persistence.Cassandra.Counters
         }
 
         PreparedStatement incrementStatement;
-        private async Task<PreparedStatement> GetIncrementStatementAsync()
+        private async Task<PreparedStatement> GetIncrementStatementAsync(ISession session)
         {
             if (incrementStatement is null)
             {
-                ISession session = await GetSessionAsync().ConfigureAwait(false);
                 incrementStatement = await session.PrepareAsync(IncrementTemplate).ConfigureAwait(false);
                 incrementStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
             }
@@ -103,26 +102,24 @@ namespace Elders.Cronus.Persistence.Cassandra.Counters
         }
 
         PreparedStatement decrementStatement;
-        private async Task<PreparedStatement> GetDecrementStatementAsync()
+        private async Task<PreparedStatement> GetDecrementStatementAsync(ISession session)
         {
             if (decrementStatement is null)
             {
-                ISession session = await GetSessionAsync().ConfigureAwait(false);
                 decrementStatement = await session.PrepareAsync(DecrementTemplate).ConfigureAwait(false);
-                decrementStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+                decrementStatement.SetConsistencyLevel(ConsistencyLevel.Any);
             }
 
             return decrementStatement;
         }
 
         PreparedStatement readStatement;
-        private async Task<PreparedStatement> GetReadStatementAsync()
+        private async Task<PreparedStatement> GetReadStatementAsync(ISession session)
         {
             if (readStatement is null)
             {
-                ISession session = await GetSessionAsync().ConfigureAwait(false);
                 readStatement = await session.PrepareAsync(GetTemplate).ConfigureAwait(false);
-                readStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+                readStatement.SetConsistencyLevel(ConsistencyLevel.Any);
             }
 
             return readStatement;

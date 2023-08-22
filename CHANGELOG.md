@@ -1,3 +1,46 @@
+# [9.0.0](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v8.0.5...v9.0.0) (2023-08-22)
+
+
+### Bug Fixes
+
+* Adds error  logs when replaying ([84a180b](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/84a180bbbaae3b37dc1901247000d22e893ebe8e))
+* Adds error handling when counting messages ([0e697cc](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/0e697cc1a308ca0616e41a0caca1f2fd7c26789a))
+* Adds method to load PublicEvents when we do replay ([a9afdda](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/a9afdda5fe10fe5e4701b27869366228a8fa2bc4))
+* Code cleanup ([636495b](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/636495bf14866030ea30805ecdb736e4aaf163a5))
+* Code cleanup ([f68555d](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/f68555d8b8ac6d6887cab0f9d638d29c770c9e1c))
+* Code cleanup ([3c25d12](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/3c25d1206b2bfe13028036e870181c114601c52a))
+* Code refactoring ([6e45892](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/6e45892f804c9ca5a9d06158a3b059dd8453d88a))
+* Configures pagination when enumerating the event store ([5abd74e](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/5abd74e0937bf38a2c6c50ab3af83403bfa25996))
+* Consistency level fix ([907a1d9](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/907a1d95afea37c408defaa472a084eaeeb5e73d))
+* Executes all statements in a BatchStatement when doing append ([ab74902](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/ab74902866d6088d382665d76cd58ebb0cafb275))
+* Fix solution after a huge merge ([859e829](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/859e82994c2423e044122132c58464ade0315185))
+* Fixes count query ([4568998](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/45689984b8b8778e977201f52718884a882a3f27))
+* Fixes flow and logs ([360ccbf](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/360ccbffea1de03920473954b97567b5f5ffbd64))
+* Fixes message counter read ([5c58fc6](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/5c58fc66c3243dbd080c71be0f2e2557d5c896d0))
+* fixes pagination when loading AR Commits ([00c641c](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/00c641c216336a1d980f1879818ee819c6f3cdc7))
+* Implements public event replay with IAsyncEnumerable ([525157a](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/525157ad4948a722b328a69b9984a0ce27e539cf))
+* Improves performance ([689af69](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/689af69cbaf3727a1fb11a9501a5157301d10ca4))
+* Remove all 'new' occurrences ([193deeb](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/193deebdd8a4c2ed03825a8f8f36b046e94e82d1))
+* Resurrects CassandraEventStorePlayer_v8 ([73b6e31](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/73b6e31739a0a6f68e19eb3def2ebacf5a45f982))
+* Try fixing deserialize error ([d1a4e2e](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/d1a4e2ee01cbfeed0e63851be068d74aeab5a602))
+* Try fixing deserialize error ([d13ca6c](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/d13ca6c55dbc7d815afc3ef2f2d35b1dc0eb0227))
+* Try fixing deserialize problem ([71d0552](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/71d0552fe48a56d31272258a97f5f4f714c95441))
+* Try using high level of timeouts when counting ([f6fa2d3](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/f6fa2d3b55bbc483e4258ef4f97f6ee470fcfc73))
+* Try using high level of timeouts when counting ([261f471](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/261f471e819c82247c3ac9e10a898ab2d8457daa))
+* Try using high level of timeouts when counting ([56f4498](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/56f4498dd5b3c69d2e45571546ab0a5b48d23858))
+* Updates Cronus ([1716502](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/171650285fcebb94768e77ad03e6276a01c99bf7))
+* Updates Cronus ([5283170](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/52831703ee6d3af3701c4200030867e154026bdb))
+* Updates packages ([558bfef](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/558bfefdcd27d8937a221e0dd012bb2d3f8ef3b7))
+* Updates Source link ([21e9c14](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/21e9c141163a743f881ffe5a29e0ea94cf6f06fa))
+
+
+### Features
+
+* Adds the ability to load ARs with paging ([817eb83](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/817eb83c805690a9975a301a6bbec9fa108d4d05))
+* Allow configuring MaxRequestsPerConnection ([6cecc57](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/6cecc575c7e1222064f4415a33c60d99ed6ffce3))
+* Control MaxDegreeOfParallelism via parameter ([b08b0db](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/b08b0db037eaeca93a723126c8472136e856b231))
+* Delete AggregateEventRaw from the event store ([26bdbba](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/26bdbbad3fccf619b45e27d9ad49b09ff3534efa))
+
 # [9.0.0-preview.32](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.31...v9.0.0-preview.32) (2023-08-07)
 
 # [9.0.0-preview.31](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0-preview.30...v9.0.0-preview.31) (2023-07-31)

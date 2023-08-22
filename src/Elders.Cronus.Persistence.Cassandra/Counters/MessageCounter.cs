@@ -119,7 +119,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Counters
             if (readStatement is null)
             {
                 readStatement = await session.PrepareAsync(GetTemplate).ConfigureAwait(false);
-                readStatement.SetConsistencyLevel(ConsistencyLevel.Any);
+                readStatement.SetConsistencyLevel(ConsistencyLevel.One);
             }
 
             return readStatement;

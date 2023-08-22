@@ -24,7 +24,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Migrations
             yield return new DiscoveredModel(typeof(MigratorCassandraReplaySettings), typeof(MigratorCassandraReplaySettings), ServiceLifetime.Transient) { CanOverrideDefaults = true };
             yield return new DiscoveredModel(typeof(MigrationCassandraProviderOptions), typeof(MigrationCassandraProviderOptions), ServiceLifetime.Transient) { CanOverrideDefaults = true };
             yield return new DiscoveredModel(typeof(IMigrationEventStorePlayer), typeof(CassandraMigratorEventStorePlayer), ServiceLifetime.Transient) { CanOverrideDefaults = true };
-            yield return new DiscoveredModel(typeof(MigrationRunner<,>), typeof(MigrationRunner<,>), ServiceLifetime.Transient) { CanOverrideDefaults = true };
+            // yield return new DiscoveredModel(typeof(MigrationRunner<,>), typeof(MigrationRunner<,>), ServiceLifetime.Transient) { CanOverrideDefaults = true };
         }
     }
 }

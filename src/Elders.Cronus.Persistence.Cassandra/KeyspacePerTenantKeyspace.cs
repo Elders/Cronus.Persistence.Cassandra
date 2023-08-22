@@ -5,17 +5,16 @@ namespace Elders.Cronus.Persistence.Cassandra
 {
     public sealed class KeyspacePerTenantKeyspace : IKeyspaceNamingStrategy
     {
-        private readonly CronusContext context;
+        private readonly ICronusContextAccessor contextAccessor;
 
-        public KeyspacePerTenantKeyspace(CronusContext context)
+        public KeyspacePerTenantKeyspace(ICronusContextAccessor contextAccessor)
         {
-            this.context = context;
+            this.contextAccessor = contextAccessor;
         }
 
         public string GetName(string baseConfigurationKeyspace)
         {
-            string tenantPrefix = string.IsNullOrEmpty(context.Tenant) ? string.Empty : $"{context.Tenant}_";
-            var keyspace = $"{tenantPrefix}{baseConfigurationKeyspace}";
+            var keyspace = $"{contextAccessor.CronusContext.Tenant}_{baseConfigurationKeyspace}";
             if (keyspace.Length > 48) throw new ArgumentException($"Cassandra keyspace exceeds maximum length of 48. Keyspace: {keyspace}");
 
             return keyspace;

@@ -37,13 +37,10 @@ namespace Elders.Cronus.Persistence.Cassandra
             {
                 foreach (var tenant in tenants.Tenants)
                 {
-                    using (var scope = serviceProvider.CreateScope())
-                    {
-                        CronusContextFactory contextFactory = scope.ServiceProvider.GetRequiredService<CronusContextFactory>();
-                        CronusContext context = contextFactory.GetContext(tenant, scope.ServiceProvider);
+                    DefaultCronusContextFactory contextFactory = serviceProvider.GetRequiredService<DefaultCronusContextFactory>();
+                    CronusContext context = contextFactory.Create(tenant, serviceProvider);
 
-                        scope.ServiceProvider.GetRequiredService<ICassandraEventStoreSchema>().CreateStorageAsync().GetAwaiter().GetResult();
-                    }
+                    serviceProvider.GetRequiredService<ICassandraEventStoreSchema>().CreateStorageAsync().GetAwaiter().GetResult();
                 }
 
                 @lock.UnlockAsync(lockKey).GetAwaiter().GetResult();

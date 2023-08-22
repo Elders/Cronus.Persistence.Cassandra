@@ -2,7 +2,8 @@
 {
     public class MigratorCassandraReplaySettings : CassandraEventStoreSettings
     {
-        public MigratorCassandraReplaySettings(MigratorCassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ISerializer serializer) : base(cassandraProvider, tableNameStrategy, serializer)
+        public MigratorCassandraReplaySettings(MigratorCassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ISerializer serializer)
+            : base(cassandraProvider, tableNameStrategy, serializer)
         {
 
         }

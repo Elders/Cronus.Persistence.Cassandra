@@ -59,17 +59,49 @@ namespace Elders.Cronus.Persistence.Cassandra
                     .ApplyToBuilder(builder)
                     .WithReconnectionPolicy(new ExponentialReconnectionPolicy(100, 100000))
                     .WithRetryPolicy(new NoHintedHandOffRetryPolicy())
+                    .WithPoolingOptions(new PoolingOptions()
+                        .SetMaxRequestsPerConnection(options.MaxRequestsPerConnection))
                     .Build();
 
                 await cluster.RefreshSchemaAsync().ConfigureAwait(false);
             }
-
             else
             {
                 cluster = DataStax.Cluster.BuildFrom(initializer);
             }
 
             return cluster;
+        }
+
+        internal async Task<ISession> GetSessionHighTimeoutAsync()
+        {
+            int TenMinutes = 1000 * 60 * 10;
+            SocketOptions so = new SocketOptions();
+            so.SetConnectTimeoutMillis(TenMinutes);
+            so.SetReadTimeoutMillis(TenMinutes);
+            so.SetStreamMode(true);
+            so.SetTcpNoDelay(true);
+
+            var builder = DataStax.Cluster.Builder();
+            builder = builder.WithSocketOptions(so);
+
+            string connectionString = options.ConnectionString;
+
+            var hackyBuilder = new CassandraConnectionStringBuilder(connectionString);
+            if (string.IsNullOrEmpty(hackyBuilder.DefaultKeyspace) == false)
+                connectionString = connectionString.Replace(hackyBuilder.DefaultKeyspace, string.Empty);
+            baseConfigurationKeyspace = hackyBuilder.DefaultKeyspace;
+
+            var connStrBuilder = new CassandraConnectionStringBuilder(connectionString);
+
+            cluster?.Shutdown(30000);
+            cluster = connStrBuilder
+                .ApplyToBuilder(builder)
+                .WithReconnectionPolicy(new ExponentialReconnectionPolicy(100, 100000))
+                .WithRetryPolicy(new IgnoreRetryPolicy())
+            .Build();
+
+            return await cluster.ConnectAsync(GetKeyspace()).ConfigureAwait(false);
         }
 
         protected virtual string GetKeyspace()
@@ -120,7 +152,6 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
             catch (ObjectDisposedException) { }
 
-
             return session;
         }
 
@@ -143,6 +174,24 @@ namespace Elders.Cronus.Persistence.Cassandra
             return receivedResponses >= requiredResponses && !dataRetrieved
                        ? RetryDecision.Retry(cl)
                        : RetryDecision.Rethrow();
+        }
+
+        public RetryDecision OnUnavailable(IStatement query, ConsistencyLevel cl, int requiredReplica, int aliveReplica, int nbRetry)
+        {
+            return RetryDecision.Rethrow();
+        }
+
+        public RetryDecision OnWriteTimeout(IStatement query, ConsistencyLevel cl, string writeType, int requiredAcks, int receivedAcks, int nbRetry)
+        {
+            return RetryDecision.Rethrow();
+        }
+    }
+
+    class IgnoreRetryPolicy : IRetryPolicy
+    {
+        public RetryDecision OnReadTimeout(IStatement query, ConsistencyLevel cl, int requiredResponses, int receivedResponses, bool dataRetrieved, int nbRetry)
+        {
+            return RetryDecision.Ignore();
         }
 
         public RetryDecision OnUnavailable(IStatement query, ConsistencyLevel cl, int requiredReplica, int aliveReplica, int nbRetry)

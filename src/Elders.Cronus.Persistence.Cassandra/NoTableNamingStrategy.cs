@@ -2,7 +2,7 @@
 {
     public sealed class NoTableNamingStrategy : ITableNamingStrategy
     {
-        public string GetName()
+        public string  GetName()
         {
             return "events";
         }

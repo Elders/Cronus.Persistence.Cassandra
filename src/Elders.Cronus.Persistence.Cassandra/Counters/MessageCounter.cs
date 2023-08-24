@@ -95,7 +95,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Counters
             if (incrementStatement is null)
             {
                 incrementStatement = await session.PrepareAsync(IncrementTemplate).ConfigureAwait(false);
-                incrementStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+                incrementStatement.SetConsistencyLevel(ConsistencyLevel.One);
             }
 
             return incrementStatement;
@@ -107,7 +107,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Counters
             if (decrementStatement is null)
             {
                 decrementStatement = await session.PrepareAsync(DecrementTemplate).ConfigureAwait(false);
-                decrementStatement.SetConsistencyLevel(ConsistencyLevel.Any);
+                decrementStatement.SetConsistencyLevel(ConsistencyLevel.One);
             }
 
             return decrementStatement;

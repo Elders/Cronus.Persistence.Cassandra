@@ -19,6 +19,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         protected ICluster cluster;
         protected ISession session;
+        protected ISession sessionWithLongTimeout;
 
         private string baseConfigurationKeyspace;
         public CassandraProvider(IOptionsMonitor<CassandraProviderOptions> optionsMonitor, IKeyspaceNamingStrategy keyspaceNamingStrategy, ICassandraReplicationStrategy replicationStrategy, ILogger<CassandraProvider> logger, IInitializer initializer = null)
@@ -34,74 +35,101 @@ namespace Elders.Cronus.Persistence.Cassandra
             this.logger = logger;
         }
 
+        private static SemaphoreSlim clusterThreadGate = new SemaphoreSlim(1); // Instantiate a Singleton of the Semaphore with a value of 1. This means that only 1 thread can be granted access at a time
+
         public async Task<ICluster> GetClusterAsync()
         {
             if (cluster is null == false)
                 return cluster;
 
-            Builder builder = initializer as Builder;
-            if (builder is null)
+            await clusterThreadGate.WaitAsync(30000).ConfigureAwait(false);
+
+            try
             {
-                builder = DataStax.Cluster.Builder();
-                //  TODO: check inside the `cfg` (var cfg = builder.GetConfiguration();) if we already have connectionString specified
+                if (cluster is null == false)
+                    return cluster;
 
-                string connectionString = options.ConnectionString;
+                Builder builder = initializer as Builder;
+                if (builder is null)
+                {
+                    builder = DataStax.Cluster.Builder();
+                    //  TODO: check inside the `cfg` (var cfg = builder.GetConfiguration();) if we already have connectionString specified
 
-                var hackyBuilder = new CassandraConnectionStringBuilder(connectionString);
-                if (string.IsNullOrEmpty(hackyBuilder.DefaultKeyspace) == false)
-                    connectionString = connectionString.Replace(hackyBuilder.DefaultKeyspace, string.Empty);
-                baseConfigurationKeyspace = hackyBuilder.DefaultKeyspace;
+                    string connectionString = options.ConnectionString;
 
-                var connStrBuilder = new CassandraConnectionStringBuilder(connectionString);
+                    var hackyBuilder = new CassandraConnectionStringBuilder(connectionString);
+                    if (string.IsNullOrEmpty(hackyBuilder.DefaultKeyspace) == false)
+                        connectionString = connectionString.Replace(hackyBuilder.DefaultKeyspace, string.Empty);
+                    baseConfigurationKeyspace = hackyBuilder.DefaultKeyspace;
 
-                cluster?.Shutdown(30000);
-                cluster = connStrBuilder
-                    .ApplyToBuilder(builder)
-                    .WithReconnectionPolicy(new ExponentialReconnectionPolicy(100, 100000))
-                    .WithRetryPolicy(new NoHintedHandOffRetryPolicy())
-                    .WithPoolingOptions(new PoolingOptions()
-                        .SetMaxRequestsPerConnection(options.MaxRequestsPerConnection))
-                    .Build();
+                    var connStrBuilder = new CassandraConnectionStringBuilder(connectionString);
 
-                await cluster.RefreshSchemaAsync().ConfigureAwait(false);
+                    cluster = connStrBuilder
+                        .ApplyToBuilder(builder)
+                        .WithReconnectionPolicy(new ExponentialReconnectionPolicy(100, 100000))
+                        .WithRetryPolicy(new NoHintedHandOffRetryPolicy())
+                        .WithPoolingOptions(new PoolingOptions()
+                            .SetMaxRequestsPerConnection(options.MaxRequestsPerConnection))
+                        .Build();
+
+                    await cluster.RefreshSchemaAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    cluster = DataStax.Cluster.BuildFrom(initializer);
+                }
+
+                return cluster;
             }
-            else
+            finally
             {
-                cluster = DataStax.Cluster.BuildFrom(initializer);
+                clusterThreadGate?.Release();
             }
-
-            return cluster;
         }
+
+        private static SemaphoreSlim longSessionThreadGate = new SemaphoreSlim(1); // Instantiate a Singleton of the Semaphore with a value of 1. This means that only 1 thread can be granted access at a time
 
         internal async Task<ISession> GetSessionHighTimeoutAsync()
         {
-            int TenMinutes = 1000 * 60 * 10;
-            SocketOptions so = new SocketOptions();
-            so.SetConnectTimeoutMillis(TenMinutes);
-            so.SetReadTimeoutMillis(TenMinutes);
-            so.SetStreamMode(true);
-            so.SetTcpNoDelay(true);
+            if (sessionWithLongTimeout is null || sessionWithLongTimeout.IsDisposed)
+            {
+                await longSessionThreadGate.WaitAsync(30000).ConfigureAwait(false);
 
-            var builder = DataStax.Cluster.Builder();
-            builder = builder.WithSocketOptions(so);
+                try
+                {
+                    int TenMinutes = 1000 * 60 * 10;
+                    SocketOptions so = new SocketOptions();
+                    so.SetConnectTimeoutMillis(TenMinutes);
+                    so.SetReadTimeoutMillis(TenMinutes);
+                    so.SetStreamMode(true);
+                    so.SetTcpNoDelay(true);
 
-            string connectionString = options.ConnectionString;
+                    Builder builder = DataStax.Cluster.Builder();
+                    builder = builder.WithSocketOptions(so);
 
-            var hackyBuilder = new CassandraConnectionStringBuilder(connectionString);
-            if (string.IsNullOrEmpty(hackyBuilder.DefaultKeyspace) == false)
-                connectionString = connectionString.Replace(hackyBuilder.DefaultKeyspace, string.Empty);
-            baseConfigurationKeyspace = hackyBuilder.DefaultKeyspace;
+                    string connectionString = options.ConnectionString;
 
-            var connStrBuilder = new CassandraConnectionStringBuilder(connectionString);
+                    var hackyBuilder = new CassandraConnectionStringBuilder(connectionString);
+                    if (string.IsNullOrEmpty(hackyBuilder.DefaultKeyspace) == false)
+                        connectionString = connectionString.Replace(hackyBuilder.DefaultKeyspace, string.Empty);
+                    baseConfigurationKeyspace = hackyBuilder.DefaultKeyspace;
 
-            cluster?.Shutdown(30000);
-            cluster = connStrBuilder
-                .ApplyToBuilder(builder)
-                .WithReconnectionPolicy(new ExponentialReconnectionPolicy(100, 100000))
-                .WithRetryPolicy(new IgnoreRetryPolicy())
-            .Build();
+                    var connStrBuilder = new CassandraConnectionStringBuilder(connectionString);
 
-            return await cluster.ConnectAsync(GetKeyspace()).ConfigureAwait(false);
+                    cluster = connStrBuilder
+                        .ApplyToBuilder(builder)
+                        .Build();
+
+                    sessionWithLongTimeout = await cluster.ConnectAsync(GetKeyspace()).ConfigureAwait(false);
+                }
+                finally
+                {
+                    longSessionThreadGate?.Release();
+                }
+            }
+
+            return sessionWithLongTimeout;
+
         }
 
         protected virtual string GetKeyspace()
@@ -109,48 +137,44 @@ namespace Elders.Cronus.Persistence.Cassandra
             return keyspaceNamingStrategy.GetName(baseConfigurationKeyspace).ToLower();
         }
 
-        private static SemaphoreSlim threadGate = new SemaphoreSlim(1); // Instantiate a Singleton of the Semaphore with a value of 1. This means that only 1 thread can be granted access at a time
+        private static SemaphoreSlim sessionThreadGate = new SemaphoreSlim(1); // Instantiate a Singleton of the Semaphore with a value of 1. This means that only 1 thread can be granted access at a time
 
         public async Task<ISession> GetSessionAsync()
         {
-            try
+            if (session is null || session.IsDisposed)
             {
-                if (session is null || session.IsDisposed)
+                await sessionThreadGate.WaitAsync(30000).ConfigureAwait(false);
+
+                try
                 {
-                    await threadGate.WaitAsync(30000).ConfigureAwait(false);
-
-                    try
+                    if (session is null || session.IsDisposed)
                     {
-                        if (session is null || session.IsDisposed)
+                        logger.Info(() => "Refreshing cassandra session...");
+                        try
                         {
-                            logger.Info(() => "Refreshing cassandra session...");
-                            try
+                            ICluster cluster = await GetClusterAsync().ConfigureAwait(false);
+                            session = await cluster.ConnectAsync(GetKeyspace()).ConfigureAwait(false);
+                        }
+                        catch (InvalidQueryException)
+                        {
+                            ICluster cluster = await GetClusterAsync().ConfigureAwait(false);
+                            using (ISession schemaSession = await cluster.ConnectAsync().ConfigureAwait(false))
                             {
-                                ICluster cluster = await GetClusterAsync().ConfigureAwait(false);
-                                session = await cluster.ConnectAsync(GetKeyspace()).ConfigureAwait(false);
+                                string createKeySpaceQuery = replicationStrategy.CreateKeySpaceTemplate(GetKeyspace());
+                                IStatement createTableStatement = await GetKreateKeySpaceQuery(schemaSession).ConfigureAwait(false);
+                                await schemaSession.ExecuteAsync(createTableStatement).ConfigureAwait(false);
                             }
-                            catch (InvalidQueryException)
-                            {
-                                ICluster cluster = await GetClusterAsync().ConfigureAwait(false);
-                                using (ISession schemaSession = await cluster.ConnectAsync().ConfigureAwait(false))
-                                {
-                                    string createKeySpaceQuery = replicationStrategy.CreateKeySpaceTemplate(GetKeyspace());
-                                    IStatement createTableStatement = await GetKreateKeySpaceQuery(schemaSession).ConfigureAwait(false);
-                                    await schemaSession.ExecuteAsync(createTableStatement).ConfigureAwait(false);
-                                }
 
-                                ICluster server = await GetClusterAsync().ConfigureAwait(false);
-                                session = await server.ConnectAsync(GetKeyspace()).ConfigureAwait(false);
-                            }
+                            ICluster server = await GetClusterAsync().ConfigureAwait(false);
+                            session = await server.ConnectAsync(GetKeyspace()).ConfigureAwait(false);
                         }
                     }
-                    finally
-                    {
-                        threadGate?.Release();
-                    }
+                }
+                finally
+                {
+                    sessionThreadGate?.Release();
                 }
             }
-            catch (ObjectDisposedException) { }
 
             return session;
         }
@@ -174,24 +198,6 @@ namespace Elders.Cronus.Persistence.Cassandra
             return receivedResponses >= requiredResponses && !dataRetrieved
                        ? RetryDecision.Retry(cl)
                        : RetryDecision.Rethrow();
-        }
-
-        public RetryDecision OnUnavailable(IStatement query, ConsistencyLevel cl, int requiredReplica, int aliveReplica, int nbRetry)
-        {
-            return RetryDecision.Rethrow();
-        }
-
-        public RetryDecision OnWriteTimeout(IStatement query, ConsistencyLevel cl, string writeType, int requiredAcks, int receivedAcks, int nbRetry)
-        {
-            return RetryDecision.Rethrow();
-        }
-    }
-
-    class IgnoreRetryPolicy : IRetryPolicy
-    {
-        public RetryDecision OnReadTimeout(IStatement query, ConsistencyLevel cl, int requiredResponses, int receivedResponses, bool dataRetrieved, int nbRetry)
-        {
-            return RetryDecision.Ignore();
         }
 
         public RetryDecision OnUnavailable(IStatement query, ConsistencyLevel cl, int requiredReplica, int aliveReplica, int nbRetry)

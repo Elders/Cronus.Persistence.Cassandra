@@ -39,7 +39,8 @@ jobs:
     inputs:
       targetType: 'inline'
       script: |
-        time curl -L https://github.com/Elders/blob/releases/download/SemRel-01/node_modules.tar.gz | tar mx -I pigz
+        time curl -L https://github.com/Elders/blob/releases/download/SemRel-01/node_modules.tar.gz | 
+        tar -xzv
         time npx semantic-release --no-ci
         # few commands for debugging purposes
         ls -l $STAGING_PATH/*.nupkg

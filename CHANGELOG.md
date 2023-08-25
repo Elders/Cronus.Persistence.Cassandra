@@ -1,3 +1,11 @@
+## [9.0.1](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0...v9.0.1) (2023-08-25)
+
+
+### Bug Fixes
+
+* Fixes queries for MessageCounter ([d48b46c](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/d48b46c6a8c95f9c70f77c30fffddc3e5f0e8cd4))
+* Properly manages cluster instances for Cassandra ([b44021e](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/b44021ee49d386e7f98d2019b67d7400973d461f))
+
 # [9.0.0](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v8.0.5...v9.0.0) (2023-08-22)
 
 

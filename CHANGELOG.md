@@ -1,3 +1,10 @@
+## [9.0.2](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.1...v9.0.2) (2023-09-18)
+
+
+### Bug Fixes
+
+* Fixes the bound statement when appending new AggregateEventRaw ([b9a05a5](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/b9a05a5e050630003785e980898f2e515da34f2e))
+
 ## [9.0.1](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.0...v9.0.1) (2023-08-25)
 
 

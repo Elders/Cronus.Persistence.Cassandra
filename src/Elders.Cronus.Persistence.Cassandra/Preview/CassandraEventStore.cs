@@ -100,7 +100,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             {
                 ISession session = await GetSessionAsync().ConfigureAwait(false);
                 PreparedStatement statement = await GetWriteStatementAsync(session).ConfigureAwait(false);
-                BoundStatement boundStatement = statement.Bind(aggregateCommitRaw.AggregateRootId, aggregateCommitRaw.Timestamp, aggregateCommitRaw.Revision, aggregateCommitRaw.Position, aggregateCommitRaw.Data);
+                BoundStatement boundStatement = statement.Bind(aggregateCommitRaw.AggregateRootId, aggregateCommitRaw.Revision, aggregateCommitRaw.Position, aggregateCommitRaw.Timestamp, aggregateCommitRaw.Data);
 
                 await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
             }

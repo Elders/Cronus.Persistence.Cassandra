@@ -8,16 +8,21 @@ using System.Threading.Tasks;
 using Cassandra;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.EventStore.Index;
+using Elders.Cronus.MessageProcessing;
 using Elders.Cronus.Migrations;
 using Elders.Cronus.Persistence.Cassandra.Migrations;
+using Elders.Cronus.Projections;
+using Elders.Cronus.Projections.Versioning;
+using Elders.Cronus.Testing;
 using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
-    public class CassandraEventStorePlayer_v8 : IMigrationEventStorePlayer
+    public class CassandraEventStorePlayer_v8 : IMigrationEventStorePlayer, IProjectionVersionFinder
     {
         private readonly ILogger<CassandraEventStorePlayer_v8> logger;
-
+        private readonly ICronusContextAccessor cronusContextAccessor;
+        private readonly TypeContainer<IProjection> projectionsTypeContainer;
         private const string LoadAggregateCommitsQueryTemplate = @"SELECT id,ts,rev,data FROM {0};";
         private const string LoadAggregateCommitsMetaQueryTemplate = @"SELECT ts,rev,data FROM {0} WHERE id = ?;";
 
@@ -30,7 +35,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         private PreparedStatement replayStatement;
         private PreparedStatement loadAggregateCommitsMetaStatement;
 
-        public CassandraEventStorePlayer_v8(MigratorCassandraReplaySettings settings, ILogger<CassandraEventStorePlayer_v8> logger)
+        public CassandraEventStorePlayer_v8(MigratorCassandraReplaySettings settings, ILogger<CassandraEventStorePlayer_v8> logger, ICronusContextAccessor cronusContextAccessor, TypeContainer<IProjection> projectionsTypeContainer)
         {
             if (settings is null) throw new ArgumentNullException(nameof(settings));
 
@@ -38,6 +43,8 @@ namespace Elders.Cronus.Persistence.Cassandra
             this.tableNameStrategy = settings.TableNameStrategy ?? throw new ArgumentNullException(nameof(tableNameStrategy));
             this.serializer = settings.Serializer ?? throw new ArgumentNullException(nameof(serializer)); ;
             this.logger = logger;
+            this.cronusContextAccessor = cronusContextAccessor;
+            this.projectionsTypeContainer = projectionsTypeContainer;
         }
 
         public async Task<LoadAggregateCommitsResult> LoadAggregateCommitsAsync(string paginationToken, int pageSize = 5000)
@@ -108,6 +115,41 @@ namespace Elders.Cronus.Persistence.Cassandra
                     yield return commitRaw;
                 }
             }
+        }
+
+        private async Task<EventStream> LoadAsync(AggregateRootId aggregateId)
+        {
+            ISession session = await GetSessionAsync().ConfigureAwait(false);
+            List<AggregateCommit> aggregateCommits = new List<AggregateCommit>();
+            PreparedStatement bs = await GetReadStatementAsync(session).ConfigureAwait(false);
+            BoundStatement boundStatement = bs.Bind(Convert.ToBase64String(aggregateId.RawId));
+
+            var result = await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
+            foreach (var row in result.GetRows())
+            {
+                var data = row.GetValue<byte[]>("data");
+
+                aggregateCommits.Add(serializer.DeserializeFromBytes<AggregateCommit>(data));
+
+            }
+
+            var eventStream = new EventStream(aggregateCommits);
+
+            return eventStream;
+        }
+
+        private const string LoadAggregateEventsQueryTemplate = @"SELECT data FROM {0} WHERE id = ?;";
+        private PreparedStatement readStatement;
+        private async Task<PreparedStatement> GetReadStatementAsync(ISession session)
+        {
+            if (readStatement is null)
+            {
+                string tableName = tableNameStrategy.GetName();
+                readStatement = await session.PrepareAsync(string.Format(LoadAggregateEventsQueryTemplate, tableName)).ConfigureAwait(false);
+                readStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
+
+            return readStatement;
         }
 
         private async Task<PreparedStatement> LoadAggregateCommitsMetaStatementAsync()
@@ -184,17 +226,34 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public Task<IEvent> LoadEventWithRebuildProjectionAsync(IndexRecord indexRecord)
         {
-            throw new NotImplementedException();
+            throw new NotImplementedException("This is a v9 feature.");
         }
 
         public Task EnumerateEventStore(PlayerOperator @operator)
         {
-            throw new NotImplementedException();
+            throw new NotImplementedException("This is a v9 feature.");
         }
 
         public Task EnumerateEventStore(PlayerOperator @operator, PlayerOptions replayOptions)
         {
-            throw new NotImplementedException();
+            throw new NotImplementedException("This is a v9 feature.");
+        }
+
+        public IEnumerable<ProjectionVersion> GetProjectionVersionsToBootstrap()
+        {
+            foreach (Type projectionType in projectionsTypeContainer.Items)
+            {
+                var arId = new ProjectionVersionManagerId(projectionType.GetContractId(), cronusContextAccessor.CronusContext.Tenant);
+                var projectionVersionManagerEventStream = LoadAsync(arId).GetAwaiter().GetResult();
+                ProjectionVersionManager manager;
+                bool success = projectionVersionManagerEventStream.TryRestoreFromHistory<ProjectionVersionManager>(out manager);
+                if (success)
+                {
+                    var live = manager.RootState().Versions.GetLive();
+                    if (live is not null)
+                        yield return live;
+                }
+            }
         }
     }
 }

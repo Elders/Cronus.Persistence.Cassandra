@@ -1,3 +1,10 @@
+# [9.1.0](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.2...v9.1.0) (2023-09-25)
+
+
+### Features
+
+* Adds migration logic from v8 to v9 ([0ec6eaa](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/0ec6eaab088ad62bee9086b743b8a7088ab10b42))
+
 ## [9.0.2](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.1...v9.0.2) (2023-09-18)
 
 

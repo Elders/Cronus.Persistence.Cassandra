@@ -1,3 +1,10 @@
+## [9.1.1](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.1.0...v9.1.1) (2023-09-29)
+
+
+### Bug Fixes
+
+* Fixes the CronusMigrator registry to the IServiceCollection ([5176683](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/5176683760616b022f1e6fe95ac74d34165e83e2))
+
 # [9.1.0](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.0.2...v9.1.0) (2023-09-25)
 
 

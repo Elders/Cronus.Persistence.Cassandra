@@ -38,7 +38,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Migrations
         public static IServiceCollection AddCronusMigratorFromV8toV9(this IServiceCollection services)
         {
             services.Replace<IMigrationCustomLogic, MigrateAggregateCommitFrom_Cronus_v8_to_v9>();
-            services.AddTransient<CronusMigrator>();
+            services.Replace<ICronusMigrator, CronusMigrator>();
             services.AddTransient<CassandraEventStorePlayer_v8>();
             services.AddTransient<IProjectionVersionFinder, CassandraEventStorePlayer_v8>();
             services.AddTransient<MigrateEventStore>();
@@ -51,7 +51,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Migrations
     {
         private readonly IServiceProvider _serviceProvider;
         private CassandraEventStorePlayer_v8 _source;
-        private CronusMigrator _migrator;
+        private ICronusMigrator _migrator;
         private readonly ILogger<MigrateEventStore> logger;
 
         public MigrateEventStore(IServiceProvider serviceProvider, ILogger<MigrateEventStore> logger)
@@ -68,7 +68,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Migrations
                 var cronusContext = cronusContextFactory.Create(tenant, scope.ServiceProvider);
 
                 _source = scope.ServiceProvider.GetRequiredService<CassandraEventStorePlayer_v8>();
-                _migrator = scope.ServiceProvider.GetRequiredService<CronusMigrator>();
+                _migrator = scope.ServiceProvider.GetRequiredService<ICronusMigrator>();
 
                 await RunAsync().ConfigureAwait(false);
             }

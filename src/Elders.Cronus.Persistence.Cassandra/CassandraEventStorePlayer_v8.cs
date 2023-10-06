@@ -66,7 +66,19 @@ namespace Elders.Cronus.Persistence.Cassandra
             {
                 var data = row.GetValue<byte[]>("data");
                 AggregateCommit commit = serializer.DeserializeFromBytes<AggregateCommit>(data);
-                aggregateCommits.Add(commit);
+                if (commit is not null)
+                {
+                    aggregateCommits.Add(commit);
+                }
+                else
+                {
+                    using (logger.BeginScope(s => s
+                                                    .AddScope(Log.AggregateId, row.GetValue<string>("id"))
+                                                    .AddScope("cronus_arrev", row.GetValue<int>("rev"))))
+                    {
+                        logger.Warn(() => "Unable to load aggregate commit and it will be skipped.");
+                    }
+                }
             }
 
             if (result.IsFullyFetched == false)

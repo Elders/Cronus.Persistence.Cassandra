@@ -1,3 +1,10 @@
+## [9.1.2](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.1.1...v9.1.2) (2023-10-06)
+
+
+### Bug Fixes
+
+* Handles 'null' case when deserializing AggregateCommit in CassandraEventStorePlayer_v8 ([b5aa4ed](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/b5aa4edb645cbaf667bce7033b32b8fe2a7f8a34))
+
 ## [9.1.1](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.1.0...v9.1.1) (2023-09-29)
 
 

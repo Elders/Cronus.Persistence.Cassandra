@@ -264,16 +264,22 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
         private async Task<AggregateEventRaw> LoadAggregateEventRaw(IndexRecord indexRecord, PreparedStatement queryStatement, ISession session)
         {
-            BoundStatement query = queryStatement.Bind(indexRecord.AggregateRootId, indexRecord.Revision, indexRecord.Position);
-            RowSet rowSet = await session.ExecuteAsync(query).ConfigureAwait(false);
-            Row row = rowSet.SingleOrDefault();
-            if (row is not null)
+            try
             {
-                byte[] data = row.GetValue<byte[]>(CassandraColumn.Data);
-                return new AggregateEventRaw(indexRecord.AggregateRootId, data, indexRecord.Revision, indexRecord.Position, indexRecord.TimeStamp);
-            }
+                BoundStatement query = queryStatement.Bind(indexRecord.AggregateRootId, indexRecord.Revision, indexRecord.Position);
+                RowSet rowSet = await session.ExecuteAsync(query).ConfigureAwait(false);
+                Row row = rowSet.SingleOrDefault();
+                if (row is not null)
+                {
+                    byte[] data = row.GetValue<byte[]>(CassandraColumn.Data);
+                    return new AggregateEventRaw(indexRecord.AggregateRootId, data, indexRecord.Revision, indexRecord.Position, indexRecord.TimeStamp);
+                }
 
-            logger.Error(() => $"Unable to load aggregate event by index record: {indexRecord.ToJson()}");
+                logger.Error(() => $"Unable to load aggregate event by index record: {indexRecord.ToJson()}");
+            }
+            catch (Exception ex) when (logger.ErrorException(ex, () => $"Unable to load aggregate event by index record: {indexRecord.ToJson()}"))
+            {
+            }
 
             return default;
         }

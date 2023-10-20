@@ -371,7 +371,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
                 if (@operator.OnAggregateStreamLoadedAsync is not null)
                 {
-                    if (aggregateEventRaws.Any() && ByteArrayHelper.Compare(aggregateEventRaws.First().AggregateRootId, @event.AggregateRootId) == false)
+                    if (aggregateEventRaws.Any() && aggregateEventRaws.First().AggregateRootId.AsSpan() != @event.AggregateRootId)
                     {
                         AggregateStream stream = new AggregateStream(aggregateEventRaws);
                         await @operator.OnAggregateStreamLoadedAsync(stream);
@@ -436,7 +436,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             bool isFirstTime = pagingInfo.Token is null;
             bool hasMoreRecords = result.PagingState is not null;
 
-            bool weHaveNewPagingState = (isFirstTime && hasMoreRecords) || (isFirstTime == false && hasMoreRecords && ByteArrayHelper.Compare(pagingInfo.Token, nextPagingInfo.Token) == false);
+            bool weHaveNewPagingState = (isFirstTime && hasMoreRecords) || (isFirstTime == false && hasMoreRecords && pagingInfo.Token.AsSpan() != nextPagingInfo.Token);
             pagingInfo = nextPagingInfo;
             if (onPagingInfoChanged is not null && weHaveNewPagingState)
             {

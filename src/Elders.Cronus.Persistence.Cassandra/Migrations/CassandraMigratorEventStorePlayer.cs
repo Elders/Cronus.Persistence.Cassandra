@@ -1,5 +1,4 @@
-﻿using Elders.Cronus.EventStore.Index;
-using Elders.Cronus.Migrations;
+﻿using Elders.Cronus.Migrations;
 using Elders.Cronus.Persistence.Cassandra.Preview;
 using Microsoft.Extensions.Logging;
 

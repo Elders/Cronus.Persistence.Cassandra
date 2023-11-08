@@ -117,7 +117,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             return new EventStream(aggregateCommits);
         }
 
-        public async Task<LoadAggregateRawEventsWithPagingResult> LoadWithPagingDescendingAsync(IBlobId aggregateId, PagingOptions pagingOptions)
+        public async Task<LoadAggregateRawEventsWithPagingResult> LoadWithPagingAsync(IBlobId aggregateId, PagingOptions pagingOptions)
         {
             LoadAggregateRawEventsWithPagingResult result = await LoadAggregateRawEventsWithPagingAsync(aggregateId, pagingOptions).ConfigureAwait(false);
 
@@ -242,7 +242,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
         private async Task<List<AggregateCommit>> LoadAggregateCommitsAsync(IBlobId id)
         {
             ISession session = await GetSessionAsync().ConfigureAwait(false);
-            PreparedStatement bs = await GetReadStatementAsync(session).ConfigureAwait(false);
+            PreparedStatement bs = await GetReadStatementAscendingAsync(session).ConfigureAwait(false);
             BoundStatement boundStatement = bs.Bind(id.RawId);
 
             var result = await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
@@ -283,10 +283,22 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             List<AggregateEventRaw> aggregateEventRawCollection = new List<AggregateEventRaw>();
 
             ISession session = await GetSessionAsync().ConfigureAwait(false);
-            PreparedStatement ps = await GetReadWithPagingByRevisionStatementAsync(session).ConfigureAwait(false);
-            IStatement boundStatement = ps.Bind(id.RawId)
-                .SetPageSize(pagingOptions.Take)
-                .SetAutoPage(false);
+            IStatement boundStatement;
+
+            if (pagingOptions.Order.Equals(Order.Descending))
+            {
+                PreparedStatement ps = await GetReadStatementDescendingAsync(session).ConfigureAwait(false);
+                boundStatement = ps.Bind(id.RawId)
+                    .SetPageSize(pagingOptions.Take)
+                    .SetAutoPage(false);
+            }
+            else
+            {
+                PreparedStatement ps = await GetReadStatementAscendingAsync(session).ConfigureAwait(false);
+                boundStatement = ps.Bind(id.RawId)
+                    .SetPageSize(pagingOptions.Take)
+                    .SetAutoPage(false);
+            }
 
             if (pagingOptions.PaginationToken is not null)
                 boundStatement.SetPagingState(pagingOptions.PaginationToken);
@@ -303,7 +315,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                 aggregateEventRawCollection.Add(new AggregateEventRaw(id.RawId, data, revision, position, timestamp));
             }
 
-            return new LoadAggregateRawEventsWithPagingResult(aggregateEventRawCollection, new PagingOptions(pagingOptions.Take, result.PagingState));
+            return new LoadAggregateRawEventsWithPagingResult(aggregateEventRawCollection, new PagingOptions(pagingOptions.Take, result.PagingState, pagingOptions.Order));
         }
 
         private async Task EnumerateEventStoreForSpecifiedEvent(PlayerOperator @operator, PlayerOptions replayOptions)
@@ -478,7 +490,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             return writeStatement;
         }
 
-        private async Task<PreparedStatement> GetReadStatementAsync(ISession session)
+        private async Task<PreparedStatement> GetReadStatementAscendingAsync(ISession session)
         {
             if (readStatement is null)
             {
@@ -515,7 +527,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             return replayStatement;
         }
 
-        private async Task<PreparedStatement> GetReadWithPagingByRevisionStatementAsync(ISession session)
+        private async Task<PreparedStatement> GetReadStatementDescendingAsync(ISession session)
         {
             if (readWithPagingByRevisionStatement is null)
             {

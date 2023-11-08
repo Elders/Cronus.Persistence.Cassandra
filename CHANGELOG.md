@@ -1,3 +1,10 @@
+## [9.1.4](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.1.3...v9.1.4) (2023-11-08)
+
+
+### Bug Fixes
+
+* Adds Asc/Desc order to LoadWithPagingAsync ([e420a3f](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/e420a3f733e7a2065b8507c7b46003093617729b))
+
 ## [9.1.3](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.1.2...v9.1.3) (2023-10-06)
 
 

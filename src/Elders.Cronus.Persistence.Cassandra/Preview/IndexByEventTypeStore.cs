@@ -194,7 +194,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                 bool isFirstTime = pagingInfo.Token is null;
                 bool hasMoreRecords = result.PagingState is not null;
 
-                bool weHaveNewPagingState = (isFirstTime && hasMoreRecords) || (isFirstTime == false && hasMoreRecords && pagingInfo.Token.AsSpan() != nextPagingInfo.Token);
+                bool weHaveNewPagingState = (isFirstTime && hasMoreRecords) || (isFirstTime == false && hasMoreRecords && pagingInfo.Token.AsSpan().SequenceEqual(nextPagingInfo.Token) == false);
                 pagingInfo = nextPagingInfo;
                 if (onPagingInfoChanged is not null && weHaveNewPagingState)
                 {

@@ -387,7 +387,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                     // All aggregates events are stored in a single partition where the ID of the AR is the partition value.
                     // This way all events for an AR will be loaded before proceeding to the next AR.
                     // This is Cassandra specific behavior and should not be cloned to other DB implementations.
-                    if (aggregateEventRaws.Any() && aggregateEventRaws.First().AggregateRootId.AsSpan() != @event.AggregateRootId)
+                    if (aggregateEventRaws.Any() && aggregateEventRaws.First().AggregateRootId.AsSpan().SequenceEqual(@event.AggregateRootId) == false)
                     {
                         AggregateStream stream = new AggregateStream(aggregateEventRaws);
                         await @operator.OnAggregateStreamLoadedAsync(stream);
@@ -452,7 +452,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             bool isFirstTime = pagingInfo.Token is null;
             bool hasMoreRecords = result.PagingState is not null;
 
-            bool weHaveNewPagingState = (isFirstTime && hasMoreRecords) || (isFirstTime == false && hasMoreRecords && pagingInfo.Token.AsSpan() != nextPagingInfo.Token);
+            bool weHaveNewPagingState = (isFirstTime && hasMoreRecords) || (isFirstTime == false && hasMoreRecords && pagingInfo.Token.AsSpan().SequenceEqual(nextPagingInfo.Token) == false);
             pagingInfo = nextPagingInfo;
             if (onPagingInfoChanged is not null && weHaveNewPagingState)
             {

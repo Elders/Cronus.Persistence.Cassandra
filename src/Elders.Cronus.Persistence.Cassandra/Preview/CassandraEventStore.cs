@@ -371,6 +371,10 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
                 if (@operator.OnAggregateStreamLoadedAsync is not null)
                 {
+                    // I know you are confused. Do not worry, just read the comments bellow:
+                    // All aggregates events are stored in a single partition where the ID of the AR is the partition value.
+                    // This way all events for an AR will be loaded before proceeding to the next AR.
+                    // This is Cassandra specific behavior and should not be cloned to other DB implementations.
                     if (aggregateEventRaws.Any() && aggregateEventRaws.First().AggregateRootId.AsSpan() != @event.AggregateRootId)
                     {
                         AggregateStream stream = new AggregateStream(aggregateEventRaws);

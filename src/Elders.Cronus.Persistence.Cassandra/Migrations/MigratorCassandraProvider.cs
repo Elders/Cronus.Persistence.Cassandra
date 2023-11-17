@@ -10,12 +10,4 @@ namespace Elders.Cronus.Persistence.Cassandra.Migrations
         public MigratorCassandraProvider(IOptionsMonitor<MigrationCassandraProviderOptions> optionsMonitor, IKeyspaceNamingStrategy keyspaceNamingStrategy, ICassandraReplicationStrategy replicationStrategy, ILogger<CassandraProvider> logger, IInitializer initializer = null)
             : base(optionsMonitor, keyspaceNamingStrategy, replicationStrategy, logger, initializer) { }
     }
-
-    public class MigratorTableNameStrategy : ITableNamingStrategy
-    {
-        public string GetName()
-        {
-            throw new System.NotImplementedException();
-        }
-    }
 }

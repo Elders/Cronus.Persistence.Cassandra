@@ -6,8 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -196,7 +194,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                 bool isFirstTime = pagingInfo.Token is null;
                 bool hasMoreRecords = result.PagingState is not null;
 
-                bool weHaveNewPagingState = (isFirstTime && hasMoreRecords) || (isFirstTime == false && hasMoreRecords && ByteArrayHelper.Compare(pagingInfo.Token, nextPagingInfo.Token) == false);
+                bool weHaveNewPagingState = (isFirstTime && hasMoreRecords) || (isFirstTime == false && hasMoreRecords && pagingInfo.Token.AsSpan() != nextPagingInfo.Token);
                 pagingInfo = nextPagingInfo;
                 if (onPagingInfoChanged is not null && weHaveNewPagingState)
                 {

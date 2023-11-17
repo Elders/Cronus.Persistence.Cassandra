@@ -4,7 +4,6 @@ using Elders.Cronus.EventStore.Index;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -264,16 +263,22 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
         private async Task<AggregateEventRaw> LoadAggregateEventRaw(IndexRecord indexRecord, PreparedStatement queryStatement, ISession session)
         {
-            BoundStatement query = queryStatement.Bind(indexRecord.AggregateRootId, indexRecord.Revision, indexRecord.Position);
-            RowSet rowSet = await session.ExecuteAsync(query).ConfigureAwait(false);
-            Row row = rowSet.SingleOrDefault();
-            if (row is not null)
+            try
             {
-                byte[] data = row.GetValue<byte[]>(CassandraColumn.Data);
-                return new AggregateEventRaw(indexRecord.AggregateRootId, data, indexRecord.Revision, indexRecord.Position, indexRecord.TimeStamp);
-            }
+                BoundStatement query = queryStatement.Bind(indexRecord.AggregateRootId, indexRecord.Revision, indexRecord.Position);
+                RowSet rowSet = await session.ExecuteAsync(query).ConfigureAwait(false);
+                Row row = rowSet.SingleOrDefault();
+                if (row is not null)
+                {
+                    byte[] data = row.GetValue<byte[]>(CassandraColumn.Data);
+                    return new AggregateEventRaw(indexRecord.AggregateRootId, data, indexRecord.Revision, indexRecord.Position, indexRecord.TimeStamp);
+                }
 
-            logger.Error(() => $"Unable to load aggregate event by index record: {indexRecord.ToJson()}");
+                logger.Error(() => $"Unable to load aggregate event by index record: {indexRecord.ToJson()}");
+            }
+            catch (Exception ex) when (logger.ErrorException(ex, () => $"Unable to load aggregate event by index record: {indexRecord.ToJson()}"))
+            {
+            }
 
             return default;
         }
@@ -378,7 +383,11 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
 
                 if (@operator.OnAggregateStreamLoadedAsync is not null)
                 {
-                    if (aggregateEventRaws.Any() && ByteArrayHelper.Compare(aggregateEventRaws.First().AggregateRootId, @event.AggregateRootId) == false)
+                    // I know you are confused. Do not worry, just read the comments bellow:
+                    // All aggregates events are stored in a single partition where the ID of the AR is the partition value.
+                    // This way all events for an AR will be loaded before proceeding to the next AR.
+                    // This is Cassandra specific behavior and should not be cloned to other DB implementations.
+                    if (aggregateEventRaws.Any() && aggregateEventRaws.First().AggregateRootId.AsSpan() != @event.AggregateRootId)
                     {
                         AggregateStream stream = new AggregateStream(aggregateEventRaws);
                         await @operator.OnAggregateStreamLoadedAsync(stream);
@@ -443,7 +452,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             bool isFirstTime = pagingInfo.Token is null;
             bool hasMoreRecords = result.PagingState is not null;
 
-            bool weHaveNewPagingState = (isFirstTime && hasMoreRecords) || (isFirstTime == false && hasMoreRecords && ByteArrayHelper.Compare(pagingInfo.Token, nextPagingInfo.Token) == false);
+            bool weHaveNewPagingState = (isFirstTime && hasMoreRecords) || (isFirstTime == false && hasMoreRecords && pagingInfo.Token.AsSpan() != nextPagingInfo.Token);
             pagingInfo = nextPagingInfo;
             if (onPagingInfoChanged is not null && weHaveNewPagingState)
             {

@@ -8,7 +8,6 @@ using Elders.Cronus.Migrations;
 using Elders.Cronus.Projections;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using static System.Formats.Asn1.AsnWriter;
 
 namespace Elders.Cronus.Persistence.Cassandra.Migrations
 {
@@ -35,9 +34,9 @@ namespace Elders.Cronus.Persistence.Cassandra.Migrations
 
     public static class CronusMigratorServiceCollectionExtensions
     {
-        public static IServiceCollection AddCronusMigratorFromV8toV9(this IServiceCollection services)
+        public static IServiceCollection AddCronusMigratorFromV8toV10(this IServiceCollection services)
         {
-            services.Replace<IMigrationCustomLogic, MigrateAggregateCommitFrom_Cronus_v8_to_v9>();
+            services.Replace<IMigrationCustomLogic, MigrateAggregateCommitFrom_Cronus_v8_to_v10>();
             services.Replace<ICronusMigrator, CronusMigrator>();
             services.AddTransient<CassandraEventStorePlayer_v8>();
             services.AddTransient<IProjectionVersionFinder, CassandraEventStorePlayer_v8>();

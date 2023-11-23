@@ -9,7 +9,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Elders.Cronus.Persistence.Cassandra.Preview
+namespace Elders.Cronus.Persistence.Cassandra
 {
     public class IndexByEventTypeStore : IIndexStore
     {
@@ -194,7 +194,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
                 bool isFirstTime = pagingInfo.Token is null;
                 bool hasMoreRecords = result.PagingState is not null;
 
-                bool weHaveNewPagingState = (isFirstTime && hasMoreRecords) || (isFirstTime == false && hasMoreRecords && pagingInfo.Token.AsSpan().SequenceEqual(nextPagingInfo.Token) == false);
+                bool weHaveNewPagingState = isFirstTime && hasMoreRecords || isFirstTime == false && hasMoreRecords && pagingInfo.Token.AsSpan().SequenceEqual(nextPagingInfo.Token) == false;
                 pagingInfo = nextPagingInfo;
                 if (onPagingInfoChanged is not null && weHaveNewPagingState)
                 {

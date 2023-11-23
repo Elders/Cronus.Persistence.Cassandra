@@ -18,7 +18,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public List<string> Datacenters { get; set; }
 
-        public int MaxRequestsPerConnection { get; set; } = 2048;
+        public int MaxRequestsPerConnection { get; set; } = 4096;
     }
 
     public class CassandraProviderOptionsProvider : CronusOptionsProviderBase<CassandraProviderOptions>

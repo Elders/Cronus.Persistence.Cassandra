@@ -1,5 +1,4 @@
 ﻿using Elders.Cronus.Migrations;
-using Elders.Cronus.Persistence.Cassandra.Preview;
 using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra.Migrations

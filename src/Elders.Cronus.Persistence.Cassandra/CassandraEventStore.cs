@@ -9,7 +9,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Elders.Cronus.Persistence.Cassandra.Preview
+namespace Elders.Cronus.Persistence.Cassandra
 {
     public class CassandraEventStore<TSettings> : CassandraEventStore, IEventStorePlayer<TSettings>
         where TSettings : class, ICassandraEventStoreSettings
@@ -157,50 +157,6 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             }
         }
 
-        public async IAsyncEnumerable<AggregateCommit> LoadAggregateCommitsAsync()
-        {
-            ISession session = await GetSessionAsync().ConfigureAwait(false);
-            var statement = await GetReplayStatementAsync(session).ConfigureAwait(false);
-            var queryStatement = statement.Bind();
-            RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
-            AggregateCommitBlock block = null;
-
-            foreach (var row in result.GetRows())
-            {
-                var id = new AggregateCommitBlock.CassandraRawId(row.GetValue<byte[]>(CassandraColumn.Id));
-                var revision = row.GetValue<int>(CassandraColumn.Revision);
-                var position = row.GetValue<int>(CassandraColumn.Position);
-                long timestamp = row.GetValue<long>(CassandraColumn.Timestamp);
-                var data = row.GetValue<byte[]>(CassandraColumn.Data);
-
-                if (block is null)
-                    block = new AggregateCommitBlock(id);
-
-                AggregateCommit commit = null;
-
-                bool isBlockCompleted = false;
-
-                // TODO: What if we have missing blocks?
-                try
-                {
-                    var @event = serializer.DeserializeFromBytes<IMessage>(data);
-                    block.AppendBlock(revision, position, @event, timestamp);
-                    if (isBlockCompleted)
-                        block = null;
-                }
-                catch (Exception ex)
-                {
-                    string error = "Failed to deserialize an AggregateCommit. EventBase64bytes: " + Convert.ToBase64String(data);
-                    logger.ErrorException(ex, () => error);
-                    continue;
-                }
-
-                if (commit is not null)
-                    yield return commit;
-
-            }
-        }
-
         public async Task<IEvent> LoadEventWithRebuildProjectionAsync(IndexRecord indexRecord)
         {
             ISession session = await GetSessionAsync().ConfigureAwait(false);
@@ -231,11 +187,6 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             logger.Error(() => $"Unable to load aggregate event by index record: {indexRecord.ToJson()}");
 
             return default;
-        }
-
-        public IAsyncEnumerable<AggregateCommit> LoadAggregateCommitsAsync(int batchSize = 5000)
-        {
-            throw new NotImplementedException();
         }
 
         private async Task<List<AggregateCommit>> LoadAggregateCommitsAsync(IBlobId id)
@@ -452,7 +403,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             bool isFirstTime = pagingInfo.Token is null;
             bool hasMoreRecords = result.PagingState is not null;
 
-            bool weHaveNewPagingState = (isFirstTime && hasMoreRecords) || (isFirstTime == false && hasMoreRecords && pagingInfo.Token.AsSpan().SequenceEqual(nextPagingInfo.Token) == false);
+            bool weHaveNewPagingState = isFirstTime && hasMoreRecords || isFirstTime == false && hasMoreRecords && pagingInfo.Token.AsSpan().SequenceEqual(nextPagingInfo.Token) == false;
             pagingInfo = nextPagingInfo;
             if (onPagingInfoChanged is not null && weHaveNewPagingState)
             {

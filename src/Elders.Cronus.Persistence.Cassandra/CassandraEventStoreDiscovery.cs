@@ -5,7 +5,6 @@ using Elders.Cronus.EventStore;
 using Elders.Cronus.EventStore.Index;
 using Elders.Cronus.Persistence.Cassandra.Counters;
 using Elders.Cronus.Persistence.Cassandra.Migrations;
-using Elders.Cronus.Persistence.Cassandra.Preview;
 using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -36,10 +35,8 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         IEnumerable<DiscoveredModel> GetModels(DiscoveryContext context)
         {
-
             yield return new DiscoveredModel(typeof(CassandraEventStore), typeof(CassandraEventStore), ServiceLifetime.Transient) { CanOverrideDefaults = true };
             yield return new DiscoveredModel(typeof(IEventStorePlayer), provider => provider.GetRequiredService<SingletonPerTenant<CassandraEventStore>>().Get(), ServiceLifetime.Transient);
-
 
             yield return new DiscoveredModel(typeof(CassandraEventStore), typeof(CassandraEventStore), ServiceLifetime.Transient);
             yield return new DiscoveredModel(typeof(IEventStore), provider => provider.GetRequiredService<SingletonPerTenant<CassandraEventStore>>().Get(), ServiceLifetime.Transient);

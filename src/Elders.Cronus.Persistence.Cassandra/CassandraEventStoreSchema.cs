@@ -5,7 +5,7 @@ using Cassandra;
 using Elders.Cronus.Persistence.Cassandra.Counters;
 using Microsoft.Extensions.Logging;
 
-namespace Elders.Cronus.Persistence.Cassandra.Preview
+namespace Elders.Cronus.Persistence.Cassandra
 {
     public class CassandraEventStoreSchema : ICassandraEventStoreSchema
     {

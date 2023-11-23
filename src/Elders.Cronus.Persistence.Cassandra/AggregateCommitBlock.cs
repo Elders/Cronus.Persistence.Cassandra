@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Elders.Cronus.Persistence.Cassandra.Preview
+namespace Elders.Cronus.Persistence.Cassandra
 {
     internal class AggregateCommitBlock
     {
@@ -69,7 +69,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             if (Events.Any())
             {
                 // Appends the everything we have in memory to the final result
-                var aggregateCommit = new AggregateCommit(id.RawId, this.revision, Events.ToList(), PublicEvents.ToList(), this.timestamp);
+                var aggregateCommit = new AggregateCommit(id.RawId, revision, Events.ToList(), PublicEvents.ToList(), timestamp);
                 aggregateCommits.Add(aggregateCommit);
             }
 

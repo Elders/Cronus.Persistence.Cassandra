@@ -1,4 +1,4 @@
-﻿namespace Elders.Cronus.Persistence.Cassandra.Preview
+﻿namespace Elders.Cronus.Persistence.Cassandra
 {
     internal static class CassandraColumn
     {

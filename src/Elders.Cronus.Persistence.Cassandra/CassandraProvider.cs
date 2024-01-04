@@ -1,11 +1,11 @@
 ﻿using System;
-using Cassandra;
-using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
-using Microsoft.Extensions.Options;
 using System.Threading;
 using System.Threading.Tasks;
-using DataStax = Cassandra;
+using Cassandra;
+using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using DataStax = Cassandra;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {

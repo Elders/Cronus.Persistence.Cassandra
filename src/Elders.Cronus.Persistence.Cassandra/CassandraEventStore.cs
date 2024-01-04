@@ -1,13 +1,13 @@
-using Cassandra;
-using Elders.Cronus.EventStore;
-using Elders.Cronus.EventStore.Index;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Cassandra;
+using Elders.Cronus.EventStore;
+using Elders.Cronus.EventStore.Index;
+using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
@@ -338,7 +338,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                     // All aggregates events are stored in a single partition where the ID of the AR is the partition value.
                     // This way all events for an AR will be loaded before proceeding to the next AR.
                     // This is Cassandra specific behavior and should not be cloned to other DB implementations.
-                    if (aggregateEventRaws.Any() && aggregateEventRaws.First().AggregateRootId.AsSpan().SequenceEqual(@event.AggregateRootId) == false)
+                    if (aggregateEventRaws.Count > 0 && aggregateEventRaws.First().AggregateRootId.AsSpan().SequenceEqual(@event.AggregateRootId) == false)
                     {
                         AggregateStream stream = new AggregateStream(aggregateEventRaws);
                         await @operator.OnAggregateStreamLoadedAsync(stream);
@@ -348,6 +348,14 @@ namespace Elders.Cronus.Persistence.Cassandra
 
                     aggregateEventRaws.Add(@event);
                 }
+            }
+
+            // No child left behind. Make sure the last aggregate is also passed allong.
+            if (@operator.OnAggregateStreamLoadedAsync is not null && aggregateEventRaws.Count > 0)
+            {
+                AggregateStream stream = new AggregateStream(aggregateEventRaws);
+                await @operator.OnAggregateStreamLoadedAsync(stream);
+                aggregateEventRaws.Clear();
             }
 
             await Task.WhenAll(tasks).ConfigureAwait(false);

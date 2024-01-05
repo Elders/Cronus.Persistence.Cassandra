@@ -34,7 +34,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Migrations
                 _migrator = scope.ServiceProvider.GetRequiredService<ICronusMigrator>();
                 _serializer = scope.ServiceProvider.GetRequiredService<ISerializer>();
 
-                await RunAsync().ConfigureAwait(false);
+                await RunAsync(tenant).ConfigureAwait(false);
             }
         }
 
@@ -44,7 +44,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Migrations
             CronusContext cronusContext = cronusContextFactory.Create(tenant, serviceProvider);
         }
 
-        private async Task RunAsync()
+        private async Task RunAsync(string tenant)
         {
             var @operator = new PlayerOperator()
             {
@@ -75,9 +75,9 @@ namespace Elders.Cronus.Persistence.Cassandra.Migrations
                 }
             };
 
-            logger.LogInformation("Migration from v9 to v10 has started...");
+            logger.LogInformation("Migration from v9 to v10 has started for tenant {tenant}...", tenant);
             await _sourcePlayer.EnumerateEventStore(@operator, new PlayerOptions()).ConfigureAwait(false);
-            logger.LogInformation("Migration from v9 to v10 finished!");
+            logger.LogInformation("Migration from v9 to v10 has finished for tenant {tenant}!", tenant);
         }
     }
 }

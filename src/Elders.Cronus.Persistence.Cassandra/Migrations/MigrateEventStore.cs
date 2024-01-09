@@ -15,7 +15,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Migrations
         private readonly IServiceProvider _serviceProvider;
         private IMigrationEventStorePlayer _sourcePlayer;
         private ISerializer _serializer;
-        private ICronusMigrator _migrator;
+        private ICronusMigratorManual _migrator;
         private readonly ILogger<MigrateEventStore> logger;
 
         public MigrateEventStore(IServiceProvider serviceProvider, ILogger<MigrateEventStore> logger)

@@ -31,7 +31,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Migrations
                 InitializeTenantContext(scope.ServiceProvider, tenant);
 
                 _sourcePlayer = scope.ServiceProvider.GetRequiredService<IMigrationEventStorePlayer>();
-                _migrator = scope.ServiceProvider.GetRequiredService<ICronusMigrator>();
+                _migrator = scope.ServiceProvider.GetRequiredService<ICronusMigratorManual>();
                 _serializer = scope.ServiceProvider.GetRequiredService<ISerializer>();
 
                 await RunAsync(tenant).ConfigureAwait(false);

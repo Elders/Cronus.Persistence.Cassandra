@@ -5,7 +5,6 @@ using Elders.Cronus.EventStore;
 using Elders.Cronus.Migrations;
 using Elders.Cronus.Projections;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Elders.Cronus.Persistence.Cassandra.Migrations
 {
@@ -34,8 +33,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Migrations
     {
         public static IServiceCollection AddCronusMigratorFromV9toV10(this IServiceCollection services)
         {
-            services.RemoveAll<IMigrationCustomLogic>();
-            services.AddTenantSingleton<IMigrationCustomLogic, Migrate_v9_to_v10>();
+            services.Replace<IMigrationCustomLogic, Migrate_v9_to_v10>();
             services.AddTransient<CassandraEventStorePlayer_v9>();
             services.AddTransient<IProjectionVersionFinder, CassandraEventStorePlayer_v9>();
             services.AddTransient<MigrateEventStore>();

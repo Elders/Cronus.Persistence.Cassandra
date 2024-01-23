@@ -44,12 +44,17 @@ namespace Elders.Cronus.Persistence.Cassandra.Migrations
             CronusContext cronusContext = cronusContextFactory.Create(tenant, serviceProvider);
         }
 
+        private static uint MigratedAggregates = 0;
         private async Task RunAsync(string tenant)
         {
+            MigratedAggregates = 0;
             var @operator = new PlayerOperator()
             {
                 OnAggregateStreamLoadedAsync = async arStream =>
                 {
+                    if (MigratedAggregates % 1000 == 0)
+                        logger.LogInformation("Migration from v9 to v10 migrated {count} aggregates for {cronus_tenant}.", MigratedAggregates, tenant);
+
                     foreach (AggregateCommitRaw commitRaw in arStream.Commits)
                     {
                         List<IEvent> @events = new List<IEvent>();
@@ -71,13 +76,14 @@ namespace Elders.Cronus.Persistence.Cassandra.Migrations
                         var sourceCommit = new AggregateCommit(id, rev, @events, publicEvents, ts);
 
                         await _migrator.MigrateAsync(sourceCommit).ConfigureAwait(false);
+                        MigratedAggregates++;
                     }
                 }
             };
 
-            logger.LogInformation("Migration from v9 to v10 has started for tenant {tenant}...", tenant);
+            logger.LogInformation("Migration from v9 to v10 has started for tenant {cronus_tenant}...", tenant);
             await _sourcePlayer.EnumerateEventStore(@operator, new PlayerOptions()).ConfigureAwait(false);
-            logger.LogInformation("Migration from v9 to v10 has finished for tenant {tenant}!", tenant);
+            logger.LogInformation("Migration from v9 to v10 has finished for tenant {cronus_tenant}!", tenant);
         }
     }
 }

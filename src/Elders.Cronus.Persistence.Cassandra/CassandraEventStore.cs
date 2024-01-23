@@ -145,15 +145,15 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
-        public async Task EnumerateEventStore(PlayerOperator @operator, PlayerOptions replayOptions)
+        public Task EnumerateEventStore(PlayerOperator @operator, PlayerOptions replayOptions)
         {
             if (replayOptions.EventTypeId is null)
             {
-                await EnumerateEventStoreGG(@operator, replayOptions).ConfigureAwait(false);
+                return EnumerateEventStoreGG(@operator, replayOptions);
             }
             else
             {
-                await EnumerateEventStoreForSpecifiedEvent(@operator, replayOptions).ConfigureAwait(false);
+                return EnumerateEventStoreForSpecifiedEvent(@operator, replayOptions);
             }
         }
 

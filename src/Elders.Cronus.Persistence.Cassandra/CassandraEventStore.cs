@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -284,13 +285,13 @@ namespace Elders.Cronus.Persistence.Cassandra
             {
                 if (@operator.OnLoadAsync is not null)
                 {
-                    Task task =
-                        LoadAggregateEventRaw(indexRecord, queryStatement, session)
-                        .ContinueWith(input =>
-                        {
-                            if (input.Result is not null)
-                                @operator.OnLoadAsync(input.Result);
-                        });
+                    Task task = Task.Run(async () =>
+                    {
+                        var rawEventLoaded = await LoadAggregateEventRaw(indexRecord, queryStatement, session);
+                        if (rawEventLoaded is not null)
+                            await @operator.OnLoadAsync(rawEventLoaded);
+                    });
+
                     tasks.Add(task);
 
                     if (tasks.Count >= replayOptions.MaxDegreeOfParallelism)

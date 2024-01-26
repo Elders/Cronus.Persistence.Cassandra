@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -401,11 +400,11 @@ namespace Elders.Cronus.Persistence.Cassandra
                         break;
                 }
 
-                pagingInfo = HandlePaginationStateChanges(replayOptions, onPagingInfoChanged, pagingInfo, result);
+                pagingInfo = await HandlePaginationStateChangesAsync(replayOptions, onPagingInfoChanged, pagingInfo, result).ConfigureAwait(false);
             }
         }
 
-        private PagingInfo HandlePaginationStateChanges(PlayerOptions replayOptions, Func<PlayerOptions, Task> onPagingInfoChanged, PagingInfo pagingInfo, RowSet result)
+        private async Task<PagingInfo> HandlePaginationStateChangesAsync(PlayerOptions replayOptions, Func<PlayerOptions, Task> onPagingInfoChanged, PagingInfo pagingInfo, RowSet result)
         {
             PagingInfo nextPagingInfo = PagingInfo.From(result);
 
@@ -416,7 +415,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             pagingInfo = nextPagingInfo;
             if (onPagingInfoChanged is not null && weHaveNewPagingState)
             {
-                try { Task notify = onPagingInfoChanged(replayOptions.WithPaginationToken(pagingInfo.ToString())); }
+                try { await onPagingInfoChanged(replayOptions.WithPaginationToken(pagingInfo.ToString())).ConfigureAwait(false); }
                 catch (Exception ex) when (logger.ErrorException(ex, () => "Failed to execute onPagingInfoChanged() function.")) { }
             }
 

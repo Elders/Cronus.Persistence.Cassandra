@@ -1,13 +1,13 @@
-﻿using Cassandra;
-using Elders.Cronus.EventStore;
-using Elders.Cronus.EventStore.Index;
-using Microsoft.Extensions.Logging;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Cassandra;
+using Elders.Cronus.EventStore;
+using Elders.Cronus.EventStore.Index;
+using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
@@ -198,7 +198,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                 pagingInfo = nextPagingInfo;
                 if (onPagingInfoChanged is not null && weHaveNewPagingState)
                 {
-                    try { Task notify = onPagingInfoChanged(replayOptions.WithPaginationToken(pagingInfo.ToString())); }
+                    try { await onPagingInfoChanged(replayOptions.WithPaginationToken(pagingInfo.ToString())).ConfigureAwait(false); }
                     catch (Exception ex) when (logger.ErrorException(ex, () => "Failed to execute onPagingInfoChanged() function.")) { }
                 }
             }

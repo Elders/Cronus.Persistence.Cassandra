@@ -48,6 +48,11 @@ namespace Elders.Cronus.Persistence.Cassandra
             {
                 logger.WarnException(ex, () => "Write timeout while persisting in IndexByEventTypeStore");
             }
+            catch (Exception ex)
+            {
+                logger.ErrorException(ex, () => "Failed to write index record.");
+                throw;
+            }
         }
 
         private async Task<PreparedStatement> GetWritePreparedStatementAsync(ISession session)

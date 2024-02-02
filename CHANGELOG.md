@@ -1,3 +1,10 @@
+## [9.1.5](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.1.4...v9.1.5) (2024-02-02)
+
+
+### Bug Fixes
+
+* Properly enumerate eventstore without making pressure ([228be0d](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/228be0da3f2394db34dbb40ae3a91705a4182024))
+
 ## [9.1.4](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.1.3...v9.1.4) (2023-11-08)
 
 

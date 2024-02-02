@@ -146,15 +146,15 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             }
         }
 
-        public async Task EnumerateEventStore(PlayerOperator @operator, PlayerOptions replayOptions)
+        public Task EnumerateEventStore(PlayerOperator @operator, PlayerOptions replayOptions)
         {
             if (replayOptions.EventTypeId is null)
             {
-                await EnumerateEventStoreGG(@operator, replayOptions).ConfigureAwait(false);
+                return EnumerateEventStoreGG(@operator, replayOptions);
             }
             else
             {
-                await EnumerateEventStoreForSpecifiedEvent(@operator, replayOptions).ConfigureAwait(false);
+                return EnumerateEventStoreForSpecifiedEvent(@operator, replayOptions);
             }
         }
 
@@ -328,13 +328,12 @@ namespace Elders.Cronus.Persistence.Cassandra.Preview
             {
                 if (@operator.OnLoadAsync is not null)
                 {
-                    Task task =
-                        LoadAggregateEventRaw(indexRecord, queryStatement, session)
-                        .ContinueWith(input =>
-                        {
-                            if (input.Result is not null)
-                                @operator.OnLoadAsync(input.Result);
-                        });
+                    Task task = Task.Run(async () =>
+                    {
+                        var rawEventLoaded = await LoadAggregateEventRaw(indexRecord, queryStatement, session);
+                        if (rawEventLoaded is not null)
+                            await @operator.OnLoadAsync(rawEventLoaded);
+                    });
                     tasks.Add(task);
 
                     if (tasks.Count >= replayOptions.MaxDegreeOfParallelism)

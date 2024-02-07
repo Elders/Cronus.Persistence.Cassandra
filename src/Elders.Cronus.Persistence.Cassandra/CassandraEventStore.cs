@@ -406,14 +406,8 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private async Task<PagingInfo> HandlePaginationStateChangesAsync(PlayerOptions replayOptions, Func<PlayerOptions, Task> onPagingInfoChanged, PagingInfo pagingInfo, RowSet result)
         {
-            PagingInfo nextPagingInfo = PagingInfo.From(result);
-
-            bool isFirstTime = pagingInfo.Token is null;
-            bool hasMoreRecords = result.PagingState is not null;
-
-            bool weHaveNewPagingState = isFirstTime && hasMoreRecords || isFirstTime == false && hasMoreRecords && pagingInfo.Token.AsSpan().SequenceEqual(nextPagingInfo.Token) == false;
-            pagingInfo = nextPagingInfo;
-            if (onPagingInfoChanged is not null && weHaveNewPagingState)
+            pagingInfo = PagingInfo.From(result);
+            if (onPagingInfoChanged is not null)
             {
                 try { await onPagingInfoChanged(replayOptions.WithPaginationToken(pagingInfo.ToString())).ConfigureAwait(false); }
                 catch (Exception ex) when (logger.ErrorException(ex, () => "Failed to execute onPagingInfoChanged() function.")) { }

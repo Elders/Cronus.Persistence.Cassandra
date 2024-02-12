@@ -191,8 +191,12 @@ namespace Elders.Cronus.Persistence.Cassandra
                     IndexRecord indexRecord = new IndexRecord(replayOptions.EventTypeId, row.GetValue<byte[]>("aid"), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
                     yield return indexRecord;
 
-                    if (cancellationToken.CanBeCanceled && cancellationToken.IsCancellationRequested) break;
+                    if (cancellationToken.CanBeCanceled && cancellationToken.IsCancellationRequested)
+                        break;
                 }
+
+                if (cancellationToken.CanBeCanceled && cancellationToken.IsCancellationRequested)
+                    break;
 
                 pagingInfo = PagingInfo.From(result);
 

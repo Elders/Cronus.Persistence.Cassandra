@@ -147,13 +147,18 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public Task EnumerateEventStore(PlayerOperator @operator, PlayerOptions replayOptions)
         {
+            return EnumerateEventStore(@operator, replayOptions, CancellationToken.None);
+        }
+
+        public Task EnumerateEventStore(PlayerOperator @operator, PlayerOptions replayOptions, CancellationToken cancellationToken = default)
+        {
             if (replayOptions.EventTypeId is null)
             {
-                return EnumerateEventStoreGG(@operator, replayOptions);
+                return EnumerateEventStoreGG(@operator, replayOptions, cancellationToken);
             }
             else
             {
-                return EnumerateEventStoreForSpecifiedEvent(@operator, replayOptions);
+                return EnumerateEventStoreForSpecifiedEvent(@operator, replayOptions, cancellationToken);
             }
         }
 
@@ -212,7 +217,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             return block.Complete();
         }
 
-        private async Task<AggregateEventRaw> LoadAggregateEventRaw(IndexRecord indexRecord, PreparedStatement queryStatement, ISession session)
+        private async Task<AggregateEventRaw> LoadAggregateEventRawAsync(IndexRecord indexRecord, PreparedStatement queryStatement, ISession session)
         {
             try
             {
@@ -274,19 +279,19 @@ namespace Elders.Cronus.Persistence.Cassandra
             return new LoadAggregateRawEventsWithPagingResult(aggregateEventRawCollection, new PagingOptions(pagingOptions.Take, result.PagingState, pagingOptions.Order));
         }
 
-        private async Task EnumerateEventStoreForSpecifiedEvent(PlayerOperator @operator, PlayerOptions replayOptions)
+        private async Task EnumerateEventStoreForSpecifiedEvent(PlayerOperator @operator, PlayerOptions replayOptions, CancellationToken cancellationToken = default)
         {
             ISession session = await GetSessionAsync().ConfigureAwait(false);
             PreparedStatement queryStatement = await PrepareLoadEventQueryStatementAsync(session).ConfigureAwait(false);
 
             List<Task> tasks = new List<Task>();
-            await foreach (IndexRecord indexRecord in indexByEventTypeStore.GetRecordsAsync(replayOptions, @operator.NotifyProgressAsync))
+            await foreach (IndexRecord indexRecord in indexByEventTypeStore.GetRecordsAsync(replayOptions, @operator.NotifyProgressAsync, cancellationToken))
             {
                 if (@operator.OnLoadAsync is not null)
                 {
                     Task task = Task.Run(async () =>
                     {
-                        var rawEventLoaded = await LoadAggregateEventRaw(indexRecord, queryStatement, session);
+                        var rawEventLoaded = await LoadAggregateEventRawAsync(indexRecord, queryStatement, session);
                         if (rawEventLoaded is not null)
                             await @operator.OnLoadAsync(rawEventLoaded);
                     });
@@ -308,7 +313,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             await Task.WhenAll(tasks).ConfigureAwait(false);
         }
 
-        private async Task EnumerateEventStoreGG(PlayerOperator @operator, PlayerOptions replayOptions)
+        private async Task EnumerateEventStoreGG(PlayerOperator @operator, PlayerOptions replayOptions, CancellationToken cancellationToken)
         {
             List<AggregateEventRaw> aggregateEventRaws = new List<AggregateEventRaw>();
 
@@ -399,6 +404,9 @@ namespace Elders.Cronus.Persistence.Cassandra
                     if (cancellationToken.CanBeCanceled && cancellationToken.IsCancellationRequested)
                         break;
                 }
+
+                if (cancellationToken.CanBeCanceled && cancellationToken.IsCancellationRequested)
+                    break;
 
                 pagingInfo = await HandlePaginationStateChangesAsync(replayOptions, onPagingInfoChanged, pagingInfo, result).ConfigureAwait(false);
             }

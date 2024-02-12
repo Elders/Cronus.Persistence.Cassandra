@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.MessageProcessing;
@@ -43,6 +44,11 @@ namespace Elders.Cronus.Persistence.Cassandra.Migrations
         public Task EnumerateEventStore(PlayerOperator @operator, PlayerOptions replayOptions)
         {
             return eventStore_v9.EnumerateEventStore(@operator, replayOptions);
+        }
+
+        public Task EnumerateEventStore(PlayerOperator @operator, PlayerOptions replayOptions, CancellationToken cancellationToken = default)
+        {
+            return eventStore_v9.EnumerateEventStore(@operator, replayOptions, cancellationToken);
         }
     }
 }

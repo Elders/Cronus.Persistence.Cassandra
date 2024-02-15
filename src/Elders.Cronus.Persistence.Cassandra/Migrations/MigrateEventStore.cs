@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.MessageProcessing;
@@ -24,7 +25,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Migrations
             this.logger = logger;
         }
 
-        public async Task RunMigratorAsync(string tenant)
+        public async Task RunMigratorAsync(string tenant, PlayerOptions playerOptions, CancellationToken cancellationToken = default)
         {
             using (IServiceScope scope = _serviceProvider.CreateScope())
             {
@@ -34,7 +35,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Migrations
                 _migrator = scope.ServiceProvider.GetRequiredService<ICronusMigratorManual>();
                 _serializer = scope.ServiceProvider.GetRequiredService<ISerializer>();
 
-                await RunAsync(tenant).ConfigureAwait(false);
+                await RunAsync(tenant, playerOptions, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -45,7 +46,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Migrations
         }
 
         private static uint MigratedAggregates = 0;
-        private async Task RunAsync(string tenant)
+        private async Task RunAsync(string tenant, PlayerOptions playerOptions, CancellationToken cancellationToken)
         {
             MigratedAggregates = 0;
             var @operator = new PlayerOperator()
@@ -82,7 +83,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Migrations
             };
 
             logger.LogInformation("Migration from v9 to v10 has started for tenant {cronus_tenant}...", tenant);
-            await _sourcePlayer.EnumerateEventStore(@operator, new PlayerOptions()).ConfigureAwait(false);
+            await _sourcePlayer.EnumerateEventStore(@operator, playerOptions, cancellationToken).ConfigureAwait(false);
             logger.LogInformation("Migration from v9 to v10 has finished for tenant {cronus_tenant}!", tenant);
         }
     }

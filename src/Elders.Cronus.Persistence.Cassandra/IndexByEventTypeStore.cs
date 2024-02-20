@@ -16,10 +16,12 @@ namespace Elders.Cronus.Persistence.Cassandra
         private const string Read = @"SELECT aid,rev,pos,ts FROM index_by_eventtype WHERE et=?;";
         private const string ReadRange = @"SELECT aid,rev,pos,ts FROM index_by_eventtype WHERE et=? AND ts>=? AND ts<=?;";
         private const string Write = @"INSERT INTO index_by_eventtype (et,aid,rev,pos,ts) VALUES (?,?,?,?,?);";
+        private const string Delete = @"DELETE FROM index_by_eventtype where et = ? AND ts = ? AND aid = ? AND rev = ? AND pos = ?;";
 
         private PreparedStatement readStatement;
         private PreparedStatement readRangeStatement;
         private PreparedStatement writeStatement;
+        private PreparedStatement deleteStatement;
 
         private readonly ICassandraProvider cassandraProvider;
         private readonly ILogger<IndexByEventTypeStore> logger;
@@ -55,6 +57,27 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
+        public async Task DeleteAsync(IndexRecord record)
+        {
+            try
+            {
+                ISession session = await GetSessionAsync().ConfigureAwait(false);
+                PreparedStatement statement = await GetDeletePreparedStatementAsync(session).ConfigureAwait(false);
+
+                var bs = statement.Bind(record.Id, record.TimeStamp, record.AggregateRootId, record.Revision, record.Position);
+                await session.ExecuteAsync(bs).ConfigureAwait(false);
+            }
+            catch (WriteTimeoutException ex)
+            {
+                logger.WarnException(ex, () => "Delete timeout while deleting from IndexByEventTypeStore");
+            }
+            catch (Exception ex)
+            {
+                logger.ErrorException(ex, () => "Failed to delete index record.");
+                throw;
+            }
+        }
+
         private async Task<PreparedStatement> GetWritePreparedStatementAsync(ISession session)
         {
             if (writeStatement is null)
@@ -64,6 +87,17 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
 
             return writeStatement;
+        }
+
+        private async Task<PreparedStatement> GetDeletePreparedStatementAsync(ISession session)
+        {
+            if (deleteStatement is null)
+            {
+                deleteStatement = await session.PrepareAsync(Delete).ConfigureAwait(false);
+                deleteStatement.SetConsistencyLevel(ConsistencyLevel.Any);
+            }
+
+            return deleteStatement;
         }
 
         private async Task<PreparedStatement> GetReadPreparedStatementAsync(ISession session)

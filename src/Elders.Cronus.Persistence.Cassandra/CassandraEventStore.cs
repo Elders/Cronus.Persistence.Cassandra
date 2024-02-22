@@ -308,6 +308,26 @@ namespace Elders.Cronus.Persistence.Cassandra
                         tasks.Remove(completedTask);
                     }
                 }
+
+                if (@operator.OnAggregateStreamLoadedAsync is not null)
+                {
+                    Task task = Task.Run(async () =>
+                    {
+                        var stream = await LoadAsync(indexRecord.AggregateRootId).ConfigureAwait(false);
+                        await @operator.OnAggregateStreamLoadedAsync(stream).ConfigureAwait(false);
+                    });
+                    tasks.Add(task);
+
+                    if (tasks.Count >= replayOptions.MaxDegreeOfParallelism)
+                    {
+                        Task completedTask = await Task.WhenAny(tasks);
+                        if (completedTask.Status == TaskStatus.Faulted)
+                        {
+                            logger.ErrorException(completedTask.Exception, () => $"Failed to replay event for index record: {indexRecord.ToJson()}");
+                        }
+                        tasks.Remove(completedTask);
+                    }
+                }
             }
 
             await Task.WhenAll(tasks).ConfigureAwait(false);
@@ -364,6 +384,29 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
 
             await Task.WhenAll(tasks).ConfigureAwait(false);
+        }
+
+        private async Task<AggregateStream> LoadAsync(byte[] id)
+        {
+            List<AggregateEventRaw> aggregateEvents = new List<AggregateEventRaw>();
+
+            ISession session = await GetSessionAsync().ConfigureAwait(false);
+            PreparedStatement bs = await GetReadStatementAscendingAsync(session).ConfigureAwait(false);
+            BoundStatement boundStatement = bs.Bind(id);
+
+            var result = await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
+            foreach (var row in result.GetRows())
+            {
+                int revision = row.GetValue<int>(CassandraColumn.Revision);
+                int position = row.GetValue<int>(CassandraColumn.Position);
+                long timestamp = row.GetValue<long>(CassandraColumn.Timestamp);
+                byte[] data = row.GetValue<byte[]>(CassandraColumn.Data);
+
+                var eventRaw = new AggregateEventRaw(id, data, revision, position, timestamp);
+                aggregateEvents.Add(eventRaw);
+            }
+
+            return new AggregateStream(aggregateEvents);
         }
 
         private async IAsyncEnumerable<AggregateEventRaw> LoadEntireEventStoreAsync(PlayerOptions replayOptions, Func<PlayerOptions, Task> onPagingInfoChanged = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)

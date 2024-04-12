@@ -87,7 +87,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Migrations
                     Task task = _migrator.MigrateAsync(sourceCommit);
                     tasks.Add(task);
 
-                    if (tasks.Count > 100)
+                    if (tasks.Count >= Environment.ProcessorCount)
                     {
                         Task finished = await Task.WhenAny(tasks).ConfigureAwait(false);
                         tasks.Remove(finished);

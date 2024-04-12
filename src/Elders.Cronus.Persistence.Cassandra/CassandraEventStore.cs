@@ -291,9 +291,9 @@ namespace Elders.Cronus.Persistence.Cassandra
                 {
                     Task task = Task.Run(async () =>
                     {
-                        var rawEventLoaded = await LoadAggregateEventRawAsync(indexRecord, queryStatement, session);
+                        var rawEventLoaded = await LoadAggregateEventRawAsync(indexRecord, queryStatement, session).ConfigureAwait(false);
                         if (rawEventLoaded is not null)
-                            await @operator.OnLoadAsync(rawEventLoaded);
+                            await @operator.OnLoadAsync(rawEventLoaded).ConfigureAwait(false);
                     });
 
                     tasks.Add(task);
@@ -338,7 +338,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             List<AggregateEventRaw> aggregateEventRaws = new List<AggregateEventRaw>();
 
             List<Task> tasks = new List<Task>();
-            await foreach (AggregateEventRaw @event in LoadEntireEventStoreAsync(replayOptions, @operator.NotifyProgressAsync))
+            await foreach (AggregateEventRaw @event in LoadEntireEventStoreAsync(replayOptions, @operator.NotifyProgressAsync).ConfigureAwait(false))
             {
                 if (@operator.OnLoadAsync is not null)
                 {
@@ -347,7 +347,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
                     if (tasks.Count >= replayOptions.MaxDegreeOfParallelism)
                     {
-                        Task completedTask = await Task.WhenAny(tasks);
+                        Task completedTask = await Task.WhenAny(tasks).ConfigureAwait(false);
                         if (completedTask.Status == TaskStatus.Faulted)
                         {
                             string dataAsJson = System.Text.Json.JsonSerializer.Serialize(@event);
@@ -366,7 +366,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                     if (aggregateEventRaws.Count > 0 && aggregateEventRaws.First().AggregateRootId.AsSpan().SequenceEqual(@event.AggregateRootId) == false)
                     {
                         AggregateStream stream = new AggregateStream(aggregateEventRaws);
-                        await @operator.OnAggregateStreamLoadedAsync(stream);
+                        await @operator.OnAggregateStreamLoadedAsync(stream).ConfigureAwait(false);
 
                         aggregateEventRaws.Clear();
                     }
@@ -379,7 +379,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             if (@operator.OnAggregateStreamLoadedAsync is not null && aggregateEventRaws.Count > 0)
             {
                 AggregateStream stream = new AggregateStream(aggregateEventRaws);
-                await @operator.OnAggregateStreamLoadedAsync(stream);
+                await @operator.OnAggregateStreamLoadedAsync(stream).ConfigureAwait(false);
                 aggregateEventRaws.Clear();
             }
 

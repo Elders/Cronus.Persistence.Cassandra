@@ -83,7 +83,6 @@ namespace Elders.Cronus.Persistence.Cassandra.Migrations
                 },
                 NotifyProgressAsync = progress =>
                 {
-                    logger.LogDebug($"Migration from v9 to v10 pagination token {progress.PaginationToken}");
                     logger.LogDebug("Migration from v9 to v10 progress {@progress}", progress);
 
                     return Task.CompletedTask;

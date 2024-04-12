@@ -1,3 +1,10 @@
+## [9.1.6](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.1.5...v9.1.6) (2024-04-12)
+
+
+### Bug Fixes
+
+* Respects number of processors when migration to v9 ([8cdf4b9](https://github.com/Elders/Cronus.Persistence.Cassandra/commit/8cdf4b9c3750e89c2f33fe93a22bed20d61b7b62))
+
 ## [9.1.5](https://github.com/Elders/Cronus.Persistence.Cassandra/compare/v9.1.4...v9.1.5) (2024-02-02)
 
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Cassandra;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.MessageProcessing;
 using Elders.Cronus.Migrations;
@@ -79,6 +80,13 @@ namespace Elders.Cronus.Persistence.Cassandra.Migrations
                         await _migrator.MigrateAsync(sourceCommit).ConfigureAwait(false);
                         MigratedAggregates++;
                     }
+                },
+                NotifyProgressAsync = progress =>
+                {
+                    logger.LogDebug($"Migration from v9 to v10 pagination token {progress.PaginationToken}");
+                    logger.LogDebug("Migration from v9 to v10 progress {@progress}", progress);
+
+                    return Task.CompletedTask;
                 }
             };
 

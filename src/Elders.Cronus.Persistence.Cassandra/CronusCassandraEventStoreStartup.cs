@@ -64,6 +64,8 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             if (tenants.Tenants.SequenceEqual(newOptions.Tenants) == false) // Check for difference between tenants and newOptions
             {
+                logger.Debug(() => "Cronus tenant options re-loaded with {@options}", newOptions);
+
                 // Find the difference between the old and new tenants
                 // and bootstrap the new tenants
                 var newTenants = newOptions.Tenants.Except(tenants.Tenants);

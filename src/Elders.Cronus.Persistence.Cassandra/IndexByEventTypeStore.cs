@@ -13,10 +13,10 @@ namespace Elders.Cronus.Persistence.Cassandra
 {
     public class IndexByEventTypeStore : IIndexStore
     {
-        private const string Read = @"SELECT aid,rev,pos,ts FROM index_by_eventtype WHERE et=?;";
-        private const string ReadRange = @"SELECT aid,rev,pos,ts FROM index_by_eventtype WHERE et=? AND ts>=? AND ts<=?;";
-        private const string Write = @"INSERT INTO index_by_eventtype (et,aid,rev,pos,ts) VALUES (?,?,?,?,?);";
-        private const string Delete = @"DELETE FROM index_by_eventtype where et = ? AND ts = ? AND aid = ? AND rev = ? AND pos = ?;";
+        private const string Read = @"SELECT aid,rev,pos,ts FROM index_by_eventtype WHERE et=? AND pid=?;";
+        private const string ReadRange = @"SELECT aid,rev,pos,ts FROM index_by_eventtype WHERE et=? AND pid=? AND ts>=? AND ts<=?;";
+        private const string Write = @"INSERT INTO index_by_eventtype (et,pid,aid,rev,pos,ts) VALUES (?,?,?,?,?,?);";
+        private const string Delete = @"DELETE FROM index_by_eventtype where et=? AND pid AND ts=? AND aid=? AND rev=? AND pos=?;";
 
         private PreparedStatement readStatement;
         private PreparedStatement readRangeStatement;
@@ -42,8 +42,9 @@ namespace Elders.Cronus.Persistence.Cassandra
             {
                 ISession session = await GetSessionAsync().ConfigureAwait(false);
                 PreparedStatement statement = await GetWritePreparedStatementAsync(session).ConfigureAwait(false);
+                int partitionId = CalculatePartition(record.TimeStamp);
 
-                var bs = statement.Bind(record.Id, record.AggregateRootId, record.Revision, record.Position, record.TimeStamp).SetIdempotence(true);
+                var bs = statement.Bind(record.Id, partitionId, record.AggregateRootId, record.Revision, record.Position, record.TimeStamp).SetIdempotence(true);
                 await session.ExecuteAsync(bs).ConfigureAwait(false);
             }
             catch (WriteTimeoutException ex)
@@ -76,6 +77,21 @@ namespace Elders.Cronus.Persistence.Cassandra
                 logger.ErrorException(ex, () => "Failed to delete index record.");
                 throw;
             }
+        }
+
+        public static int CalculatePartition(long filetimeUtc)
+        {
+            DateTime timestamp = DateTime.FromFileTimeUtc(filetimeUtc);
+
+            return CalculatePartition(timestamp);
+        }
+
+        public static int CalculatePartition(DateTime filetimeUtc)
+        {
+            int day = filetimeUtc.DayOfYear;
+            int partitionId = filetimeUtc.Year * 1000 + day;
+
+            return partitionId;
         }
 
         private async Task<PreparedStatement> GetWritePreparedStatementAsync(ISession session)
@@ -208,37 +224,49 @@ namespace Elders.Cronus.Persistence.Cassandra
             ISession session = await GetSessionAsync().ConfigureAwait(false);
             PreparedStatement statement = await GetReadRangePreparedStatementAsync(session).ConfigureAwait(false);
 
-            IStatement queryStatement = statement.Bind(replayOptions.EventTypeId, after, before);
-            queryStatement
-                .SetPageSize(replayOptions.BatchSize)
-                .SetAutoPage(false);
+            DateTime startDate = DateTime.FromFileTimeUtc(after);
+            DateTime beforeDate = DateTime.FromFileTimeUtc(before);
+            DateTime currentDate = pagingInfo.PartitionDate.HasValue ? pagingInfo.PartitionDate.Value : startDate; ;
 
-            while (pagingInfo.HasMore)
+            while (currentDate <= beforeDate)
             {
-                if (pagingInfo.HasToken())
-                    queryStatement.SetPagingState(pagingInfo.Token);
+                int currentPartition = CalculatePartition(currentDate);
 
-                RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
+                IStatement queryStatement = statement.Bind(replayOptions.EventTypeId, currentPartition, after, before);
+                queryStatement
+                    .SetPageSize(replayOptions.BatchSize)
+                    .SetAutoPage(false);
 
-                foreach (var row in result.GetRows())
+                while (pagingInfo.HasMore)
                 {
-                    IndexRecord indexRecord = new IndexRecord(replayOptions.EventTypeId, row.GetValue<byte[]>("aid"), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
-                    yield return indexRecord;
+                    if (pagingInfo.HasToken())// eh
+                        queryStatement.SetPagingState(pagingInfo.Token);
+
+                    RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
+
+                    foreach (var row in result)
+                    {
+                        IndexRecord indexRecord = new IndexRecord(replayOptions.EventTypeId, row.GetValue<byte[]>("aid"), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
+                        yield return indexRecord;
+
+                        if (cancellationToken.CanBeCanceled && cancellationToken.IsCancellationRequested)
+                            break;
+                    }
 
                     if (cancellationToken.CanBeCanceled && cancellationToken.IsCancellationRequested)
                         break;
+
+                    pagingInfo = PagingInfo.From(result, currentDate);
+
+                    if (onPagingInfoChanged is not null)
+                    {
+                        try { await onPagingInfoChanged(replayOptions.WithPaginationToken(pagingInfo.ToString())).ConfigureAwait(false); }
+                        catch (Exception ex) when (logger.ErrorException(ex, () => "Failed to execute onPagingInfoChanged() function.")) { }
+                    }
                 }
 
-                if (cancellationToken.CanBeCanceled && cancellationToken.IsCancellationRequested)
-                    break;
-
-                pagingInfo = PagingInfo.From(result);
-
-                if (onPagingInfoChanged is not null)
-                {
-                    try { await onPagingInfoChanged(replayOptions.WithPaginationToken(pagingInfo.ToString())).ConfigureAwait(false); }
-                    catch (Exception ex) when (logger.ErrorException(ex, () => "Failed to execute onPagingInfoChanged() function.")) { }
-                }
+                pagingInfo = new PagingInfo();
+                currentDate = currentDate.AddDays(1);
             }
         }
     }

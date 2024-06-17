@@ -14,6 +14,8 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public byte[] Token { get; set; }
 
+        public DateTime? PartitionDate { get; set; }
+
         public bool HasMore { get; set; }
 
         public bool HasToken() => Token is null == false;
@@ -21,6 +23,16 @@ namespace Elders.Cronus.Persistence.Cassandra
         public override string ToString()
         {
             return Convert.ToBase64String(JsonSerializer.SerializeToUtf8Bytes(this));
+        }
+
+        public static PagingInfo From(RowSet result, DateTime partitionDate)
+        {
+            return new PagingInfo()
+            {
+                Token = result.PagingState,
+                HasMore = result.PagingState is null == false,
+                PartitionDate = partitionDate
+            };
         }
 
         public static PagingInfo From(RowSet result)

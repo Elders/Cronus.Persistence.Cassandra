@@ -16,12 +16,10 @@ namespace Elders.Cronus.Persistence.Cassandra
         private const string INDEX_POS = @"CREATE INDEX IF NOT EXISTS ""{0}_idx_pos"" ON ""{0}"" (pos);";
 
         private const string CREATE_INDEX_STATUS_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id blob, status text, PRIMARY KEY (id));";
-        private const string CREATE_INDEX_BY_EVENT_TYPE_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (et text, aid blob, rev int, pos int, ts bigint, PRIMARY KEY (et,ts,aid,rev,pos)) WITH CLUSTERING ORDER BY (ts ASC);"; // ASC element required to be in second position in primary key https://stackoverflow.com/questions/23185331/cql-bad-request-missing-clustering-order-for-column
+        private const string CREATE_INDEX_BY_EVENT_TYPE_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (et text, pid int, aid blob, rev int, pos int, ts bigint, PRIMARY KEY ((et,pid),ts,aid,rev,pos)) WITH CLUSTERING ORDER BY (ts ASC);"; // ASC element required to be in second position in primary key https://stackoverflow.com/questions/23185331/cql-bad-request-missing-clustering-order-for-column
 
         private const string INDEX_STATUS_TABLE_NAME = "index_status";
         private const string INDEX_BY_EVENT_TYPE_TABLE_NAME = "index_by_eventtype";
-
-
         private readonly ICassandraProvider cassandraProvider;
         private readonly ITableNamingStrategy tableNameStrategy;
 
@@ -49,7 +47,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         public Task CreateEventsStorageAsync()
         {
             string tableName = tableNameStrategy.GetName();
-            return CreateEventStoragePersistanseAsync(tableName);
+            return CreateEventStoragePersistenceAsync(tableName);
         }
 
         public Task CreateSnapshotsStorageAsync()
@@ -91,7 +89,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
-        private async Task CreateEventStoragePersistanseAsync(string tableName)
+        private async Task CreateEventStoragePersistenceAsync(string tableName)
         {
             try
             {

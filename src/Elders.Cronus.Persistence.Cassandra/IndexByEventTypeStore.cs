@@ -224,10 +224,6 @@ namespace Elders.Cronus.Persistence.Cassandra
             ISession session = await GetSessionAsync().ConfigureAwait(false);
             PreparedStatement statement = await GetReadRangePreparedStatementAsync(session).ConfigureAwait(false);
 
-            DateTime startDate = DateTime.FromFileTimeUtc(after);
-            DateTime beforeDate = DateTime.FromFileTimeUtc(before);
-            DateTime currentDate = pagingInfo.PartitionDate.HasValue ? pagingInfo.PartitionDate.Value : startDate;
-
             IStatement queryStatement = statement.Bind(replayOptions.EventTypeId, after, before);
             queryStatement
                 .SetPageSize(replayOptions.BatchSize)
@@ -252,7 +248,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                 if (cancellationToken.CanBeCanceled && cancellationToken.IsCancellationRequested)
                     break;
 
-                pagingInfo = PagingInfo.From(result, currentDate);
+                pagingInfo = PagingInfo.From(result);
 
                 if (onPagingInfoChanged is not null)
                 {
@@ -260,9 +256,6 @@ namespace Elders.Cronus.Persistence.Cassandra
                     catch (Exception ex) when (logger.ErrorException(ex, () => "Failed to execute onPagingInfoChanged() function.")) { }
                 }
             }
-
-            pagingInfo = new PagingInfo();
-            currentDate = currentDate.AddDays(1);
         }
     }
 }

@@ -14,7 +14,7 @@ namespace Elders.Cronus.Persistence.Cassandra
     public class IndexByEventTypeStore : IIndexStore
     {
         private const string Read = @"SELECT aid,rev,pos,ts FROM index_by_eventtype WHERE et=? AND pid=?;";
-        private const string ReadRange = @"SELECT aid,rev,pos,ts FROM index_by_eventtype WHERE et=? AND pid=? AND ts>=? AND ts<=?;";
+        private const string ReadRange = @"SELECT aid,rev,pos,ts FROM index_by_eventtype WHERE et=? AND ts>=? AND ts<=? ALLOW FILTERING;";
         private const string Write = @"INSERT INTO index_by_eventtype (et,pid,aid,rev,pos,ts) VALUES (?,?,?,?,?,?);";
         private const string Delete = @"DELETE FROM index_by_eventtype where et=? AND pid AND ts=? AND aid=? AND rev=? AND pos=?;";
 
@@ -218,56 +218,51 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
 
             PagingInfo pagingInfo = PagingInfo.Parse(replayOptions.PaginationToken);
-            long after = replayOptions.After.HasValue ? replayOptions.After.Value.ToFileTime() : 0;
-            long before = replayOptions.Before.HasValue ? replayOptions.Before.Value.ToFileTime() : 0;
+            long after = replayOptions.After.HasValue ? replayOptions.After.Value.ToFileTime() : new PlayerOptions().After.Value.ToFileTime();
+            long before = replayOptions.Before.HasValue ? replayOptions.Before.Value.ToFileTime() : DateTimeOffset.UtcNow.AddDays(1).ToFileTime();
 
             ISession session = await GetSessionAsync().ConfigureAwait(false);
             PreparedStatement statement = await GetReadRangePreparedStatementAsync(session).ConfigureAwait(false);
 
             DateTime startDate = DateTime.FromFileTimeUtc(after);
             DateTime beforeDate = DateTime.FromFileTimeUtc(before);
-            DateTime currentDate = pagingInfo.PartitionDate.HasValue ? pagingInfo.PartitionDate.Value : startDate; ;
+            DateTime currentDate = pagingInfo.PartitionDate.HasValue ? pagingInfo.PartitionDate.Value : startDate;
 
-            while (currentDate <= beforeDate)
+            IStatement queryStatement = statement.Bind(replayOptions.EventTypeId, after, before);
+            queryStatement
+                .SetPageSize(replayOptions.BatchSize)
+                .SetAutoPage(false);
+
+            while (pagingInfo.HasMore)
             {
-                int currentPartition = CalculatePartition(currentDate);
+                if (pagingInfo.HasToken())// eh
+                    queryStatement.SetPagingState(pagingInfo.Token);
 
-                IStatement queryStatement = statement.Bind(replayOptions.EventTypeId, currentPartition, after, before);
-                queryStatement
-                    .SetPageSize(replayOptions.BatchSize)
-                    .SetAutoPage(false);
+                RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
 
-                while (pagingInfo.HasMore)
+                foreach (var row in result)
                 {
-                    if (pagingInfo.HasToken())// eh
-                        queryStatement.SetPagingState(pagingInfo.Token);
-
-                    RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
-
-                    foreach (var row in result)
-                    {
-                        IndexRecord indexRecord = new IndexRecord(replayOptions.EventTypeId, row.GetValue<byte[]>("aid"), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
-                        yield return indexRecord;
-
-                        if (cancellationToken.CanBeCanceled && cancellationToken.IsCancellationRequested)
-                            break;
-                    }
+                    IndexRecord indexRecord = new IndexRecord(replayOptions.EventTypeId, row.GetValue<byte[]>("aid"), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
+                    yield return indexRecord;
 
                     if (cancellationToken.CanBeCanceled && cancellationToken.IsCancellationRequested)
                         break;
-
-                    pagingInfo = PagingInfo.From(result, currentDate);
-
-                    if (onPagingInfoChanged is not null)
-                    {
-                        try { await onPagingInfoChanged(replayOptions.WithPaginationToken(pagingInfo.ToString())).ConfigureAwait(false); }
-                        catch (Exception ex) when (logger.ErrorException(ex, () => "Failed to execute onPagingInfoChanged() function.")) { }
-                    }
                 }
 
-                pagingInfo = new PagingInfo();
-                currentDate = currentDate.AddDays(1);
+                if (cancellationToken.CanBeCanceled && cancellationToken.IsCancellationRequested)
+                    break;
+
+                pagingInfo = PagingInfo.From(result, currentDate);
+
+                if (onPagingInfoChanged is not null)
+                {
+                    try { await onPagingInfoChanged(replayOptions.WithPaginationToken(pagingInfo.ToString())).ConfigureAwait(false); }
+                    catch (Exception ex) when (logger.ErrorException(ex, () => "Failed to execute onPagingInfoChanged() function.")) { }
+                }
             }
+
+            pagingInfo = new PagingInfo();
+            currentDate = currentDate.AddDays(1);
         }
     }
 }

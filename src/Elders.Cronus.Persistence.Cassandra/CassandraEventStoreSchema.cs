@@ -12,8 +12,8 @@ namespace Elders.Cronus.Persistence.Cassandra
         private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(CassandraEventStoreSchema));
 
         private const string CREATE_EVENTS_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id blob, ts bigint, rev int, pos int, data blob, PRIMARY KEY (id,rev,pos)) WITH CLUSTERING ORDER BY (rev ASC, pos ASC);";
-        private const string INDEX_REV = @"CREATE INDEX IF NOT EXISTS ""{0}_idx_rev"" ON ""{0}"" (rev);";
-        private const string INDEX_POS = @"CREATE INDEX IF NOT EXISTS ""{0}_idx_pos"" ON ""{0}"" (pos);";
+        private const string INDEX_REV = @"DROP INDEX IF EXISTS ""{0}_idx_rev""";
+        private const string INDEX_POS = @"DROP INDEX IF EXISTS ""{0}_idx_pos""";
 
         private const string CREATE_INDEX_STATUS_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id blob, status text, PRIMARY KEY (id));";
         private const string CREATE_INDEX_BY_EVENT_TYPE_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (et text, pid int, aid blob, rev int, pos int, ts bigint, PRIMARY KEY ((et,pid),ts,aid,rev,pos)) WITH CLUSTERING ORDER BY (ts ASC);"; // ASC element required to be in second position in primary key https://stackoverflow.com/questions/23185331/cql-bad-request-missing-clustering-order-for-column

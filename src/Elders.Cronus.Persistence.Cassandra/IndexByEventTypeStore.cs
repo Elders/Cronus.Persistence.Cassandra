@@ -18,11 +18,6 @@ namespace Elders.Cronus.Persistence.Cassandra
         private const string Write = @"INSERT INTO index_by_eventtype (et,pid,aid,rev,pos,ts) VALUES (?,?,?,?,?,?);";
         private const string Delete = @"DELETE FROM index_by_eventtype where et=? AND pid AND ts=? AND aid=? AND rev=? AND pos=?;";
 
-        private PreparedStatement readStatement;
-        private PreparedStatement readRangeStatement;
-        private PreparedStatement writeStatement;
-        private PreparedStatement deleteStatement;
-
         private readonly ICassandraProvider cassandraProvider;
         private readonly ILogger<IndexByEventTypeStore> logger;
 
@@ -96,44 +91,32 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private async Task<PreparedStatement> GetWritePreparedStatementAsync(ISession session)
         {
-            if (writeStatement is null)
-            {
-                writeStatement = await session.PrepareAsync(Write).ConfigureAwait(false);
-                writeStatement.SetConsistencyLevel(ConsistencyLevel.Any);
-            }
+            PreparedStatement writeStatement = await session.PrepareAsync(Write).ConfigureAwait(false);
+            writeStatement.SetConsistencyLevel(ConsistencyLevel.Any);
 
             return writeStatement;
         }
 
         private async Task<PreparedStatement> GetDeletePreparedStatementAsync(ISession session)
         {
-            if (deleteStatement is null)
-            {
-                deleteStatement = await session.PrepareAsync(Delete).ConfigureAwait(false);
-                deleteStatement.SetConsistencyLevel(ConsistencyLevel.Any);
-            }
+            PreparedStatement deleteStatement = await session.PrepareAsync(Delete).ConfigureAwait(false);
+            deleteStatement.SetConsistencyLevel(ConsistencyLevel.Any);
 
             return deleteStatement;
         }
 
         private async Task<PreparedStatement> GetReadPreparedStatementAsync(ISession session)
         {
-            if (readStatement is null)
-            {
-                readStatement = await session.PrepareAsync(Read).ConfigureAwait(false);
-                readStatement.SetConsistencyLevel(ConsistencyLevel.One);
-            }
+            PreparedStatement readStatement = await session.PrepareAsync(Read).ConfigureAwait(false);
+            readStatement.SetConsistencyLevel(ConsistencyLevel.One);
 
             return readStatement;
         }
 
         private async Task<PreparedStatement> GetReadRangePreparedStatementAsync(ISession session)
         {
-            if (readRangeStatement is null)
-            {
-                readRangeStatement = await session.PrepareAsync(ReadRange).ConfigureAwait(false);
-                readRangeStatement.SetConsistencyLevel(ConsistencyLevel.One);
-            }
+            PreparedStatement readRangeStatement = await session.PrepareAsync(ReadRange).ConfigureAwait(false);
+            readRangeStatement.SetConsistencyLevel(ConsistencyLevel.One);
 
             return readRangeStatement;
         }

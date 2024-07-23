@@ -88,42 +88,28 @@ namespace Elders.Cronus.Persistence.Cassandra.Counters
             await DecrementAsync(messageType, current).ConfigureAwait(false);
         }
 
-        PreparedStatement incrementStatement;
         private async Task<PreparedStatement> GetIncrementStatementAsync(ISession session)
         {
-            if (incrementStatement is null)
-            {
-                incrementStatement = await session.PrepareAsync(IncrementTemplate).ConfigureAwait(false);
-                incrementStatement.SetConsistencyLevel(ConsistencyLevel.One);
-            }
+            PreparedStatement incrementStatement = await session.PrepareAsync(IncrementTemplate).ConfigureAwait(false);
+            incrementStatement.SetConsistencyLevel(ConsistencyLevel.One);
 
             return incrementStatement;
         }
 
-        PreparedStatement decrementStatement;
         private async Task<PreparedStatement> GetDecrementStatementAsync(ISession session)
         {
-            if (decrementStatement is null)
-            {
-                decrementStatement = await session.PrepareAsync(DecrementTemplate).ConfigureAwait(false);
-                decrementStatement.SetConsistencyLevel(ConsistencyLevel.One);
-            }
+            PreparedStatement decrementStatement = await session.PrepareAsync(DecrementTemplate).ConfigureAwait(false);
+            decrementStatement.SetConsistencyLevel(ConsistencyLevel.One);
 
             return decrementStatement;
         }
 
-        PreparedStatement readStatement;
         private async Task<PreparedStatement> GetReadStatementAsync(ISession session)
         {
-            if (readStatement is null)
-            {
-                readStatement = await session.PrepareAsync(GetTemplate).ConfigureAwait(false);
-                readStatement.SetConsistencyLevel(ConsistencyLevel.One);
-            }
+            PreparedStatement readStatement = await session.PrepareAsync(GetTemplate).ConfigureAwait(false);
+            readStatement.SetConsistencyLevel(ConsistencyLevel.One);
 
             return readStatement;
         }
-
-
     }
 }

@@ -28,11 +28,11 @@
     <RootNamespace>Elders.Cronus.Persistence.Cassandra</RootNamespace>
     <NeutralLanguage>en-US</NeutralLanguage>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <AssemblyVersion>10.0.0</AssemblyVersion>
+    <AssemblyVersion>11.0.0</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Cronus" Version="10.13.3" />
+    <PackageReference Include="Cronus" Version="11.0.0-preview.2" />
     <PackageReference Include="CassandraCSharpDriver" Version="3.20.1" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
   </ItemGroup>

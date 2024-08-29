@@ -355,7 +355,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                     // All aggregates events are stored in a single partition where the ID of the AR is the partition value.
                     // This way all events for an AR will be loaded before proceeding to the next AR.
                     // This is Cassandra specific behavior and should not be cloned to other DB implementations.
-                    if (aggregateEventRaws.Count > 0 && aggregateEventRaws.First().AggregateRootId.AsSpan().SequenceEqual(@event.AggregateRootId) == false)
+                    if (aggregateEventRaws.Count > 0 && aggregateEventRaws.First().AggregateRootId.Span.SequenceEqual(@event.AggregateRootId.Span) == false)
                     {
                         AggregateStream stream = new AggregateStream(aggregateEventRaws);
                         await @operator.OnAggregateStreamLoadedAsync(stream).ConfigureAwait(false);
@@ -378,7 +378,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             await Task.WhenAll(tasks).ConfigureAwait(false);
         }
 
-        private async Task<AggregateStream> LoadAsync(byte[] id)
+        private async Task<AggregateStream> LoadAsync(ReadOnlyMemory<byte> id)
         {
             List<AggregateEventRaw> aggregateEvents = new List<AggregateEventRaw>();
 

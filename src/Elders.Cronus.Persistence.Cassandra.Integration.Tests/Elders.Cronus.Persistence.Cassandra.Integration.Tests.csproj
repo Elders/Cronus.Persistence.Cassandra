@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Testcontainers" Version="3.9.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.0" />
+    <PackageReference Include="xunit.v3" Version="0.3.0-pre.18" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.0.0-pre.30" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Elders.Cronus.Persistence.Cassandra\Elders.Cronus.Persistence.Cassandra.csproj" />
+  </ItemGroup>
+
+</Project>

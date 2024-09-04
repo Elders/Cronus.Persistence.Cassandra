@@ -16,7 +16,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         private const string Read = @"SELECT aid,rev,pos,ts FROM index_by_eventtype WHERE et=? AND pid=?;";
         private const string ReadRange = @"SELECT aid,rev,pos,ts FROM index_by_eventtype WHERE et=? AND ts>=? AND ts<=? ALLOW FILTERING;";
         private const string Write = @"INSERT INTO index_by_eventtype (et,pid,aid,rev,pos,ts) VALUES (?,?,?,?,?,?);";
-        private const string Delete = @"DELETE FROM index_by_eventtype where et=? AND pid AND ts=? AND aid=? AND rev=? AND pos=?;";
+        private const string Delete = @"DELETE FROM index_by_eventtype where et=? AND pid=? AND ts=? AND aid=? AND rev=? AND pos=?;";
 
         private readonly ICassandraProvider cassandraProvider;
         private readonly ILogger<IndexByEventTypeStore> logger;
@@ -60,7 +60,8 @@ namespace Elders.Cronus.Persistence.Cassandra
                 ISession session = await GetSessionAsync().ConfigureAwait(false);
                 PreparedStatement statement = await GetDeletePreparedStatementAsync(session).ConfigureAwait(false);
 
-                var bs = statement.Bind(record.Id, record.TimeStamp, record.AggregateRootId, record.Revision, record.Position);
+                var partitionId = CalculatePartition(record.TimeStamp);
+                var bs = statement.Bind(record.Id, partitionId, record.TimeStamp, record.AggregateRootId, record.Revision, record.Position);
                 await session.ExecuteAsync(bs).ConfigureAwait(false);
             }
             catch (WriteTimeoutException ex)

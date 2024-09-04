@@ -1,4 +1,5 @@
-﻿using Cassandra;
+﻿using System.Collections.Concurrent;
+using Cassandra;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 using Elders.Cronus.Persistence.Cassandra.Integration.Tests;
@@ -7,13 +8,15 @@ using Elders.Cronus.Persistence.Cassandra.Integration.Tests;
 
 namespace Elders.Cronus.Persistence.Cassandra.Integration.Tests;
 
-public class CassandraFixture : ICassandraProvider, IAsyncDisposable
+public class CassandraFixture : ICassandraProvider, IAsyncDisposable, IAsyncLifetime
 {
-    private ISession session;
+    private readonly ConcurrentDictionary<string, ISession> sessionPerKeyspace = [];
     private ICluster cluster;
     private static readonly object mutex = new();
 
-    public CassandraFixture()
+    //public const string DefaultKeyspace = "test_containers";
+
+    public async ValueTask InitializeAsync()
     {
         Container = new ContainerBuilder()
             .WithImage("cassandra:4.1")
@@ -25,20 +28,26 @@ public class CassandraFixture : ICassandraProvider, IAsyncDisposable
             .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(9042))
             .Build();
 
-        Container.StartAsync().GetAwaiter().GetResult();
+        await Container.StartAsync();
+
+        if (Instance is null)
+            Instance = this;
     }
 
     public IContainer Container { get; private set; }
 
+    public static CassandraFixture Instance { get; private set; }
+
     public async ValueTask DisposeAsync()
     {
+        cluster?.Dispose();
+        foreach (var session in sessionPerKeyspace)
+            session.Value?.Dispose();
+
         if (Container != null)
         {
             await Container.DisposeAsync();
         }
-
-        cluster?.Dispose();
-        session?.Dispose();
     }
 
     public Task<ICluster> GetClusterAsync()
@@ -51,6 +60,7 @@ public class CassandraFixture : ICassandraProvider, IAsyncDisposable
                 {
                     cluster = global::Cassandra.Cluster.Builder()
                         .AddContactPoint(Container.Hostname)
+                        .WithTypeSerializers(new global::Cassandra.Serialization.TypeSerializerDefinitions().Define(new ReadOnlyMemoryTypeSerializer()))
                         .WithPort(Container.GetMappedPublicPort(9042))
                         .Build();
                 }
@@ -62,24 +72,31 @@ public class CassandraFixture : ICassandraProvider, IAsyncDisposable
 
     public Task<ISession> GetSessionAsync()
     {
-        if (session == null)
+        var className = TestContext.Current.TestClass.TestClassName
+            .Skip(TestContext.Current.TestClass.TestClassName.LastIndexOf('.') + 1)
+            .Take(48)
+            .ToArray();
+
+        return GetSessionAsync(new string(className));
+    }
+
+    public async Task<ISession> GetSessionAsync(string keyspace)
+    {
+        ISession session = null;
+        if (sessionPerKeyspace.TryGetValue(keyspace, out session) == false)
         {
-            lock (mutex)
-            {
-                if (session == null)
+            var cluster = await GetClusterAsync();
+            session = await cluster.ConnectAsync();
+            session.CreateKeyspaceIfNotExists(keyspace, new Dictionary<string, string>
                 {
-                    var cluster = GetClusterAsync().GetAwaiter().GetResult();
-                    session = cluster.Connect();
-                    session.CreateKeyspaceIfNotExists("test_containers", new Dictionary<string, string>
-                    {
-                        { "class", "SimpleStrategy" },
-                        { "replication_factor", "1" }
-                    });
-                    session.ChangeKeyspace("test_containers");
-                }
-            }
+                    { "class", "SimpleStrategy" },
+                    { "replication_factor", "1" }
+                });
+            session.ChangeKeyspace(keyspace);
+
+            sessionPerKeyspace.TryAdd(keyspace, session);
         }
 
-        return Task.FromResult(session);
+        return session;
     }
 }

@@ -1,38 +1,73 @@
-﻿namespace Elders.Cronus.Persistence.Cassandra.Integration.Tests;
+﻿using Microsoft.Extensions.Options;
 
-public class CassandraEventStoreSchemaTests : IClassFixture<CassandraEventStoreSchemaFixture>
+namespace Elders.Cronus.Persistence.Cassandra.Integration.Tests;
+
+public class CassandraEventStoreSchemaTests
 {
-    private readonly CassandraEventStoreSchemaFixture cassandraEventStoreSchemaFixture;
     private readonly CassandraFixture cassandraFixture;
 
-    public CassandraEventStoreSchemaTests(CassandraEventStoreSchemaFixture cassandraEventStoreSchemaFixture, CassandraFixture cassandraFixture)
+    public CassandraEventStoreSchemaTests(CassandraFixture cassandraFixture)
     {
-        this.cassandraEventStoreSchemaFixture = cassandraEventStoreSchemaFixture;
         this.cassandraFixture = cassandraFixture;
     }
 
     [Fact]
-    public async Task CreateStorageAsync()
+    public async Task CreateStorageWithNoTableNamingAsync()
     {
-        await cassandraEventStoreSchemaFixture.Schema.CreateStorageAsync();
-        var cluster = await cassandraFixture.GetClusterAsync();
-        var tables = cluster.Metadata.GetTables("test_containers");
+        var naming = new NoTableNamingStrategy();
+        var schema = new CassandraEventStoreSchemaFixture(cassandraFixture).GetEventStoreSchema(naming);
 
-        Assert.Contains(cassandraEventStoreSchemaFixture.NamingStrategy.GetName(), tables);
+        await schema.CreateStorageAsync();
+
+        var session = await cassandraFixture.GetSessionAsync();
+        var cluster = await cassandraFixture.GetClusterAsync();
+        var tables = cluster.Metadata.GetTables(session.Keyspace);
+
+        Assert.Contains(naming.GetName(), tables);
+        Assert.Contains("index_by_eventtype", tables);
+        Assert.Contains("index_status", tables);
+        Assert.Contains("message_counter", tables);
+    }
+
+    [Fact]
+    public async Task CreateStorageWithTablePerBoundedContextAsync()
+    {
+        var bc = new BoundedContext { Name = "tests" };
+        var naming = new TablePerBoundedContext(new TablePerBoundedContextOptionsMonitorMock(bc));
+        var schema = new CassandraEventStoreSchemaFixture(cassandraFixture).GetEventStoreSchema(naming);
+
+        await schema.CreateStorageAsync();
+
+        var session = await cassandraFixture.GetSessionAsync();
+        var cluster = await cassandraFixture.GetClusterAsync();
+        var tables = cluster.Metadata.GetTables(session.Keyspace);
+
+        Assert.Contains(naming.GetName(), tables);
         Assert.Contains("index_by_eventtype", tables);
         Assert.Contains("index_status", tables);
         Assert.Contains("message_counter", tables);
     }
 }
 
-public class CassandraEventStoreSchemaFixture
+class TablePerBoundedContextOptionsMonitorMock : IOptionsMonitor<BoundedContext>
 {
-    public CassandraEventStoreSchemaFixture(CassandraFixture cassandraFixture)
+    private readonly BoundedContext boundedContext;
+
+    public TablePerBoundedContextOptionsMonitorMock(BoundedContext boundedContext)
     {
-        NamingStrategy = new NoTableNamingStrategy();
-        Schema = new CassandraEventStoreSchema(cassandraFixture, NamingStrategy);
+        this.boundedContext = boundedContext;
     }
 
-    public CassandraEventStoreSchema Schema { get; }
-    public ITableNamingStrategy NamingStrategy { get; }
+    public BoundedContext CurrentValue => boundedContext;
+
+    public BoundedContext Get(string name)
+    {
+        return boundedContext;
+    }
+
+    public IDisposable OnChange(Action<BoundedContext, string> listener)
+    {
+        listener(boundedContext, null);
+        return null;
+    }
 }

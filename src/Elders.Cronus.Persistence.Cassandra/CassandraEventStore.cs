@@ -144,6 +144,9 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public Task EnumerateEventStore(PlayerOperator @operator, PlayerOptions replayOptions, CancellationToken cancellationToken = default)
         {
+            if (@operator is null) throw new ArgumentNullException(nameof(@operator));
+            if (replayOptions is null) throw new ArgumentNullException(nameof(replayOptions));
+
             if (replayOptions.EventTypeId is null)
             {
                 return EnumerateEventStoreGG(@operator, replayOptions, cancellationToken);
@@ -238,7 +241,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             ISession session = await GetSessionAsync().ConfigureAwait(false);
             IStatement boundStatement;
 
-            if (pagingOptions.Order.Equals(Order.Descending))
+            if (pagingOptions.Order?.Equals(Order.Descending) ?? false)
             {
                 PreparedStatement ps = await GetReadStatementDescendingAsync(session).ConfigureAwait(false);
                 boundStatement = ps.Bind(id.RawId)
@@ -323,6 +326,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
 
             await Task.WhenAll(tasks).ConfigureAwait(false);
+            await (@operator.OnFinish?.Invoke()).ConfigureAwait(false);
         }
 
         private async Task EnumerateEventStoreGG(PlayerOperator @operator, PlayerOptions replayOptions, CancellationToken cancellationToken)
@@ -376,6 +380,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
 
             await Task.WhenAll(tasks).ConfigureAwait(false);
+            await (@operator.OnFinish?.Invoke()).ConfigureAwait(false);
         }
 
         private async Task<AggregateStream> LoadAsync(ReadOnlyMemory<byte> id)

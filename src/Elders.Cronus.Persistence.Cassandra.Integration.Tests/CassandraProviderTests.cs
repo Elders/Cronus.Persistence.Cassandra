@@ -9,12 +9,10 @@ namespace Elders.Cronus.Persistence.Cassandra.Integration.Tests;
 public class CassandraProviderTests
 {
     private readonly CassandraFixture cassandraFixture;
-    private readonly NullLoggerFixture nullLoggerFixture;
 
-    public CassandraProviderTests(CassandraFixture cassandraFixture, NullLoggerFixture nullLoggerFixture)
+    public CassandraProviderTests(CassandraFixture cassandraFixture)
     {
         this.cassandraFixture = cassandraFixture;
-        this.nullLoggerFixture = nullLoggerFixture;
     }
 
     [Fact]
@@ -29,8 +27,7 @@ public class CassandraProviderTests
         };
         var keyspaceNaming = new NoKeyspaceNamingStrategy();
         var replicatoinStrategy = new SimpleReplicationStrategy(1);
-        var nullLogger = nullLoggerFixture.CreateLogger<CassandraProvider>();
-        var provider = new CassandraProvider(new CassandraProviderOptionsMonitorMock(options), keyspaceNaming, replicatoinStrategy, nullLogger);
+        var provider = new CassandraProvider(new CassandraProviderOptionsMonitorMock(options), keyspaceNaming, replicatoinStrategy, NullLogger<CassandraProvider>.Instance);
 
         var cluster = await provider.GetClusterAsync();
 

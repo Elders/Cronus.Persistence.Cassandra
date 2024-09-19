@@ -3,6 +3,7 @@ using System.Text;
 using Cassandra;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.EventStore.Index;
+using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json;
 
 namespace Elders.Cronus.Persistence.Cassandra.Integration.Tests;
@@ -85,7 +86,6 @@ public class CassandraEventStoreTests : IClassFixture<CassandraEventStoreFixture
 {
     private readonly CassandraFixture cassandraFixture;
     private readonly IndexByEventTypeStoreFixture indexByEventTypeStoreFixture;
-    private readonly NullLoggerFixture nullLoggerFixture;
     private readonly BlobIdFixture blobIdFixture;
     private readonly CassandraEventStoreFixture cassandraEventStoreFixture;
 
@@ -272,7 +272,7 @@ public class CassandraEventStoreTests : IClassFixture<CassandraEventStoreFixture
 
         await cassandraEventStoreFixture.EventStore.AppendAsync(commit);
 
-        var index = new IndexByEventTypeStoreFixture(cassandraFixture, new NullLoggerFixture()).Index;
+        var index = new IndexByEventTypeStoreFixture(cassandraFixture).Index;
         await index.ApendAsync(new IndexRecord(eventTypeId, arId, revision, 0, timestamp));
 
         var rawEvents = new List<AggregateEventRaw>();
@@ -435,14 +435,12 @@ public class BlobIdFixture
 public class CassandraEventStoreFixture
 {
     public CassandraEventStoreFixture(
-        CassandraFixture cassandraFixture,
-        NullLoggerFixture nullLoggerFixture)
+        CassandraFixture cassandraFixture)
     {
         TableNaming = new NoTableNamingStrategy();
         Serializer = new SerializerMock();
-        var index = new IndexByEventTypeStore(cassandraFixture, nullLoggerFixture.CreateLogger<IndexByEventTypeStore>());
-        var logger = nullLoggerFixture.CreateLogger<CassandraEventStore>();
-        EventStore = new CassandraEventStore(cassandraFixture, TableNaming, Serializer, index, logger);
+        var index = new IndexByEventTypeStore(cassandraFixture, NullLogger<IndexByEventTypeStore>.Instance);
+        EventStore = new CassandraEventStore(cassandraFixture, TableNaming, Serializer, index, NullLogger<CassandraEventStore>.Instance);
     }
 
     public CassandraEventStore EventStore { get; }

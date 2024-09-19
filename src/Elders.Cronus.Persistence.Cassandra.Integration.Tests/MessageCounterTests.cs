@@ -1,6 +1,7 @@
 ﻿using System.Runtime.Serialization;
 using Cassandra;
 using Elders.Cronus.Persistence.Cassandra.Counters;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Elders.Cronus.Persistence.Cassandra.Integration.Tests;
 
@@ -8,18 +9,16 @@ namespace Elders.Cronus.Persistence.Cassandra.Integration.Tests;
 public class MessageCounterTests
 {
     private readonly CassandraFixture cassandraFixture;
-    private readonly NullLoggerFixture nullLoggerFixture;
 
-    public MessageCounterTests(CassandraFixture cassandraFixture, NullLoggerFixture nullLoggerFixture)
+    public MessageCounterTests(CassandraFixture cassandraFixture)
     {
         this.cassandraFixture = cassandraFixture;
-        this.nullLoggerFixture = nullLoggerFixture;
     }
 
     [Fact]
     public async Task IncrementAsync()
     {
-        var counter = new MessageCounter(cassandraFixture, nullLoggerFixture.CreateLogger<MessageCounter>());
+        var counter = new MessageCounter(cassandraFixture, NullLogger<MessageCounter>.Instance);
         var countedType = typeof(IncrementCounted);
         var contractId = countedType.GetContractId();
 
@@ -37,7 +36,7 @@ public class MessageCounterTests
     [Fact]
     public async Task DecrementAsync()
     {
-        var counter = new MessageCounter(cassandraFixture, nullLoggerFixture.CreateLogger<MessageCounter>());
+        var counter = new MessageCounter(cassandraFixture, NullLogger<MessageCounter>.Instance);
         var countedType = typeof(DecrementCounted);
         var contractId = countedType.GetContractId();
 
@@ -56,7 +55,7 @@ public class MessageCounterTests
     [Fact]
     public async Task GetCountAsync()
     {
-        var counter = new MessageCounter(cassandraFixture, nullLoggerFixture.CreateLogger<MessageCounter>());
+        var counter = new MessageCounter(cassandraFixture, NullLogger<MessageCounter>.Instance);
         var countedType = typeof(GetCountCounted);
         var contractId = countedType.GetContractId();
 
@@ -69,7 +68,7 @@ public class MessageCounterTests
     [Fact]
     public async Task ResetAsync()
     {
-        var counter = new MessageCounter(cassandraFixture, nullLoggerFixture.CreateLogger<MessageCounter>());
+        var counter = new MessageCounter(cassandraFixture, NullLogger<MessageCounter>.Instance);
         var countedType = typeof(ResetCounted);
         var contractId = countedType.GetContractId();
 

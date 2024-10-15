@@ -86,5 +86,4 @@ namespace Elders.Cronus.Persistence.Cassandra
             public ReadOnlyMemory<byte> RawId { get; private set; }
         }
     }
-
 }

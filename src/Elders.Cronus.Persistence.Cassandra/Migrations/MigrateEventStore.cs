@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Cassandra;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.MessageProcessing;
 using Elders.Cronus.Migrations;

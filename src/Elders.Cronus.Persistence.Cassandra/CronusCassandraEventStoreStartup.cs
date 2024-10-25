@@ -56,7 +56,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
             else
             {
-                logger.Warn(() => $"[EventStore] Could not acquire lock for `{bc.Name}` to create table.");
+                logger.LogWarning("[EventStore] Could not acquire lock for `{boundedContext}` to create table.", bc.Name);
             }
         }
 
@@ -64,7 +64,8 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             if (tenants.Tenants.SequenceEqual(newOptions.Tenants) == false) // Check for difference between tenants and newOptions
             {
-                logger.Debug(() => "Cronus tenant options re-loaded with {@options}", newOptions);
+                if (logger.IsEnabled(LogLevel.Debug))
+                    logger.LogDebug("Cronus tenant options re-loaded with {@options}", newOptions);
 
                 // Find the difference between the old and new tenants
                 // and bootstrap the new tenants

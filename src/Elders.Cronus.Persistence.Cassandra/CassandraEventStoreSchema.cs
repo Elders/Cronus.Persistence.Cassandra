@@ -74,14 +74,16 @@ namespace Elders.Cronus.Persistence.Cassandra
             try
             {
                 ISession session = await GetSessionAsync().ConfigureAwait(false);
-                logger.Debug(() => $"[EventStore] Creating table `{tableName}` with `{session.Cluster.AllHosts().First().Address}` in keyspace `{session.Keyspace}`...");
+                if (logger.IsEnabled(LogLevel.Debug))
+                    logger.LogDebug("[EventStore] Creating table `{tableName}` with `{address}` in keyspace `{keyspace}`...", tableName, session.Cluster.AllHosts().First().Address, session.Keyspace);
 
                 PreparedStatement createEventsTableStatement = await session.PrepareAsync(string.Format(cqlQuery, tableName).ToLower()).ConfigureAwait(false);
                 createEventsTableStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
 
                 await session.ExecuteAsync(createEventsTableStatement.Bind()).ConfigureAwait(false);
 
-                logger.Debug(() => $"[EventStore] Created table `{tableName}` in keyspace `{session.Keyspace}`...");
+                if (logger.IsEnabled(LogLevel.Debug))
+                    logger.LogDebug("[EventStore] Created table `{tableName}` in keyspace `{keyspace}`...", tableName, session.Keyspace);
             }
             catch (Exception)
             {
@@ -95,7 +97,8 @@ namespace Elders.Cronus.Persistence.Cassandra
             {
                 ISession session = await GetSessionAsync().ConfigureAwait(false);
 
-                logger.Debug(() => $"[EventStore] Creating table `{tableName}` with `{session.Cluster.AllHosts().First().Address}` in keyspace `{session.Keyspace}`...");
+                if (logger.IsEnabled(LogLevel.Debug))
+                    logger.LogDebug("[EventStore] Creating table `{tableName}` with `{address}` in keyspace `{keyspace}`...", tableName, session.Cluster.AllHosts().First().Address, session.Keyspace);
 
                 string tableQuery = string.Format(CREATE_EVENTS_TABLE_TEMPLATE, tableName).ToLower();
                 string rev = string.Format(INDEX_REV, tableName).ToLower();
@@ -115,7 +118,8 @@ namespace Elders.Cronus.Persistence.Cassandra
                 await session.ExecuteAsync(revStatement.Bind()).ConfigureAwait(false);
                 await session.ExecuteAsync(posStatement.Bind()).ConfigureAwait(false);
 
-                logger.Debug(() => $"[EventStore] Created table `{tableName}` in keyspace `{session.Keyspace}`...");
+                if (logger.IsEnabled(LogLevel.Debug))
+                    logger.LogDebug("[EventStore] Created table `{tableName}` in keyspace `{keyspace}`...", tableName, session.Keyspace);
             }
             catch (Exception)
             {

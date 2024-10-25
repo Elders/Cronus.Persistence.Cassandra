@@ -34,10 +34,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Counters
                 PreparedStatement incrementedStatement = await GetIncrementStatementAsync(session).ConfigureAwait(false);
                 await session.ExecuteAsync(incrementedStatement.Bind(incrementWith, eventType)).ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                logger.ErrorException(ex, () => $"Failed to increment {messageType.Name} message counter.");
-            }
+            catch (Exception ex) when (True(() => logger.LogError(ex, "Failed to increment {cronus_messageType} message counter.", messageType.Name))) { }
         }
 
         public async Task DecrementAsync(Type messageType, long decrementWith = 1)
@@ -49,10 +46,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Counters
                 PreparedStatement decrementedStatement = await GetDecrementStatementAsync(session).ConfigureAwait(false);
                 await session.ExecuteAsync(decrementedStatement.Bind(decrementWith, eventType)).ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                logger.ErrorException(ex, () => $"Failed to decrement {messageType.Name} message counter.");
-            }
+            catch (Exception ex) when (True(() => logger.LogError(ex, "Failed to decrement {cronus_messageType} message counter.", messageType.Name))) { }
         }
 
         public async Task<long> GetCountAsync(Type messageType)
@@ -75,9 +69,8 @@ namespace Elders.Cronus.Persistence.Cassandra.Counters
                     return counterValue;
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when(True(() => logger.LogError(ex, "Failed to get {cronus_messageType} message counter.", messageType.Name)))
             {
-                logger.ErrorException(ex, () => $"Failed to get {messageType.Name} message counter.");
                 return 0;
             }
         }

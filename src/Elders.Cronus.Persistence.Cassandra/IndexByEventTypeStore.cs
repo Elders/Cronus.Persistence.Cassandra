@@ -42,13 +42,10 @@ namespace Elders.Cronus.Persistence.Cassandra
                 var bs = statement.Bind(record.Id, partitionId, record.AggregateRootId, record.Revision, record.Position, record.TimeStamp).SetIdempotence(true);
                 await session.ExecuteAsync(bs).ConfigureAwait(false);
             }
-            catch (WriteTimeoutException ex)
-            {
-                logger.WarnException(ex, () => "Write timeout while persisting in IndexByEventTypeStore");
-            }
+            catch (WriteTimeoutException ex) when (True(() => logger.LogWarning(ex, "Write timeout while persisting in IndexByEventTypeStore"))) { }
             catch (Exception ex)
             {
-                logger.ErrorException(ex, () => "Failed to write index record.");
+                logger.LogError(ex, "Failed to write index record.");
                 throw;
             }
         }
@@ -66,11 +63,11 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
             catch (WriteTimeoutException ex)
             {
-                logger.WarnException(ex, () => "Delete timeout while deleting from IndexByEventTypeStore");
+                logger.LogWarning(ex, "Delete timeout while deleting from IndexByEventTypeStore");
             }
             catch (Exception ex)
             {
-                logger.ErrorException(ex, () => "Failed to delete index record.");
+                logger.LogError(ex, "Failed to delete index record.");
                 throw;
             }
         }
@@ -136,11 +133,12 @@ namespace Elders.Cronus.Persistence.Cassandra
 
                 long count = result.GetRows().First().GetValue<long>("count");
 
-                logger.Info(() => $"Number of messages for {indexRecordId}: {count}");
+                if (logger.IsEnabled(LogLevel.Information))
+                    logger.LogInformation("Number of messages for {indexRecordId}:{count}", indexRecordId, count);
 
                 return count;
             }
-            catch (Exception ex) when (logger.ErrorException(ex, () => $"Failed to count number of messages for {indexRecordId}."))
+            catch (Exception ex) when (True(() => logger.LogError(ex, "Failed to count number of messages for {indexRecordId}.", indexRecordId)))
             {
                 return 0;
             }
@@ -183,7 +181,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
             if (result.IsFullyFetched == false)
             {
-                logger.Warn(() => "Not implemented logic. => if (result.IsFullyFetched == false)");
+                logger.LogWarning("Not implemented logic. => if (result.IsFullyFetched == false)");
             }
 
             return new LoadIndexRecordsResult()
@@ -197,7 +195,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             if (replayOptions.EventTypeId is null)
             {
-                logger.Warn(() => "The PlayerOptions did not specify what EventTypeId should be replayed. Exiting...");
+                logger.LogWarning("The PlayerOptions did not specify what EventTypeId should be replayed. Exiting...");
                 yield break;
             }
 
@@ -237,7 +235,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                 if (onPagingInfoChanged is not null)
                 {
                     try { await onPagingInfoChanged(replayOptions.WithPaginationToken(pagingInfo.ToString())).ConfigureAwait(false); }
-                    catch (Exception ex) when (logger.ErrorException(ex, () => "Failed to execute onPagingInfoChanged() function.")) { }
+                    catch (Exception ex) when (True(() => logger.LogError(ex, "Failed to execute onPagingInfoChanged() function."))) { }
                 }
             }
         }

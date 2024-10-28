@@ -81,7 +81,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
             catch (WriteTimeoutException ex)
             {
-                logger.WarnException(ex, () => "Write timeout while persisting an aggregate commit.");
+                logger.LogWarning(ex, "Write timeout while persisting an aggregate commit.");
             }
         }
 
@@ -97,7 +97,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
             catch (WriteTimeoutException ex)
             {
-                logger.WarnException(ex, () => "Write timeout while persisting an aggregate commit.");
+                logger.LogWarning(ex, "Write timeout while persisting an aggregate commit.");
             }
         }
 
@@ -127,11 +127,11 @@ namespace Elders.Cronus.Persistence.Cassandra
 
                 return true;
             }
-            catch (WriteTimeoutException ex) when (logger.WarnException(ex, () => "Failed to delete event."))
+            catch (WriteTimeoutException ex) when (True(() => logger.LogWarning(ex, "Failed to delete event.")))
             {
                 return false;
             }
-            catch (Exception ex) when (logger.ErrorException(ex, () => $"Failed to delete event.")) { }
+            catch (Exception ex) when (True(() => logger.LogError(ex, "Failed to delete event."))) { }
             {
                 return false;
             }
@@ -184,7 +184,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                 return new AggregateEventRaw(indexRecord.AggregateRootId, data, indexRecord.Revision, indexRecord.Position, indexRecord.TimeStamp);
             }
 
-            logger.Error(() => $"Unable to load aggregate event by index record: {indexRecord.ToJson()}");
+            logger.LogError("Unable to load aggregate event by index record: {cronus_messageData}", indexRecord.ToJson());
 
             return default;
         }
@@ -225,11 +225,9 @@ namespace Elders.Cronus.Persistence.Cassandra
                     return new AggregateEventRaw(indexRecord.AggregateRootId, data, indexRecord.Revision, indexRecord.Position, indexRecord.TimeStamp);
                 }
 
-                logger.Error(() => $"Unable to load aggregate event by index record: {indexRecord.ToJson()}");
+                logger.LogError("Unable to load aggregate event by index record: {cronus_messageData}", indexRecord.ToJson());
             }
-            catch (Exception ex) when (logger.ErrorException(ex, () => $"Unable to load aggregate event by index record: {indexRecord.ToJson()}"))
-            {
-            }
+            catch (Exception ex) when (True(() => logger.LogError(ex, "Unable to load aggregate event by index record: {cronus_messageData}", indexRecord.ToJson()))) { }
 
             return default;
         }
@@ -298,7 +296,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                         Task completedTask = await Task.WhenAny(tasks);
                         if (completedTask.Status == TaskStatus.Faulted)
                         {
-                            logger.ErrorException(completedTask.Exception, () => $"Failed to replay event for index record: {indexRecord.ToJson()}");
+                            logger.LogError(completedTask.Exception, "Failed to replay event for index record: {cronus_messageData}", indexRecord.ToJson());
                         }
                         tasks.Remove(completedTask);
                     }
@@ -318,7 +316,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                         Task completedTask = await Task.WhenAny(tasks);
                         if (completedTask.Status == TaskStatus.Faulted)
                         {
-                            logger.ErrorException(completedTask.Exception, () => $"Failed to replay event for index record: {indexRecord.ToJson()}");
+                            logger.LogError(completedTask.Exception, "Failed to replay event for index record: {cronus_messageData}", indexRecord.ToJson());
                         }
                         tasks.Remove(completedTask);
                     }
@@ -326,7 +324,10 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
 
             await Task.WhenAll(tasks).ConfigureAwait(false);
-            await (@operator.OnFinish?.Invoke()).ConfigureAwait(false);
+            if (@operator.OnFinish is not null)
+            {
+                await @operator.OnFinish().ConfigureAwait(false);
+            }
         }
 
         private async Task EnumerateEventStoreGG(PlayerOperator @operator, PlayerOptions replayOptions, CancellationToken cancellationToken)
@@ -347,7 +348,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                         if (completedTask.Status == TaskStatus.Faulted)
                         {
                             string dataAsJson = System.Text.Json.JsonSerializer.Serialize(@event);
-                            logger.ErrorException(completedTask.Exception, () => $"Failed to replay event: {dataAsJson}");
+                            logger.LogError(completedTask.Exception, "Failed to replay event: {cronus_messageData}", dataAsJson);
                         }
                         tasks.Remove(completedTask);
                     }
@@ -380,7 +381,10 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
 
             await Task.WhenAll(tasks).ConfigureAwait(false);
-            await (@operator.OnFinish?.Invoke()).ConfigureAwait(false);
+            if (@operator.OnFinish is not null)
+            {
+                await @operator.OnFinish().ConfigureAwait(false);
+            }
         }
 
         private async Task<AggregateStream> LoadAsync(ReadOnlyMemory<byte> id)
@@ -458,7 +462,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             if (onPagingInfoChanged is not null)
             {
                 try { await onPagingInfoChanged(replayOptions.WithPaginationToken(pagingInfo.ToString())).ConfigureAwait(false); }
-                catch (Exception ex) when (logger.ErrorException(ex, () => "Failed to execute onPagingInfoChanged() function.")) { }
+                catch (Exception ex) when (True(() => logger.LogError(ex, "Failed to execute onPagingInfoChanged() function."))) { }
             }
 
             return pagingInfo;

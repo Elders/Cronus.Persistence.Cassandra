@@ -77,7 +77,7 @@ public class CassandraFixture : ICassandraProvider, IAsyncDisposable, IAsyncLife
             .Take(48)
             .ToArray();
 
-        return GetSessionAsync(new string(className));
+        return GetSessionAsync(new string(className).ToLower()); /// track <see cref="https://datastax-oss.atlassian.net/browse/CSHARP-1021"></see>
     }
 
     public async Task<ISession> GetSessionAsync(string keyspace)

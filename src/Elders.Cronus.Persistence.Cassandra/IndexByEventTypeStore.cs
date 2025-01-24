@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -11,15 +12,23 @@ using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
+    /// We tried to use <see cref="ISession.PrepareAsync(string, string)"/> where we wanted to specify the keyspace (we use [cqlsh 6.2.0 | Cassandra 5.0.2 | CQL spec 3.4.7 | Native protocol v5] cassandra)
+    /// it seems like the driver does not have YET support for protocol v5 (still in beta). In code the driver is using protocol v4 (which is preventing us from using the above mentioned method)
+    /// https://datastax-oss.atlassian.net/jira/software/c/projects/CSHARP/issues/CSHARP-856 as of 01.23.25 this epic is still in todo.
     public class IndexByEventTypeStore : IIndexStore
     {
-        private const string Read = @"SELECT aid,rev,pos,ts FROM index_by_eventtype WHERE et=? AND pid=?;";
-        private const string ReadRange = @"SELECT aid,rev,pos,ts FROM index_by_eventtype WHERE et=? AND ts>=? AND ts<=? ALLOW FILTERING;";
-        private const string Write = @"INSERT INTO index_by_eventtype (et,pid,aid,rev,pos,ts) VALUES (?,?,?,?,?,?);";
-        private const string Delete = @"DELETE FROM index_by_eventtype where et=? AND pid=? AND ts=? AND aid=? AND rev=? AND pos=?;";
+        private const string Read = @"SELECT aid,rev,pos,ts FROM {0}.index_by_eventtype WHERE et=? AND pid=?;";
+        private const string ReadRange = @"SELECT aid,rev,pos,ts FROM {0}.index_by_eventtype WHERE et=? AND ts>=? AND ts<=? ALLOW FILTERING;";
+        private const string Write = @"INSERT INTO {0}.index_by_eventtype (et,pid,aid,rev,pos,ts) VALUES (?,?,?,?,?,?);";
+        private const string Delete = @"DELETE FROM {0}.index_by_eventtype where et=? AND pid=? AND ts=? AND aid=? AND rev=? AND pos=?;";
 
         private readonly ICassandraProvider cassandraProvider;
         private readonly ILogger<IndexByEventTypeStore> logger;
+
+        private PreparedStatement _readPreparedStatements;
+        private PreparedStatement _readRangePreparedStatements;
+        private PreparedStatement _writePreparedStatements;
+        private PreparedStatement _deletePreparedStatements;
 
         private Task<ISession> GetSessionAsync() => cassandraProvider.GetSessionAsync(); // In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
 
@@ -89,34 +98,42 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private async Task<PreparedStatement> GetWritePreparedStatementAsync(ISession session)
         {
-            PreparedStatement writeStatement = await session.PrepareAsync(Write).ConfigureAwait(false);
-            writeStatement.SetConsistencyLevel(ConsistencyLevel.Any);
-
-            return writeStatement;
+            if (_writePreparedStatements is null)
+            {
+                _writePreparedStatements = await session.PrepareAsync(string.Format(Write, session.Keyspace)).ConfigureAwait(false);
+                _writePreparedStatements.SetConsistencyLevel(ConsistencyLevel.Any);
+            }
+            return _writePreparedStatements;
         }
 
         private async Task<PreparedStatement> GetDeletePreparedStatementAsync(ISession session)
         {
-            PreparedStatement deleteStatement = await session.PrepareAsync(Delete).ConfigureAwait(false);
-            deleteStatement.SetConsistencyLevel(ConsistencyLevel.Any);
-
-            return deleteStatement;
+            if (_deletePreparedStatements is null)
+            {
+                _deletePreparedStatements = await session.PrepareAsync(string.Format(Delete, session.Keyspace)).ConfigureAwait(false);
+                _deletePreparedStatements.SetConsistencyLevel(ConsistencyLevel.Any);
+            }
+            return _deletePreparedStatements;
         }
 
         private async Task<PreparedStatement> GetReadPreparedStatementAsync(ISession session)
         {
-            PreparedStatement readStatement = await session.PrepareAsync(Read).ConfigureAwait(false);
-            readStatement.SetConsistencyLevel(ConsistencyLevel.One);
-
-            return readStatement;
+            if (_readPreparedStatements is null)
+            {
+                _readPreparedStatements = await session.PrepareAsync(string.Format(Read, session.Keyspace)).ConfigureAwait(false);
+                _readPreparedStatements.SetConsistencyLevel(ConsistencyLevel.One);
+            }
+            return _readPreparedStatements;
         }
 
         private async Task<PreparedStatement> GetReadRangePreparedStatementAsync(ISession session)
         {
-            PreparedStatement readRangeStatement = await session.PrepareAsync(ReadRange).ConfigureAwait(false);
-            readRangeStatement.SetConsistencyLevel(ConsistencyLevel.One);
-
-            return readRangeStatement;
+            if (_readRangePreparedStatements is null)
+            {
+                _readRangePreparedStatements = await session.PrepareAsync(string.Format(ReadRange, session.Keyspace)).ConfigureAwait(false);
+                _readRangePreparedStatements.SetConsistencyLevel(ConsistencyLevel.One);
+            }
+            return _readRangePreparedStatements;
         }
 
         public async Task<long> GetCountAsync(string indexRecordId)

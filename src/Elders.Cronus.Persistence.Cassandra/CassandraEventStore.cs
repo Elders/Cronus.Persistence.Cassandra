@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -20,23 +21,35 @@ namespace Elders.Cronus.Persistence.Cassandra
         }
     }
 
+    /// We tried to use <see cref="ISession.PrepareAsync(string, string)"/> where we wanted to specify the keyspace (we use [cqlsh 6.2.0 | Cassandra 5.0.2 | CQL spec 3.4.7 | Native protocol v5] cassandra)
+    /// it seems like the driver does not have YET support for protocol v5 (still in beta). In code the driver is using protocol v4 (which is preventing us from using the above mentioned method)
+    /// https://datastax-oss.atlassian.net/jira/software/c/projects/CSHARP/issues/CSHARP-856 as of 01.23.25 this epic is still in todo.
     public class CassandraEventStore : IEventStore, IEventStorePlayer
     {
-        private const string LoadAggregateEventsQueryTemplate = @"SELECT rev,pos,ts,data FROM {0} WHERE id = ?;";
-        private const string InsertEventsQueryTemplate = @"INSERT INTO {0} (id,rev,pos,ts,data) VALUES (?,?,?,?,?);";
-        private const string LoadEventsQueryTemplate = @"SELECT id,rev,pos,ts,data FROM {0};";
-        private const string LoadAggregateEventsWithinSpecifiedRevisionsQueryTemplate = @"SELECT rev,pos,ts,data FROM {0} WHERE id = ? order by rev desc, pos desc";
+        private const string LoadAggregateEventsQueryTemplate = @"SELECT rev,pos,ts,data FROM {0}.{1} WHERE id = ?;";
+        private const string InsertEventsQueryTemplate = @"INSERT INTO {0}.{1} (id,rev,pos,ts,data) VALUES (?,?,?,?,?);";
+        private const string LoadEventsQueryTemplate = @"SELECT id,rev,pos,ts,data FROM {0}.{1};";
+        private const string LoadAggregateEventsWithinSpecifiedRevisionsQueryTemplate = @"SELECT rev,pos,ts,data FROM {0}.{1} WHERE id = ? order by rev desc, pos desc";
 
-        private const string LoadAggregateEventsRebuildQueryTemplate = @"SELECT data FROM {0} WHERE id = ? AND rev = ? AND pos = ?;";
-        private const string LoadEventQueryTemplate = @"SELECT data,ts FROM {0} WHERE id = ? AND rev = ? AND pos = ?;";
+        private const string LoadAggregateEventsRebuildQueryTemplate = @"SELECT data FROM {0}.{1} WHERE id = ? AND rev = ? AND pos = ?;";
+        private const string LoadEventQueryTemplate = @"SELECT data,ts FROM {0}.{1} WHERE id = ? AND rev = ? AND pos = ?;";
 
-        public const string DeleteEventQueryTemplate = @"DELETE FROM {0} WHERE id = ? and rev=? and pos=?;";
+        public const string DeleteEventQueryTemplate = @"DELETE FROM {0}.{1} WHERE id = ? and rev=? and pos=?;";
 
         private readonly ISerializer serializer;
         private readonly IndexByEventTypeStore indexByEventTypeStore;
         private readonly ILogger<CassandraEventStore> logger;
         private readonly ICassandraProvider cassandraProvider;
         private readonly ITableNamingStrategy tableNameStrategy;
+
+        // the store is registered as tenant singleton and the events table is only 1 so there could only be one prepared statement per tenant
+        private PreparedStatement _loadAggregateEventsPreparedStatements; 
+        private PreparedStatement _insertEventsPreparedStatements;
+        private PreparedStatement _loadEventsPreparedStatements;
+        private PreparedStatement _loadSpecificAggregateEventsSavePreparedStatements;
+        private PreparedStatement _loadAggregateRebuildEventsPreparedStatements;
+        private PreparedStatement _loadEventPreparedStatements;
+        private PreparedStatement _deleteEventsPreparedStatements;
 
         private Task<ISession> GetSessionAsync() => cassandraProvider.GetSessionAsync();// In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
 
@@ -470,66 +483,79 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private async Task<PreparedStatement> GetRebuildDataStatementAsync(ISession session)
         {
-
-            string tableName = tableNameStrategy.GetName();
-            PreparedStatement replayWithoutDataStatement = await session.PrepareAsync(string.Format(LoadAggregateEventsRebuildQueryTemplate, tableName)).ConfigureAwait(false);
-            replayWithoutDataStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-
-            return replayWithoutDataStatement;
+            if (_loadAggregateRebuildEventsPreparedStatements is null)
+            {
+                string tableName = tableNameStrategy.GetName();
+                _loadAggregateRebuildEventsPreparedStatements = await session.PrepareAsync(string.Format(LoadAggregateEventsRebuildQueryTemplate, session.Keyspace, tableName)).ConfigureAwait(false);
+                _loadAggregateRebuildEventsPreparedStatements.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
+            return _loadAggregateRebuildEventsPreparedStatements;
         }
 
         private async Task<PreparedStatement> PrepareLoadEventQueryStatementAsync(ISession session)
         {
-            string tableName = tableNameStrategy.GetName();
-            PreparedStatement loadAggregateCommitsMetaStatement = await session.PrepareAsync(string.Format(LoadEventQueryTemplate, tableName)).ConfigureAwait(false);
-            loadAggregateCommitsMetaStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-
-            return loadAggregateCommitsMetaStatement;
+            if (_loadEventPreparedStatements is null)
+            {
+                string tableName = tableNameStrategy.GetName();
+                _loadEventPreparedStatements = await session.PrepareAsync(string.Format(LoadEventQueryTemplate, session.Keyspace, tableName)).ConfigureAwait(false);
+                _loadEventPreparedStatements.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
+            return _loadEventPreparedStatements;
         }
 
         private async Task<PreparedStatement> GetWriteStatementAsync(ISession session)
         {
-            string tableName = tableNameStrategy.GetName();
-            PreparedStatement writeStatement = await session.PrepareAsync(string.Format(InsertEventsQueryTemplate, tableName)).ConfigureAwait(false);
-            writeStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-
-            return writeStatement;
+            if (_insertEventsPreparedStatements is null)
+            {
+                string tableName = tableNameStrategy.GetName();
+                _insertEventsPreparedStatements = await session.PrepareAsync(string.Format(InsertEventsQueryTemplate, session.Keyspace, tableName)).ConfigureAwait(false);
+                _insertEventsPreparedStatements.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
+            return _insertEventsPreparedStatements;
         }
 
         private async Task<PreparedStatement> GetReadStatementAscendingAsync(ISession session)
         {
-            string tableName = tableNameStrategy.GetName();
-            PreparedStatement readStatement = await session.PrepareAsync(string.Format(LoadAggregateEventsQueryTemplate, tableName)).ConfigureAwait(false);
-            readStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-
-            return readStatement;
+            if (_loadAggregateEventsPreparedStatements is null)
+            {
+                string tableName = tableNameStrategy.GetName();
+                _loadAggregateEventsPreparedStatements = await session.PrepareAsync(string.Format(LoadAggregateEventsQueryTemplate, session.Keyspace, tableName)).ConfigureAwait(false);
+                _loadAggregateEventsPreparedStatements.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
+            return _loadAggregateEventsPreparedStatements;
         }
 
         private async Task<PreparedStatement> GetDeleteStatement(ISession session)
         {
-            string tableName = tableNameStrategy.GetName();
-            PreparedStatement deleteStatement = await session.PrepareAsync(string.Format(DeleteEventQueryTemplate, tableName)).ConfigureAwait(false);
-            deleteStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-
-            return deleteStatement;
+            if (_deleteEventsPreparedStatements is null)
+            {
+                string tableName = tableNameStrategy.GetName();
+                _deleteEventsPreparedStatements = await session.PrepareAsync(string.Format(DeleteEventQueryTemplate, session.Keyspace, tableName)).ConfigureAwait(false);
+                _deleteEventsPreparedStatements.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
+            return _deleteEventsPreparedStatements;
         }
 
         private async Task<PreparedStatement> GetReplayStatementAsync(ISession session)
         {
-            string tableName = tableNameStrategy.GetName();
-            PreparedStatement replayStatement = await session.PrepareAsync(string.Format(LoadEventsQueryTemplate, tableName)).ConfigureAwait(false);
-            replayStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-
-            return replayStatement;
+            if (_loadEventsPreparedStatements is null)
+            {
+                string tableName = tableNameStrategy.GetName();
+                _loadEventsPreparedStatements = await session.PrepareAsync(string.Format(LoadEventsQueryTemplate, session.Keyspace, tableName)).ConfigureAwait(false);
+                _loadEventsPreparedStatements.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
+            return _loadEventsPreparedStatements;
         }
 
         private async Task<PreparedStatement> GetReadStatementDescendingAsync(ISession session)
         {
-            string tableName = tableNameStrategy.GetName();
-            PreparedStatement readWithPagingByRevisionStatement = await session.PrepareAsync(string.Format(LoadAggregateEventsWithinSpecifiedRevisionsQueryTemplate, tableName)).ConfigureAwait(false);
-            readWithPagingByRevisionStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-
-            return readWithPagingByRevisionStatement;
+            if (_loadSpecificAggregateEventsSavePreparedStatements is null)
+            {
+                string tableName = tableNameStrategy.GetName();
+                _loadSpecificAggregateEventsSavePreparedStatements = await session.PrepareAsync(string.Format(LoadAggregateEventsWithinSpecifiedRevisionsQueryTemplate, session.Keyspace, tableName)).ConfigureAwait(false);
+                _loadSpecificAggregateEventsSavePreparedStatements.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
+            return _loadSpecificAggregateEventsSavePreparedStatements;
         }
     }
 }

@@ -43,7 +43,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         private readonly ITableNamingStrategy tableNameStrategy;
 
         // the store is registered as tenant singleton and the events table is only 1 so there could only be one prepared statement per tenant
-        private PreparedStatement _loadAggregateEventsPreparedStatements; 
+        private PreparedStatement _loadAggregateEventsPreparedStatements;
         private PreparedStatement _insertEventsPreparedStatements;
         private PreparedStatement _loadEventsPreparedStatements;
         private PreparedStatement _loadSpecificAggregateEventsSavePreparedStatements;
@@ -148,11 +148,6 @@ namespace Elders.Cronus.Persistence.Cassandra
             {
                 return false;
             }
-        }
-
-        public Task EnumerateEventStore(PlayerOperator @operator, PlayerOptions replayOptions)
-        {
-            return EnumerateEventStore(@operator, replayOptions, CancellationToken.None);
         }
 
         public Task EnumerateEventStore(PlayerOperator @operator, PlayerOptions replayOptions, CancellationToken cancellationToken = default)

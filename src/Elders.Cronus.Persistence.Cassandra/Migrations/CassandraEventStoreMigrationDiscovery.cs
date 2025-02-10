@@ -28,17 +28,4 @@ namespace Elders.Cronus.Persistence.Cassandra.Migrations
             yield return new DiscoveredModel(typeof(IMigrationEventStorePlayer), typeof(CassandraMigratorEventStorePlayer), ServiceLifetime.Transient) { CanOverrideDefaults = true };
         }
     }
-
-    public static class CronusMigratorServiceCollectionExtensions
-    {
-        public static IServiceCollection AddCronusMigratorFromV9toV10(this IServiceCollection services)
-        {
-            services.Replace<IMigrationCustomLogic, Migrate_v9_to_v10>();
-            services.AddTransient<CassandraEventStorePlayer_v9>();
-            services.AddTransient<IProjectionVersionFinder, CassandraEventStorePlayer_v9>();
-            services.AddTransient<MigrateEventStore>();
-
-            return services;
-        }
-    }
 }

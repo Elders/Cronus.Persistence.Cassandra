@@ -2,6 +2,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Cassandra;
+using Cassandra.Serialization;
 using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -66,6 +67,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
                     cluster = connStrBuilder
                         .ApplyToBuilder(builder)
+                        .WithTypeSerializers(new TypeSerializerDefinitions().Define(new ReadOnlyMemoryTypeSerializer()))
                         .WithReconnectionPolicy(new ExponentialReconnectionPolicy(100, 100000))
                         .WithRetryPolicy(new NoHintedHandOffRetryPolicy())
                         .WithPoolingOptions(new PoolingOptions()
@@ -149,7 +151,8 @@ namespace Elders.Cronus.Persistence.Cassandra
                 {
                     if (session is null || session.IsDisposed)
                     {
-                        logger.Info(() => "Refreshing cassandra session...");
+                        if (logger.IsEnabled(LogLevel.Information))
+                            logger.LogInformation("Refreshing cassandra session...");
                         try
                         {
                             ICluster cluster = await GetClusterAsync().ConfigureAwait(false);
@@ -209,5 +212,15 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             return RetryDecision.Rethrow();
         }
+    }
+
+    class ReadOnlyMemoryTypeSerializer : CustomTypeSerializer<ReadOnlyMemory<byte>>
+    {
+        public ReadOnlyMemoryTypeSerializer() : base("it doesn't matter") { }
+
+        public override ReadOnlyMemory<byte> Deserialize(ushort protocolVersion, byte[] buffer, int offset, int length, IColumnInfo typeInfo)
+            => buffer.AsMemory(offset, length); // we will never get here because the byte[] serializer kicks in
+
+        public override byte[] Serialize(ushort protocolVersion, ReadOnlyMemory<byte> value) => value.ToArray();
     }
 }

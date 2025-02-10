@@ -1,7 +1,7 @@
-﻿using Elders.Cronus.EventStore;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Elders.Cronus.EventStore;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
@@ -78,13 +78,12 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         internal class CassandraRawId : IBlobId
         {
-            public CassandraRawId(byte[] rawId)
+            public CassandraRawId(ReadOnlyMemory<byte> rawId)
             {
                 RawId = rawId;
             }
 
-            public byte[] RawId { get; private set; }
+            public ReadOnlyMemory<byte> RawId { get; private set; }
         }
     }
-
 }

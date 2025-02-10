@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -20,23 +21,35 @@ namespace Elders.Cronus.Persistence.Cassandra
         }
     }
 
+    /// We tried to use <see cref="ISession.PrepareAsync(string, string)"/> where we wanted to specify the keyspace (we use [cqlsh 6.2.0 | Cassandra 5.0.2 | CQL spec 3.4.7 | Native protocol v5] cassandra)
+    /// it seems like the driver does not have YET support for protocol v5 (still in beta). In code the driver is using protocol v4 (which is preventing us from using the above mentioned method)
+    /// https://datastax-oss.atlassian.net/jira/software/c/projects/CSHARP/issues/CSHARP-856 as of 01.23.25 this epic is still in todo.
     public class CassandraEventStore : IEventStore, IEventStorePlayer
     {
-        private const string LoadAggregateEventsQueryTemplate = @"SELECT rev,pos,ts,data FROM {0} WHERE id = ?;";
-        private const string InsertEventsQueryTemplate = @"INSERT INTO {0} (id,rev,pos,ts,data) VALUES (?,?,?,?,?);";
-        private const string LoadEventsQueryTemplate = @"SELECT id,rev,pos,ts,data FROM {0};";
-        private const string LoadAggregateEventsWithinSpecifiedRevisionsQueryTemplate = @"SELECT rev,pos,ts,data FROM {0} WHERE id = ? order by rev desc, pos desc";
+        private const string LoadAggregateEventsQueryTemplate = @"SELECT rev,pos,ts,data FROM {0}.{1} WHERE id = ?;";
+        private const string InsertEventsQueryTemplate = @"INSERT INTO {0}.{1} (id,rev,pos,ts,data) VALUES (?,?,?,?,?);";
+        private const string LoadEventsQueryTemplate = @"SELECT id,rev,pos,ts,data FROM {0}.{1};";
+        private const string LoadAggregateEventsWithinSpecifiedRevisionsQueryTemplate = @"SELECT rev,pos,ts,data FROM {0}.{1} WHERE id = ? order by rev desc, pos desc";
 
-        private const string LoadAggregateEventsRebuildQueryTemplate = @"SELECT data FROM {0} WHERE id = ? AND rev = ? AND pos = ?;";
-        private const string LoadEventQueryTemplate = @"SELECT data,ts FROM {0} WHERE id = ? AND rev = ? AND pos = ?;";
+        private const string LoadAggregateEventsRebuildQueryTemplate = @"SELECT data FROM {0}.{1} WHERE id = ? AND rev = ? AND pos = ?;";
+        private const string LoadEventQueryTemplate = @"SELECT data,ts FROM {0}.{1} WHERE id = ? AND rev = ? AND pos = ?;";
 
-        public const string DeleteEventQueryTemplate = @"DELETE FROM {0} WHERE id = ? and rev=? and pos=?;";
+        public const string DeleteEventQueryTemplate = @"DELETE FROM {0}.{1} WHERE id = ? and rev=? and pos=?;";
 
         private readonly ISerializer serializer;
         private readonly IndexByEventTypeStore indexByEventTypeStore;
         private readonly ILogger<CassandraEventStore> logger;
         private readonly ICassandraProvider cassandraProvider;
         private readonly ITableNamingStrategy tableNameStrategy;
+
+        // the store is registered as tenant singleton and the events table is only 1 so there could only be one prepared statement per tenant
+        private PreparedStatement _loadAggregateEventsPreparedStatements;
+        private PreparedStatement _insertEventsPreparedStatements;
+        private PreparedStatement _loadEventsPreparedStatements;
+        private PreparedStatement _loadSpecificAggregateEventsSavePreparedStatements;
+        private PreparedStatement _loadAggregateRebuildEventsPreparedStatements;
+        private PreparedStatement _loadEventPreparedStatements;
+        private PreparedStatement _deleteEventsPreparedStatements;
 
         private Task<ISession> GetSessionAsync() => cassandraProvider.GetSessionAsync();// In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
 
@@ -81,7 +94,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
             catch (WriteTimeoutException ex)
             {
-                logger.WarnException(ex, () => "Write timeout while persisting an aggregate commit.");
+                logger.LogWarning(ex, "Write timeout while persisting an aggregate commit.");
             }
         }
 
@@ -97,7 +110,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
             catch (WriteTimeoutException ex)
             {
-                logger.WarnException(ex, () => "Write timeout while persisting an aggregate commit.");
+                logger.LogWarning(ex, "Write timeout while persisting an aggregate commit.");
             }
         }
 
@@ -127,23 +140,21 @@ namespace Elders.Cronus.Persistence.Cassandra
 
                 return true;
             }
-            catch (WriteTimeoutException ex) when (logger.WarnException(ex, () => "Failed to delete event."))
+            catch (WriteTimeoutException ex) when (True(() => logger.LogWarning(ex, "Failed to delete event.")))
             {
                 return false;
             }
-            catch (Exception ex) when (logger.ErrorException(ex, () => $"Failed to delete event.")) { }
+            catch (Exception ex) when (True(() => logger.LogError(ex, "Failed to delete event."))) { }
             {
                 return false;
             }
-        }
-
-        public Task EnumerateEventStore(PlayerOperator @operator, PlayerOptions replayOptions)
-        {
-            return EnumerateEventStore(@operator, replayOptions, CancellationToken.None);
         }
 
         public Task EnumerateEventStore(PlayerOperator @operator, PlayerOptions replayOptions, CancellationToken cancellationToken = default)
         {
+            if (@operator is null) throw new ArgumentNullException(nameof(@operator));
+            if (replayOptions is null) throw new ArgumentNullException(nameof(replayOptions));
+
             if (replayOptions.EventTypeId is null)
             {
                 return EnumerateEventStoreGG(@operator, replayOptions, cancellationToken);
@@ -181,7 +192,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                 return new AggregateEventRaw(indexRecord.AggregateRootId, data, indexRecord.Revision, indexRecord.Position, indexRecord.TimeStamp);
             }
 
-            logger.Error(() => $"Unable to load aggregate event by index record: {indexRecord.ToJson()}");
+            logger.LogError("Unable to load aggregate event by index record: {cronus_messageData}", indexRecord.ToJson());
 
             return default;
         }
@@ -222,11 +233,9 @@ namespace Elders.Cronus.Persistence.Cassandra
                     return new AggregateEventRaw(indexRecord.AggregateRootId, data, indexRecord.Revision, indexRecord.Position, indexRecord.TimeStamp);
                 }
 
-                logger.Error(() => $"Unable to load aggregate event by index record: {indexRecord.ToJson()}");
+                logger.LogError("Unable to load aggregate event by index record: {cronus_messageData}", indexRecord.ToJson());
             }
-            catch (Exception ex) when (logger.ErrorException(ex, () => $"Unable to load aggregate event by index record: {indexRecord.ToJson()}"))
-            {
-            }
+            catch (Exception ex) when (True(() => logger.LogError(ex, "Unable to load aggregate event by index record: {cronus_messageData}", indexRecord.ToJson()))) { }
 
             return default;
         }
@@ -238,7 +247,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             ISession session = await GetSessionAsync().ConfigureAwait(false);
             IStatement boundStatement;
 
-            if (pagingOptions.Order.Equals(Order.Descending))
+            if (pagingOptions.Order?.Equals(Order.Descending) ?? false)
             {
                 PreparedStatement ps = await GetReadStatementDescendingAsync(session).ConfigureAwait(false);
                 boundStatement = ps.Bind(id.RawId)
@@ -295,7 +304,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                         Task completedTask = await Task.WhenAny(tasks);
                         if (completedTask.Status == TaskStatus.Faulted)
                         {
-                            logger.ErrorException(completedTask.Exception, () => $"Failed to replay event for index record: {indexRecord.ToJson()}");
+                            logger.LogError(completedTask.Exception, "Failed to replay event for index record: {cronus_messageData}", indexRecord.ToJson());
                         }
                         tasks.Remove(completedTask);
                     }
@@ -315,7 +324,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                         Task completedTask = await Task.WhenAny(tasks);
                         if (completedTask.Status == TaskStatus.Faulted)
                         {
-                            logger.ErrorException(completedTask.Exception, () => $"Failed to replay event for index record: {indexRecord.ToJson()}");
+                            logger.LogError(completedTask.Exception, "Failed to replay event for index record: {cronus_messageData}", indexRecord.ToJson());
                         }
                         tasks.Remove(completedTask);
                     }
@@ -323,6 +332,10 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
 
             await Task.WhenAll(tasks).ConfigureAwait(false);
+            if (@operator.OnFinish is not null)
+            {
+                await @operator.OnFinish().ConfigureAwait(false);
+            }
         }
 
         private async Task EnumerateEventStoreGG(PlayerOperator @operator, PlayerOptions replayOptions, CancellationToken cancellationToken)
@@ -343,7 +356,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                         if (completedTask.Status == TaskStatus.Faulted)
                         {
                             string dataAsJson = System.Text.Json.JsonSerializer.Serialize(@event);
-                            logger.ErrorException(completedTask.Exception, () => $"Failed to replay event: {dataAsJson}");
+                            logger.LogError(completedTask.Exception, "Failed to replay event: {cronus_messageData}", dataAsJson);
                         }
                         tasks.Remove(completedTask);
                     }
@@ -355,7 +368,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                     // All aggregates events are stored in a single partition where the ID of the AR is the partition value.
                     // This way all events for an AR will be loaded before proceeding to the next AR.
                     // This is Cassandra specific behavior and should not be cloned to other DB implementations.
-                    if (aggregateEventRaws.Count > 0 && aggregateEventRaws.First().AggregateRootId.AsSpan().SequenceEqual(@event.AggregateRootId) == false)
+                    if (aggregateEventRaws.Count > 0 && aggregateEventRaws.First().AggregateRootId.Span.SequenceEqual(@event.AggregateRootId.Span) == false)
                     {
                         AggregateStream stream = new AggregateStream(aggregateEventRaws);
                         await @operator.OnAggregateStreamLoadedAsync(stream).ConfigureAwait(false);
@@ -376,9 +389,13 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
 
             await Task.WhenAll(tasks).ConfigureAwait(false);
+            if (@operator.OnFinish is not null)
+            {
+                await @operator.OnFinish().ConfigureAwait(false);
+            }
         }
 
-        private async Task<AggregateStream> LoadAsync(byte[] id)
+        private async Task<AggregateStream> LoadAsync(ReadOnlyMemory<byte> id)
         {
             List<AggregateEventRaw> aggregateEvents = new List<AggregateEventRaw>();
 
@@ -453,7 +470,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             if (onPagingInfoChanged is not null)
             {
                 try { await onPagingInfoChanged(replayOptions.WithPaginationToken(pagingInfo.ToString())).ConfigureAwait(false); }
-                catch (Exception ex) when (logger.ErrorException(ex, () => "Failed to execute onPagingInfoChanged() function.")) { }
+                catch (Exception ex) when (True(() => logger.LogError(ex, "Failed to execute onPagingInfoChanged() function."))) { }
             }
 
             return pagingInfo;
@@ -461,66 +478,79 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private async Task<PreparedStatement> GetRebuildDataStatementAsync(ISession session)
         {
-
-            string tableName = tableNameStrategy.GetName();
-            PreparedStatement replayWithoutDataStatement = await session.PrepareAsync(string.Format(LoadAggregateEventsRebuildQueryTemplate, tableName)).ConfigureAwait(false);
-            replayWithoutDataStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-
-            return replayWithoutDataStatement;
+            if (_loadAggregateRebuildEventsPreparedStatements is null)
+            {
+                string tableName = tableNameStrategy.GetName();
+                _loadAggregateRebuildEventsPreparedStatements = await session.PrepareAsync(string.Format(LoadAggregateEventsRebuildQueryTemplate, session.Keyspace, tableName)).ConfigureAwait(false);
+                _loadAggregateRebuildEventsPreparedStatements.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
+            return _loadAggregateRebuildEventsPreparedStatements;
         }
 
         private async Task<PreparedStatement> PrepareLoadEventQueryStatementAsync(ISession session)
         {
-            string tableName = tableNameStrategy.GetName();
-            PreparedStatement loadAggregateCommitsMetaStatement = await session.PrepareAsync(string.Format(LoadEventQueryTemplate, tableName)).ConfigureAwait(false);
-            loadAggregateCommitsMetaStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-
-            return loadAggregateCommitsMetaStatement;
+            if (_loadEventPreparedStatements is null)
+            {
+                string tableName = tableNameStrategy.GetName();
+                _loadEventPreparedStatements = await session.PrepareAsync(string.Format(LoadEventQueryTemplate, session.Keyspace, tableName)).ConfigureAwait(false);
+                _loadEventPreparedStatements.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
+            return _loadEventPreparedStatements;
         }
 
         private async Task<PreparedStatement> GetWriteStatementAsync(ISession session)
         {
-            string tableName = tableNameStrategy.GetName();
-            PreparedStatement writeStatement = await session.PrepareAsync(string.Format(InsertEventsQueryTemplate, tableName)).ConfigureAwait(false);
-            writeStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-
-            return writeStatement;
+            if (_insertEventsPreparedStatements is null)
+            {
+                string tableName = tableNameStrategy.GetName();
+                _insertEventsPreparedStatements = await session.PrepareAsync(string.Format(InsertEventsQueryTemplate, session.Keyspace, tableName)).ConfigureAwait(false);
+                _insertEventsPreparedStatements.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
+            return _insertEventsPreparedStatements;
         }
 
         private async Task<PreparedStatement> GetReadStatementAscendingAsync(ISession session)
         {
-            string tableName = tableNameStrategy.GetName();
-            PreparedStatement readStatement = await session.PrepareAsync(string.Format(LoadAggregateEventsQueryTemplate, tableName)).ConfigureAwait(false);
-            readStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-
-            return readStatement;
+            if (_loadAggregateEventsPreparedStatements is null)
+            {
+                string tableName = tableNameStrategy.GetName();
+                _loadAggregateEventsPreparedStatements = await session.PrepareAsync(string.Format(LoadAggregateEventsQueryTemplate, session.Keyspace, tableName)).ConfigureAwait(false);
+                _loadAggregateEventsPreparedStatements.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
+            return _loadAggregateEventsPreparedStatements;
         }
 
         private async Task<PreparedStatement> GetDeleteStatement(ISession session)
         {
-            string tableName = tableNameStrategy.GetName();
-            PreparedStatement deleteStatement = await session.PrepareAsync(string.Format(DeleteEventQueryTemplate, tableName)).ConfigureAwait(false);
-            deleteStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-
-            return deleteStatement;
+            if (_deleteEventsPreparedStatements is null)
+            {
+                string tableName = tableNameStrategy.GetName();
+                _deleteEventsPreparedStatements = await session.PrepareAsync(string.Format(DeleteEventQueryTemplate, session.Keyspace, tableName)).ConfigureAwait(false);
+                _deleteEventsPreparedStatements.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
+            return _deleteEventsPreparedStatements;
         }
 
         private async Task<PreparedStatement> GetReplayStatementAsync(ISession session)
         {
-            string tableName = tableNameStrategy.GetName();
-            PreparedStatement replayStatement = await session.PrepareAsync(string.Format(LoadEventsQueryTemplate, tableName)).ConfigureAwait(false);
-            replayStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-
-            return replayStatement;
+            if (_loadEventsPreparedStatements is null)
+            {
+                string tableName = tableNameStrategy.GetName();
+                _loadEventsPreparedStatements = await session.PrepareAsync(string.Format(LoadEventsQueryTemplate, session.Keyspace, tableName)).ConfigureAwait(false);
+                _loadEventsPreparedStatements.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
+            return _loadEventsPreparedStatements;
         }
 
         private async Task<PreparedStatement> GetReadStatementDescendingAsync(ISession session)
         {
-            string tableName = tableNameStrategy.GetName();
-            PreparedStatement readWithPagingByRevisionStatement = await session.PrepareAsync(string.Format(LoadAggregateEventsWithinSpecifiedRevisionsQueryTemplate, tableName)).ConfigureAwait(false);
-            readWithPagingByRevisionStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-
-            return readWithPagingByRevisionStatement;
+            if (_loadSpecificAggregateEventsSavePreparedStatements is null)
+            {
+                string tableName = tableNameStrategy.GetName();
+                _loadSpecificAggregateEventsSavePreparedStatements = await session.PrepareAsync(string.Format(LoadAggregateEventsWithinSpecifiedRevisionsQueryTemplate, session.Keyspace, tableName)).ConfigureAwait(false);
+                _loadSpecificAggregateEventsSavePreparedStatements.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            }
+            return _loadSpecificAggregateEventsSavePreparedStatements;
         }
     }
 }

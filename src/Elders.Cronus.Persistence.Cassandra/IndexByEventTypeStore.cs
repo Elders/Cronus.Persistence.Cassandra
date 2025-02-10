@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -11,15 +12,23 @@ using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
+    /// We tried to use <see cref="ISession.PrepareAsync(string, string)"/> where we wanted to specify the keyspace (we use [cqlsh 6.2.0 | Cassandra 5.0.2 | CQL spec 3.4.7 | Native protocol v5] cassandra)
+    /// it seems like the driver does not have YET support for protocol v5 (still in beta). In code the driver is using protocol v4 (which is preventing us from using the above mentioned method)
+    /// https://datastax-oss.atlassian.net/jira/software/c/projects/CSHARP/issues/CSHARP-856 as of 01.23.25 this epic is still in todo.
     public class IndexByEventTypeStore : IIndexStore
     {
-        private const string Read = @"SELECT aid,rev,pos,ts FROM index_by_eventtype WHERE et=? AND pid=?;";
-        private const string ReadRange = @"SELECT aid,rev,pos,ts FROM index_by_eventtype WHERE et=? AND ts>=? AND ts<=? ALLOW FILTERING;";
-        private const string Write = @"INSERT INTO index_by_eventtype (et,pid,aid,rev,pos,ts) VALUES (?,?,?,?,?,?);";
-        private const string Delete = @"DELETE FROM index_by_eventtype where et=? AND pid AND ts=? AND aid=? AND rev=? AND pos=?;";
+        private const string Read = @"SELECT aid,rev,pos,ts FROM {0}.index_by_eventtype WHERE et=? AND pid=?;";
+        private const string ReadRange = @"SELECT aid,rev,pos,ts FROM {0}.index_by_eventtype WHERE et=? AND ts>=? AND ts<=? ALLOW FILTERING;";
+        private const string Write = @"INSERT INTO {0}.index_by_eventtype (et,pid,aid,rev,pos,ts) VALUES (?,?,?,?,?,?);";
+        private const string Delete = @"DELETE FROM {0}.index_by_eventtype where et=? AND pid=? AND ts=? AND aid=? AND rev=? AND pos=?;";
 
         private readonly ICassandraProvider cassandraProvider;
         private readonly ILogger<IndexByEventTypeStore> logger;
+
+        private PreparedStatement _readPreparedStatements;
+        private PreparedStatement _readRangePreparedStatements;
+        private PreparedStatement _writePreparedStatements;
+        private PreparedStatement _deletePreparedStatements;
 
         private Task<ISession> GetSessionAsync() => cassandraProvider.GetSessionAsync(); // In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
 
@@ -42,13 +51,10 @@ namespace Elders.Cronus.Persistence.Cassandra
                 var bs = statement.Bind(record.Id, partitionId, record.AggregateRootId, record.Revision, record.Position, record.TimeStamp).SetIdempotence(true);
                 await session.ExecuteAsync(bs).ConfigureAwait(false);
             }
-            catch (WriteTimeoutException ex)
-            {
-                logger.WarnException(ex, () => "Write timeout while persisting in IndexByEventTypeStore");
-            }
+            catch (WriteTimeoutException ex) when (True(() => logger.LogWarning(ex, "Write timeout while persisting in IndexByEventTypeStore"))) { }
             catch (Exception ex)
             {
-                logger.ErrorException(ex, () => "Failed to write index record.");
+                logger.LogError(ex, "Failed to write index record.");
                 throw;
             }
         }
@@ -60,16 +66,17 @@ namespace Elders.Cronus.Persistence.Cassandra
                 ISession session = await GetSessionAsync().ConfigureAwait(false);
                 PreparedStatement statement = await GetDeletePreparedStatementAsync(session).ConfigureAwait(false);
 
-                var bs = statement.Bind(record.Id, record.TimeStamp, record.AggregateRootId, record.Revision, record.Position);
+                var partitionId = CalculatePartition(record.TimeStamp);
+                var bs = statement.Bind(record.Id, partitionId, record.TimeStamp, record.AggregateRootId, record.Revision, record.Position);
                 await session.ExecuteAsync(bs).ConfigureAwait(false);
             }
             catch (WriteTimeoutException ex)
             {
-                logger.WarnException(ex, () => "Delete timeout while deleting from IndexByEventTypeStore");
+                logger.LogWarning(ex, "Delete timeout while deleting from IndexByEventTypeStore");
             }
             catch (Exception ex)
             {
-                logger.ErrorException(ex, () => "Failed to delete index record.");
+                logger.LogError(ex, "Failed to delete index record.");
                 throw;
             }
         }
@@ -91,34 +98,42 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private async Task<PreparedStatement> GetWritePreparedStatementAsync(ISession session)
         {
-            PreparedStatement writeStatement = await session.PrepareAsync(Write).ConfigureAwait(false);
-            writeStatement.SetConsistencyLevel(ConsistencyLevel.Any);
-
-            return writeStatement;
+            if (_writePreparedStatements is null)
+            {
+                _writePreparedStatements = await session.PrepareAsync(string.Format(Write, session.Keyspace)).ConfigureAwait(false);
+                _writePreparedStatements.SetConsistencyLevel(ConsistencyLevel.Any);
+            }
+            return _writePreparedStatements;
         }
 
         private async Task<PreparedStatement> GetDeletePreparedStatementAsync(ISession session)
         {
-            PreparedStatement deleteStatement = await session.PrepareAsync(Delete).ConfigureAwait(false);
-            deleteStatement.SetConsistencyLevel(ConsistencyLevel.Any);
-
-            return deleteStatement;
+            if (_deletePreparedStatements is null)
+            {
+                _deletePreparedStatements = await session.PrepareAsync(string.Format(Delete, session.Keyspace)).ConfigureAwait(false);
+                _deletePreparedStatements.SetConsistencyLevel(ConsistencyLevel.Any);
+            }
+            return _deletePreparedStatements;
         }
 
         private async Task<PreparedStatement> GetReadPreparedStatementAsync(ISession session)
         {
-            PreparedStatement readStatement = await session.PrepareAsync(Read).ConfigureAwait(false);
-            readStatement.SetConsistencyLevel(ConsistencyLevel.One);
-
-            return readStatement;
+            if (_readPreparedStatements is null)
+            {
+                _readPreparedStatements = await session.PrepareAsync(string.Format(Read, session.Keyspace)).ConfigureAwait(false);
+                _readPreparedStatements.SetConsistencyLevel(ConsistencyLevel.One);
+            }
+            return _readPreparedStatements;
         }
 
         private async Task<PreparedStatement> GetReadRangePreparedStatementAsync(ISession session)
         {
-            PreparedStatement readRangeStatement = await session.PrepareAsync(ReadRange).ConfigureAwait(false);
-            readRangeStatement.SetConsistencyLevel(ConsistencyLevel.One);
-
-            return readRangeStatement;
+            if (_readRangePreparedStatements is null)
+            {
+                _readRangePreparedStatements = await session.PrepareAsync(string.Format(ReadRange, session.Keyspace)).ConfigureAwait(false);
+                _readRangePreparedStatements.SetConsistencyLevel(ConsistencyLevel.One);
+            }
+            return _readRangePreparedStatements;
         }
 
         public async Task<long> GetCountAsync(string indexRecordId)
@@ -135,11 +150,12 @@ namespace Elders.Cronus.Persistence.Cassandra
 
                 long count = result.GetRows().First().GetValue<long>("count");
 
-                logger.Info(() => $"Number of messages for {indexRecordId}: {count}");
+                if (logger.IsEnabled(LogLevel.Information))
+                    logger.LogInformation("Number of messages for {indexRecordId}:{count}", indexRecordId, count);
 
                 return count;
             }
-            catch (Exception ex) when (logger.ErrorException(ex, () => $"Failed to count number of messages for {indexRecordId}."))
+            catch (Exception ex) when (True(() => logger.LogError(ex, "Failed to count number of messages for {indexRecordId}.", indexRecordId)))
             {
                 return 0;
             }
@@ -182,7 +198,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
             if (result.IsFullyFetched == false)
             {
-                logger.Warn(() => "Not implemented logic. => if (result.IsFullyFetched == false)");
+                logger.LogWarning("Not implemented logic. => if (result.IsFullyFetched == false)");
             }
 
             return new LoadIndexRecordsResult()
@@ -196,7 +212,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             if (replayOptions.EventTypeId is null)
             {
-                logger.Warn(() => "The PlayerOptions did not specify what EventTypeId should be replayed. Exiting...");
+                logger.LogWarning("The PlayerOptions did not specify what EventTypeId should be replayed. Exiting...");
                 yield break;
             }
 
@@ -236,7 +252,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                 if (onPagingInfoChanged is not null)
                 {
                     try { await onPagingInfoChanged(replayOptions.WithPaginationToken(pagingInfo.ToString())).ConfigureAwait(false); }
-                    catch (Exception ex) when (logger.ErrorException(ex, () => "Failed to execute onPagingInfoChanged() function.")) { }
+                    catch (Exception ex) when (True(() => logger.LogError(ex, "Failed to execute onPagingInfoChanged() function."))) { }
                 }
             }
         }

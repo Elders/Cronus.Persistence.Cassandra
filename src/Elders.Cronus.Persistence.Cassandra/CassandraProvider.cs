@@ -179,6 +179,9 @@ namespace Elders.Cronus.Persistence.Cassandra
                 }
             }
 
+            if (string.IsNullOrEmpty(session.Keyspace))
+                logger.LogError("THE SESSION KEYSPACE IS NULL");
+
             return session;
         }
 

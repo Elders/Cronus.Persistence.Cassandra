@@ -99,4 +99,6 @@ public class CassandraFixture : ICassandraProvider, IAsyncDisposable, IAsyncLife
 
         return session;
     }
+
+    public string GetKeyspace() => "tests";
 }

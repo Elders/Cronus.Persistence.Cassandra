@@ -122,7 +122,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                         .ApplyToBuilder(builder)
                         .Build();
 
-                    sessionWithLongTimeout = await cluster.ConnectAsync(GetKeyspace()).ConfigureAwait(false);
+                    sessionWithLongTimeout = await cluster.ConnectAsync().ConfigureAwait(false);
                 }
                 finally
                 {
@@ -134,7 +134,7 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         }
 
-        protected virtual string GetKeyspace()
+        public virtual string GetKeyspace()
         {
             return keyspaceNamingStrategy.GetName(baseConfigurationKeyspace).ToLower();
         }
@@ -156,7 +156,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                         try
                         {
                             ICluster cluster = await GetClusterAsync().ConfigureAwait(false);
-                            session = await cluster.ConnectAsync(GetKeyspace()).ConfigureAwait(false);
+                            session = await cluster.ConnectAsync().ConfigureAwait(false);
                         }
                         catch (InvalidQueryException)
                         {
@@ -164,12 +164,12 @@ namespace Elders.Cronus.Persistence.Cassandra
                             using (ISession schemaSession = await cluster.ConnectAsync().ConfigureAwait(false))
                             {
                                 string createKeySpaceQuery = replicationStrategy.CreateKeySpaceTemplate(GetKeyspace());
-                                IStatement createTableStatement = await GetKreateKeySpaceQuery(schemaSession).ConfigureAwait(false);
+                                IStatement createTableStatement = await GetCreateKeySpaceQuery(schemaSession).ConfigureAwait(false);
                                 await schemaSession.ExecuteAsync(createTableStatement).ConfigureAwait(false);
                             }
 
                             ICluster server = await GetClusterAsync().ConfigureAwait(false);
-                            session = await server.ConnectAsync(GetKeyspace()).ConfigureAwait(false);
+                            session = await server.ConnectAsync().ConfigureAwait(false);
                         }
                     }
                 }
@@ -179,13 +179,10 @@ namespace Elders.Cronus.Persistence.Cassandra
                 }
             }
 
-            if (string.IsNullOrEmpty(session.Keyspace))
-                logger.LogError("THE SESSION KEYSPACE IS NULL");
-
             return session;
         }
 
-        private async Task<IStatement> GetKreateKeySpaceQuery(ISession schemaSession)
+        private async Task<IStatement> GetCreateKeySpaceQuery(ISession schemaSession)
         {
             PreparedStatement createEventsTableStatement = await schemaSession.PrepareAsync(replicationStrategy.CreateKeySpaceTemplate(GetKeyspace())).ConfigureAwait(false);
             createEventsTableStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);

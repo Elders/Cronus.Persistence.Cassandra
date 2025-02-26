@@ -8,36 +8,73 @@ using System.Threading.Tasks;
 using Cassandra;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.EventStore.Index;
+using Elders.Cronus.MessageProcessing;
 using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
+    internal class IndexReadQuery : PreparedStatementCache
+    {
+        private const string Template = @"SELECT aid,rev,pos,ts FROM {0}.index_by_eventtype WHERE et=? AND pid=?;";
+
+        public IndexReadQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider) : base(context, cassandraProvider) { }
+
+        internal override string GetQueryTemplate() => Template;
+    }
+
+    internal class IndexReadRangeQuery : PreparedStatementCache
+    {
+        private const string Template = @"SELECT aid,rev,pos,ts FROM {0}.index_by_eventtype WHERE et=? AND ts>=? AND ts<=? ALLOW FILTERING;";
+
+        public IndexReadRangeQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider) : base(context, cassandraProvider) { }
+
+        internal override string GetQueryTemplate() => Template;
+    }
+
+    internal class IndexWriteQuery : PreparedStatementCache
+    {
+        private const string Template = @"INSERT INTO {0}.index_by_eventtype (et,pid,aid,rev,pos,ts) VALUES (?,?,?,?,?,?);";
+
+        public IndexWriteQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider) : base(context, cassandraProvider) { }
+
+        internal override string GetQueryTemplate() => Template;
+    }
+
+    internal class IndexDeleteQuery : PreparedStatementCache
+    {
+        private const string Template = @"DELETE FROM {0}.index_by_eventtype where et=? AND pid=? AND ts=? AND aid=? AND rev=? AND pos=?;";
+
+        public IndexDeleteQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider) : base(context, cassandraProvider) { }
+
+        internal override string GetQueryTemplate() => Template;
+    }
+
     /// We tried to use <see cref="ISession.PrepareAsync(string, string)"/> where we wanted to specify the keyspace (we use [cqlsh 6.2.0 | Cassandra 5.0.2 | CQL spec 3.4.7 | Native protocol v5] cassandra)
     /// it seems like the driver does not have YET support for protocol v5 (still in beta). In code the driver is using protocol v4 (which is preventing us from using the above mentioned method)
     /// https://datastax-oss.atlassian.net/jira/software/c/projects/CSHARP/issues/CSHARP-856 as of 01.23.25 this epic is still in todo.
     public class IndexByEventTypeStore : IIndexStore
     {
-        private const string Read = @"SELECT aid,rev,pos,ts FROM {0}.index_by_eventtype WHERE et=? AND pid=?;";
-        private const string ReadRange = @"SELECT aid,rev,pos,ts FROM {0}.index_by_eventtype WHERE et=? AND ts>=? AND ts<=? ALLOW FILTERING;";
-        private const string Write = @"INSERT INTO {0}.index_by_eventtype (et,pid,aid,rev,pos,ts) VALUES (?,?,?,?,?,?);";
-        private const string Delete = @"DELETE FROM {0}.index_by_eventtype where et=? AND pid=? AND ts=? AND aid=? AND rev=? AND pos=?;";
-
         private readonly ICassandraProvider cassandraProvider;
         private readonly ILogger<IndexByEventTypeStore> logger;
 
-        private PreparedStatement _readPreparedStatements;
-        private PreparedStatement _readRangePreparedStatements;
-        private PreparedStatement _writePreparedStatements;
-        private PreparedStatement _deletePreparedStatements;
+        private IndexReadQuery _readPreparedStatements;
+        private IndexReadRangeQuery _readRangePreparedStatements;
+        private IndexWriteQuery _writePreparedStatements;
+        private IndexDeleteQuery _deletePreparedStatements;
 
         private Task<ISession> GetSessionAsync() => cassandraProvider.GetSessionAsync(); // In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
 
-        public IndexByEventTypeStore(ICassandraProvider cassandraProvider, ILogger<IndexByEventTypeStore> logger)
+        public IndexByEventTypeStore(ICronusContextAccessor cronusContextAccessor, ICassandraProvider cassandraProvider, ILogger<IndexByEventTypeStore> logger)
         {
             if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
 
             this.cassandraProvider = cassandraProvider;
             this.logger = logger;
+
+            _readPreparedStatements = new IndexReadQuery(cronusContextAccessor, cassandraProvider);
+            _readRangePreparedStatements = new IndexReadRangeQuery(cronusContextAccessor, cassandraProvider);
+            _writePreparedStatements = new IndexWriteQuery(cronusContextAccessor, cassandraProvider);
+            _deletePreparedStatements = new IndexDeleteQuery(cronusContextAccessor, cassandraProvider);
         }
 
         public async Task ApendAsync(IndexRecord record)
@@ -45,7 +82,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             try
             {
                 ISession session = await GetSessionAsync().ConfigureAwait(false);
-                PreparedStatement statement = await GetWritePreparedStatementAsync(session).ConfigureAwait(false);
+                PreparedStatement statement = await _writePreparedStatements.PrepareAsync(session).ConfigureAwait(false);
                 int partitionId = CalculatePartition(record.TimeStamp);
 
                 var bs = statement.Bind(record.Id, partitionId, record.AggregateRootId, record.Revision, record.Position, record.TimeStamp).SetIdempotence(true);
@@ -64,7 +101,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             try
             {
                 ISession session = await GetSessionAsync().ConfigureAwait(false);
-                PreparedStatement statement = await GetDeletePreparedStatementAsync(session).ConfigureAwait(false);
+                PreparedStatement statement = await _deletePreparedStatements.PrepareAsync(session).ConfigureAwait(false);
 
                 var partitionId = CalculatePartition(record.TimeStamp);
                 var bs = statement.Bind(record.Id, partitionId, record.TimeStamp, record.AggregateRootId, record.Revision, record.Position);
@@ -96,53 +133,13 @@ namespace Elders.Cronus.Persistence.Cassandra
             return partitionId;
         }
 
-        private async Task<PreparedStatement> GetWritePreparedStatementAsync(ISession session)
-        {
-            if (_writePreparedStatements is null)
-            {
-                _writePreparedStatements = await session.PrepareAsync(string.Format(Write, session.Keyspace)).ConfigureAwait(false);
-                _writePreparedStatements.SetConsistencyLevel(ConsistencyLevel.Any);
-            }
-            return _writePreparedStatements;
-        }
-
-        private async Task<PreparedStatement> GetDeletePreparedStatementAsync(ISession session)
-        {
-            if (_deletePreparedStatements is null)
-            {
-                _deletePreparedStatements = await session.PrepareAsync(string.Format(Delete, session.Keyspace)).ConfigureAwait(false);
-                _deletePreparedStatements.SetConsistencyLevel(ConsistencyLevel.Any);
-            }
-            return _deletePreparedStatements;
-        }
-
-        private async Task<PreparedStatement> GetReadPreparedStatementAsync(ISession session)
-        {
-            if (_readPreparedStatements is null)
-            {
-                _readPreparedStatements = await session.PrepareAsync(string.Format(Read, session.Keyspace)).ConfigureAwait(false);
-                _readPreparedStatements.SetConsistencyLevel(ConsistencyLevel.One);
-            }
-            return _readPreparedStatements;
-        }
-
-        private async Task<PreparedStatement> GetReadRangePreparedStatementAsync(ISession session)
-        {
-            if (_readRangePreparedStatements is null)
-            {
-                _readRangePreparedStatements = await session.PrepareAsync(string.Format(ReadRange, session.Keyspace)).ConfigureAwait(false);
-                _readRangePreparedStatements.SetConsistencyLevel(ConsistencyLevel.One);
-            }
-            return _readRangePreparedStatements;
-        }
-
         public async Task<long> GetCountAsync(string indexRecordId)
         {
             try
             {
                 ISession session = await (cassandraProvider as CassandraProvider).GetSessionHighTimeoutAsync();
-
-                IStatement countStatement = new SimpleStatement($"SELECT count(*) FROM index_by_eventtype WHERE et='{indexRecordId}'")
+                var keyspace = cassandraProvider.GetKeyspace();
+                IStatement countStatement = new SimpleStatement($"SELECT count(*) FROM {keyspace}.index_by_eventtype WHERE et='{indexRecordId}' ALLOW FILTERING;")
                     .SetConsistencyLevel(ConsistencyLevel.One)
                     .SetReadTimeoutMillis(1000 * 60 * 10);
 
@@ -164,7 +161,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         public async IAsyncEnumerable<IndexRecord> GetAsync(string indexRecordId)
         {
             ISession session = await GetSessionAsync().ConfigureAwait(false);
-            PreparedStatement statement = await GetReadPreparedStatementAsync(session).ConfigureAwait(false);
+            PreparedStatement statement = await _readPreparedStatements.PrepareAsync(session).ConfigureAwait(false);
 
             BoundStatement bs = statement.Bind(indexRecordId);
             RowSet result = await session.ExecuteAsync(bs).ConfigureAwait(false);
@@ -183,7 +180,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             List<IndexRecord> indexRecords = new List<IndexRecord>();
 
             ISession session = await GetSessionAsync().ConfigureAwait(false);
-            PreparedStatement statement = await GetReadPreparedStatementAsync(session).ConfigureAwait(false);
+            PreparedStatement statement = await _readPreparedStatements.PrepareAsync(session).ConfigureAwait(false);
             IStatement queryStatement = statement.Bind(indexRecordId).SetPageSize(pageSize).SetAutoPage(false);
 
             if (pagingInfo.HasToken())
@@ -221,7 +218,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             long before = replayOptions.Before.HasValue ? replayOptions.Before.Value.ToFileTime() : DateTimeOffset.UtcNow.AddDays(1).ToFileTime();
 
             ISession session = await GetSessionAsync().ConfigureAwait(false);
-            PreparedStatement statement = await GetReadRangePreparedStatementAsync(session).ConfigureAwait(false);
+            PreparedStatement statement = await _readRangePreparedStatements.PrepareAsync(session).ConfigureAwait(false);
 
             IStatement queryStatement = statement.Bind(replayOptions.EventTypeId, after, before);
             queryStatement

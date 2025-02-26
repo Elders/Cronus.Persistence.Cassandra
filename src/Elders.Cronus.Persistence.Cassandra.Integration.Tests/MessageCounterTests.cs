@@ -1,5 +1,6 @@
 ﻿using System.Runtime.Serialization;
 using Cassandra;
+using Elders.Cronus.MessageProcessing;
 using Elders.Cronus.Persistence.Cassandra.Counters;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -18,7 +19,11 @@ public class MessageCounterTests
     [Fact]
     public async Task IncrementAsync()
     {
-        var counter = new MessageCounter(cassandraFixture, NullLogger<MessageCounter>.Instance);
+        var accessor = new CronusContextAccessorMock
+        {
+            CronusContext = new CronusContext("tests", new NullServiceProviderMock())
+        };
+        var counter = new MessageCounter(accessor, cassandraFixture, NullLogger<MessageCounter>.Instance);
         var countedType = typeof(IncrementCounted);
         var contractId = countedType.GetContractId();
 
@@ -36,7 +41,11 @@ public class MessageCounterTests
     [Fact]
     public async Task DecrementAsync()
     {
-        var counter = new MessageCounter(cassandraFixture, NullLogger<MessageCounter>.Instance);
+        var accessor = new CronusContextAccessorMock
+        {
+            CronusContext = new CronusContext("tests", new NullServiceProviderMock())
+        };
+        var counter = new MessageCounter(accessor, cassandraFixture, NullLogger<MessageCounter>.Instance);
         var countedType = typeof(DecrementCounted);
         var contractId = countedType.GetContractId();
 
@@ -55,7 +64,11 @@ public class MessageCounterTests
     [Fact]
     public async Task GetCountAsync()
     {
-        var counter = new MessageCounter(cassandraFixture, NullLogger<MessageCounter>.Instance);
+        var accessor = new CronusContextAccessorMock
+        {
+            CronusContext = new CronusContext("tests", new NullServiceProviderMock())
+        };
+        var counter = new MessageCounter(accessor, cassandraFixture, NullLogger<MessageCounter>.Instance);
         var countedType = typeof(GetCountCounted);
         var contractId = countedType.GetContractId();
 
@@ -68,7 +81,11 @@ public class MessageCounterTests
     [Fact]
     public async Task ResetAsync()
     {
-        var counter = new MessageCounter(cassandraFixture, NullLogger<MessageCounter>.Instance);
+        var accessor = new CronusContextAccessorMock
+        {
+            CronusContext = new CronusContext("tests", new NullServiceProviderMock())
+        };
+        var counter = new MessageCounter(accessor, cassandraFixture, NullLogger<MessageCounter>.Instance);
         var countedType = typeof(ResetCounted);
         var contractId = countedType.GetContractId();
 

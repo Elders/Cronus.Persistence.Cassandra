@@ -65,12 +65,22 @@ namespace Elders.Cronus.Persistence.Cassandra
 
                     var connStrBuilder = new CassandraConnectionStringBuilder(connectionString);
 
+                    int ThirthySeconds = 1000 * 30;
+                    SocketOptions so = new SocketOptions();
+                    so.SetReadTimeoutMillis(ThirthySeconds);
+                    so.SetStreamMode(true);
+                    so.SetTcpNoDelay(true);
+
                     cluster = connStrBuilder
                         .ApplyToBuilder(builder)
+                        .WithSocketOptions(so)
                         .WithTypeSerializers(new TypeSerializerDefinitions().Define(new ReadOnlyMemoryTypeSerializer()))
                         .WithReconnectionPolicy(new ExponentialReconnectionPolicy(100, 100000))
                         .WithRetryPolicy(new NoHintedHandOffRetryPolicy())
+                        .WithCompression(CompressionType.LZ4)
                         .WithPoolingOptions(new PoolingOptions()
+                            .SetCoreConnectionsPerHost(HostDistance.Local, 2)
+                            .SetMaxConnectionsPerHost(HostDistance.Local, 8)
                             .SetMaxRequestsPerConnection(options.MaxRequestsPerConnection))
                         .Build();
 

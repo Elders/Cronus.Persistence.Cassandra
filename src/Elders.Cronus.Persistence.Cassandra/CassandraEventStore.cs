@@ -1,8 +1,5 @@
 using System;
-using System.Collections;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -24,9 +21,6 @@ namespace Elders.Cronus.Persistence.Cassandra
         }
     }
 
-
-
-
     /// We tried to use <see cref="ISession.PrepareAsync(string, string)"/> where we wanted to specify the keyspace (we use [cqlsh 6.2.0 | Cassandra 5.0.2 | CQL spec 3.4.7 | Native protocol v5] cassandra)
     /// it seems like the driver does not have YET support for protocol v5 (still in beta). In code the driver is using protocol v4 (which is preventing us from using the above mentioned method)
     /// https://datastax-oss.atlassian.net/jira/software/c/projects/CSHARP/issues/CSHARP-856 as of 01.23.25 this epic is still in todo.
@@ -35,16 +29,14 @@ namespace Elders.Cronus.Persistence.Cassandra
         private readonly ISerializer serializer;
         private readonly IndexByEventTypeStore indexByEventTypeStore;
         private readonly ILogger<CassandraEventStore> logger;
-        private readonly ICronusContextAccessor cronusContextAccessor;
         private readonly ICassandraProvider cassandraProvider;
-        private readonly ITableNamingStrategy tableNameStrategy;
 
         // the store is registered as tenant singleton and the events table is only 1 so there could only be one prepared statement per tenant
         private LoadAggregateEventsQuery _loadAggregateEventsQuery;
         private InsertEventsQuery _insertEventsQuery;
         private LoadEventsQuery _loadEventsQuery;
         private LoadAggregateEventsWithinSpecifiedRevisionsQuery _loadAggregateEventsWithinSpecifiedRevisionsQuery;
-        private LoadAggregateEventsRebuildQuery _loadAggregateRebuildEventsPreparedStatements;
+        private LoadAggregateEventsRebuildQuery _loadAggregateRebuildEventsQuery;
         private LoadEventQuery _loadEventQuery;
         private DeleteEventQuery _deleteEventQuery;
 
@@ -53,18 +45,16 @@ namespace Elders.Cronus.Persistence.Cassandra
         public CassandraEventStore(ICronusContextAccessor cronusContextAccessor, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ISerializer serializer, IndexByEventTypeStore indexByEventTypeStore, ILogger<CassandraEventStore> logger)
         {
             if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
-            this.cronusContextAccessor = cronusContextAccessor;
             this.cassandraProvider = cassandraProvider;
-            this.tableNameStrategy = tableNameStrategy ?? throw new ArgumentNullException(nameof(tableNameStrategy));
             this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
             this.indexByEventTypeStore = indexByEventTypeStore ?? throw new ArgumentNullException(nameof(indexByEventTypeStore));
             this.logger = logger;
 
-            _loadEventQuery = new LoadEventQuery(cronusContextAccessor, cassandraProvider, tableNameStrategy);
             _loadAggregateEventsQuery = new LoadAggregateEventsQuery(cronusContextAccessor, cassandraProvider, tableNameStrategy);
             _insertEventsQuery = new InsertEventsQuery(cronusContextAccessor, cassandraProvider, tableNameStrategy);
             _loadEventsQuery = new LoadEventsQuery(cronusContextAccessor, cassandraProvider, tableNameStrategy);
             _loadAggregateEventsWithinSpecifiedRevisionsQuery = new LoadAggregateEventsWithinSpecifiedRevisionsQuery(cronusContextAccessor, cassandraProvider, tableNameStrategy);
+            _loadAggregateRebuildEventsQuery = new LoadAggregateEventsRebuildQuery(cronusContextAccessor, cassandraProvider, tableNameStrategy);
             _loadEventQuery = new LoadEventQuery(cronusContextAccessor, cassandraProvider, tableNameStrategy);
             _deleteEventQuery = new DeleteEventQuery(cronusContextAccessor, cassandraProvider, tableNameStrategy);
         }
@@ -174,7 +164,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         public async Task<IEvent> LoadEventWithRebuildProjectionAsync(IndexRecord indexRecord)
         {
             ISession session = await GetSessionAsync().ConfigureAwait(false);
-            PreparedStatement statement = await _loadAggregateRebuildEventsPreparedStatements.PrepareAsync(session).ConfigureAwait(false);
+            PreparedStatement statement = await _loadAggregateRebuildEventsQuery.PrepareAsync(session).ConfigureAwait(false);
 
             BoundStatement boundStatement = statement.Bind(indexRecord.AggregateRootId, indexRecord.Revision, indexRecord.Position);
 
@@ -482,126 +472,67 @@ namespace Elders.Cronus.Persistence.Cassandra
             return pagingInfo;
         }
 
-    }
-
-    internal class LoadEventQuery : PreparedStatementCache
-    {
-        private const string LoadEventQueryTemplate = @"SELECT data,ts FROM {0}.{1} WHERE id = ? AND rev = ? AND pos = ?;";
-
-        public LoadEventQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
-
-        internal override string GetQueryTemplate() => LoadEventQueryTemplate;
-    }
-
-    internal class LoadAggregateEventsQuery : PreparedStatementCache
-    {
-        private const string Template = @"SELECT rev,pos,ts,data FROM {0}.{1} WHERE id = ?;";
-
-        public LoadAggregateEventsQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
-
-        internal override string GetQueryTemplate() => Template;
-    }
-
-    internal class InsertEventsQuery : PreparedStatementCache
-    {
-        private const string Template = @"INSERT INTO {0}.{1} (id,rev,pos,ts,data) VALUES (?,?,?,?,?);";
-
-        public InsertEventsQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
-
-        internal override string GetQueryTemplate() => Template;
-    }
-
-    internal class LoadEventsQuery : PreparedStatementCache
-    {
-        private const string Template = @"SELECT id,rev,pos,ts,data FROM {0}.{1};";
-
-        public LoadEventsQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
-
-        internal override string GetQueryTemplate() => Template;
-    }
-
-    internal class LoadAggregateEventsWithinSpecifiedRevisionsQuery : PreparedStatementCache
-    {
-        private const string Template = @"SELECT rev,pos,ts,data FROM {0}.{1} WHERE id = ? order by rev desc, pos desc";
-
-        public LoadAggregateEventsWithinSpecifiedRevisionsQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
-
-        internal override string GetQueryTemplate() => Template;
-    }
-
-    internal class LoadAggregateEventsRebuildQuery : PreparedStatementCache
-    {
-        private const string Template = @"SELECT data FROM {0}.{1} WHERE id = ? AND rev = ? AND pos = ?;";
-
-        public LoadAggregateEventsRebuildQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
-
-        internal override string GetQueryTemplate() => Template;
-    }
-
-    internal class DeleteEventQuery : PreparedStatementCache
-    {
-        private const string Template = @"DELETE FROM {0}.{1} WHERE id = ? and rev=? and pos=?;";
-
-        public DeleteEventQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
-
-        internal override string GetQueryTemplate() => Template;
-    }
-
-    internal abstract class PreparedStatementCache
-    {
-        private readonly ICronusContextAccessor context;
-        private readonly ICassandraProvider cassandraProvider;
-        private readonly ITableNamingStrategy tableNameStrategy;
-        private SemaphoreSlim threadGate = new SemaphoreSlim(1);
-        private Dictionary<string, PreparedStatement> _tenantCache;
-
-        protected PreparedStatementCache(ICronusContextAccessor context, ICassandraProvider cassandraProvider) : this(context, cassandraProvider, default) { }
-
-        public PreparedStatementCache(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy)
+        class LoadEventQuery : PreparedStatementCache
         {
-            _tenantCache = new Dictionary<string, PreparedStatement>();
+            private const string LoadEventQueryTemplate = @"SELECT data,ts FROM {0}.{1} WHERE id = ? AND rev = ? AND pos = ?;";
 
-            this.context = context;
-            this.cassandraProvider = cassandraProvider;
-            this.tableNameStrategy = tableNameStrategy;
+            public LoadEventQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
+
+            internal override string GetQueryTemplate() => LoadEventQueryTemplate;
         }
 
-        internal abstract string GetQueryTemplate();
-        internal virtual string GetTableName() => tableNameStrategy?.GetName();
-
-        internal async Task<PreparedStatement> PrepareAsync(ISession session)
+        class LoadAggregateEventsQuery : PreparedStatementCache
         {
-            try
-            {
-                PreparedStatement preparedStatement = default;
-                if (_tenantCache.TryGetValue(context.CronusContext.Tenant, out preparedStatement) == false)
-                {
-                    await threadGate.WaitAsync(10000).ConfigureAwait(false);
-                    if (_tenantCache.TryGetValue(context.CronusContext.Tenant, out preparedStatement))
-                        return preparedStatement;
+            private const string Template = @"SELECT rev,pos,ts,data FROM {0}.{1} WHERE id = ?;";
 
-                    string keyspace = cassandraProvider.GetKeyspace();
-                    string tableName = GetTableName();
-                    string template = GetQueryTemplate();
-                    string query = string.Format(template, keyspace, tableName);
+            public LoadAggregateEventsQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
 
-                    preparedStatement = await session.PrepareAsync(query).ConfigureAwait(false);
-                    SetPreparedStatementOptions(preparedStatement);
-
-                    _tenantCache.TryAdd(context.CronusContext.Tenant, preparedStatement);
-                }
-
-                return preparedStatement;
-            }
-            finally
-            {
-                threadGate?.Release();
-            }
+            internal override string GetQueryTemplate() => Template;
         }
 
-        internal virtual void SetPreparedStatementOptions(PreparedStatement statement)
+        class InsertEventsQuery : PreparedStatementCache
         {
-            statement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+            private const string Template = @"INSERT INTO {0}.{1} (id,rev,pos,ts,data) VALUES (?,?,?,?,?);";
+
+            public InsertEventsQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
+
+            internal override string GetQueryTemplate() => Template;
+        }
+
+        class LoadEventsQuery : PreparedStatementCache
+        {
+            private const string Template = @"SELECT id,rev,pos,ts,data FROM {0}.{1};";
+
+            public LoadEventsQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
+
+            internal override string GetQueryTemplate() => Template;
+        }
+
+        class LoadAggregateEventsWithinSpecifiedRevisionsQuery : PreparedStatementCache
+        {
+            private const string Template = @"SELECT rev,pos,ts,data FROM {0}.{1} WHERE id = ? order by rev desc, pos desc";
+
+            public LoadAggregateEventsWithinSpecifiedRevisionsQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
+
+            internal override string GetQueryTemplate() => Template;
+        }
+
+        class LoadAggregateEventsRebuildQuery : PreparedStatementCache
+        {
+            private const string Template = @"SELECT data FROM {0}.{1} WHERE id = ? AND rev = ? AND pos = ?;";
+
+            public LoadAggregateEventsRebuildQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
+
+            internal override string GetQueryTemplate() => Template;
+        }
+
+        class DeleteEventQuery : PreparedStatementCache
+        {
+            private const string Template = @"DELETE FROM {0}.{1} WHERE id = ? and rev=? and pos=?;";
+
+            public DeleteEventQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
+
+            internal override string GetQueryTemplate() => Template;
         }
     }
 }

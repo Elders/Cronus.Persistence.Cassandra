@@ -86,7 +86,6 @@ public class EnumerateEventStore : IClassFixture<CassandraEventStoreFixture>
 public class CassandraEventStoreTests : IClassFixture<CassandraEventStoreFixture>
 {
     private readonly CassandraFixture cassandraFixture;
-    private readonly IndexByEventTypeStoreFixture indexByEventTypeStoreFixture;
     private readonly BlobIdFixture blobIdFixture;
     private readonly CassandraEventStoreFixture cassandraEventStoreFixture;
 

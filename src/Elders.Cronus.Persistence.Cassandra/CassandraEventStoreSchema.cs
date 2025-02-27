@@ -2,7 +2,6 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Cassandra;
-using Elders.Cronus.MessageProcessing;
 using Elders.Cronus.Persistence.Cassandra.Counters;
 using Microsoft.Extensions.Logging;
 
@@ -18,7 +17,8 @@ namespace Elders.Cronus.Persistence.Cassandra
         private readonly ICassandraProvider cassandraProvider;
         private readonly ITableNamingStrategy tableNameStrategy;
 
-        private Task<ISession> GetSessionAsync() => cassandraProvider.GetSessionAsync();// In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
+        private Task<ISession> GetSessionAsync() => cassandraProvider.GetSessionAsync();
+
         public CassandraEventStoreSchema(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy)
         {
             if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));

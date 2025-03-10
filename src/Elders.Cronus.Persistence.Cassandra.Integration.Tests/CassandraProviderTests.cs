@@ -58,7 +58,7 @@ public class CassandraProviderTests
 
         Assert.NotNull(session);
         Assert.False(session.IsDisposed);
-        Assert.Equal(keyspaceNaming.GetName("test_containers"), session.Keyspace);
+        Assert.Equal("test_containers", provider.GetKeyspace());
     }
 
     [Fact]
@@ -71,9 +71,10 @@ public class CassandraProviderTests
             ReplicationFactor = 1,
             ReplicationStrategy = "simple"
         };
+        string tenant = "tests";
         var accessor = new CronusContextAccessorMock
         {
-            CronusContext = new CronusContext("tests", new NullServiceProviderMock())
+            CronusContext = new CronusContext(tenant, new NullServiceProviderMock())
         };
         var keyspaceNaming = new KeyspacePerTenantKeyspace(accessor);
         var replicatoinStrategy = new SimpleReplicationStrategy(1);
@@ -84,7 +85,7 @@ public class CassandraProviderTests
 
         Assert.NotNull(session);
         Assert.False(session.IsDisposed);
-        Assert.Equal(keyspaceNaming.GetName("test_containers"), session.Keyspace);
+        Assert.Equal($"{tenant}_test_containers", provider.GetKeyspace());
     }
 }
 

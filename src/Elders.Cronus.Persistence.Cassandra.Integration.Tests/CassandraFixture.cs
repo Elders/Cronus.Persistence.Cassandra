@@ -72,10 +72,7 @@ public class CassandraFixture : ICassandraProvider, IAsyncDisposable, IAsyncLife
 
     public Task<ISession> GetSessionAsync()
     {
-        var className = TestContext.Current.TestClass.TestClassName
-            .Skip(TestContext.Current.TestClass.TestClassName.LastIndexOf('.') + 1)
-            .Take(48)
-            .ToArray();
+        var className = GetKeyspace();
 
         return GetSessionAsync(new string(className).ToLower()); /// track <see cref="https://datastax-oss.atlassian.net/browse/CSHARP-1021"></see>
     }
@@ -100,5 +97,13 @@ public class CassandraFixture : ICassandraProvider, IAsyncDisposable, IAsyncLife
         return session;
     }
 
-    public string GetKeyspace() => "tests";
+    public string GetKeyspace()
+    {
+        var keyspace = TestContext.Current.TestClass.TestClassName
+            .Skip(TestContext.Current.TestClass.TestClassName.LastIndexOf('.') + 1)
+            .Take(48)
+            .ToArray();
+
+        return new string(keyspace).ToLower();
+    }
 }

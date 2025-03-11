@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -8,15 +7,16 @@ using System.Threading.Tasks;
 using Cassandra;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.EventStore.Index;
+using Elders.Cronus.MessageProcessing;
 using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
     public class CassandraEventStore<TSettings> : CassandraEventStore, IEventStorePlayer<TSettings>
-        where TSettings : class, ICassandraEventStoreSettings
+    where TSettings : class, ICassandraEventStoreSettings
     {
-        public CassandraEventStore(TSettings settings, IndexByEventTypeStore indexByEventTypeStore, ILogger<CassandraEventStore> logger)
-            : base(settings.CassandraProvider, settings.TableNameStrategy, settings.Serializer, indexByEventTypeStore, logger)
+        public CassandraEventStore(ICronusContextAccessor cronusContextAccessor, TSettings settings, IndexByEventTypeStore indexByEventTypeStore, ILogger<CassandraEventStore> logger)
+            : base(cronusContextAccessor, settings.CassandraProvider, settings.TableNameStrategy, settings.Serializer, indexByEventTypeStore, logger)
         {
         }
     }
@@ -26,41 +26,37 @@ namespace Elders.Cronus.Persistence.Cassandra
     /// https://datastax-oss.atlassian.net/jira/software/c/projects/CSHARP/issues/CSHARP-856 as of 01.23.25 this epic is still in todo.
     public class CassandraEventStore : IEventStore, IEventStorePlayer
     {
-        private const string LoadAggregateEventsQueryTemplate = @"SELECT rev,pos,ts,data FROM {0}.{1} WHERE id = ?;";
-        private const string InsertEventsQueryTemplate = @"INSERT INTO {0}.{1} (id,rev,pos,ts,data) VALUES (?,?,?,?,?);";
-        private const string LoadEventsQueryTemplate = @"SELECT id,rev,pos,ts,data FROM {0}.{1};";
-        private const string LoadAggregateEventsWithinSpecifiedRevisionsQueryTemplate = @"SELECT rev,pos,ts,data FROM {0}.{1} WHERE id = ? order by rev desc, pos desc";
-
-        private const string LoadAggregateEventsRebuildQueryTemplate = @"SELECT data FROM {0}.{1} WHERE id = ? AND rev = ? AND pos = ?;";
-        private const string LoadEventQueryTemplate = @"SELECT data,ts FROM {0}.{1} WHERE id = ? AND rev = ? AND pos = ?;";
-
-        public const string DeleteEventQueryTemplate = @"DELETE FROM {0}.{1} WHERE id = ? and rev=? and pos=?;";
-
         private readonly ISerializer serializer;
         private readonly IndexByEventTypeStore indexByEventTypeStore;
         private readonly ILogger<CassandraEventStore> logger;
         private readonly ICassandraProvider cassandraProvider;
-        private readonly ITableNamingStrategy tableNameStrategy;
 
         // the store is registered as tenant singleton and the events table is only 1 so there could only be one prepared statement per tenant
-        private PreparedStatement _loadAggregateEventsPreparedStatements;
-        private PreparedStatement _insertEventsPreparedStatements;
-        private PreparedStatement _loadEventsPreparedStatements;
-        private PreparedStatement _loadSpecificAggregateEventsSavePreparedStatements;
-        private PreparedStatement _loadAggregateRebuildEventsPreparedStatements;
-        private PreparedStatement _loadEventPreparedStatements;
-        private PreparedStatement _deleteEventsPreparedStatements;
+        private LoadAggregateEventsQuery _loadAggregateEventsQuery;
+        private InsertEventsQuery _insertEventsQuery;
+        private LoadEventsQuery _loadEventsQuery;
+        private LoadAggregateEventsWithinSpecifiedRevisionsQuery _loadAggregateEventsWithinSpecifiedRevisionsQuery;
+        private LoadAggregateEventsRebuildQuery _loadAggregateRebuildEventsQuery;
+        private LoadEventQuery _loadEventQuery;
+        private DeleteEventQuery _deleteEventQuery;
 
         private Task<ISession> GetSessionAsync() => cassandraProvider.GetSessionAsync();// In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
 
-        public CassandraEventStore(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ISerializer serializer, IndexByEventTypeStore indexByEventTypeStore, ILogger<CassandraEventStore> logger)
+        public CassandraEventStore(ICronusContextAccessor cronusContextAccessor, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ISerializer serializer, IndexByEventTypeStore indexByEventTypeStore, ILogger<CassandraEventStore> logger)
         {
             if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
             this.cassandraProvider = cassandraProvider;
-            this.tableNameStrategy = tableNameStrategy ?? throw new ArgumentNullException(nameof(tableNameStrategy));
             this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
             this.indexByEventTypeStore = indexByEventTypeStore ?? throw new ArgumentNullException(nameof(indexByEventTypeStore));
             this.logger = logger;
+
+            _loadAggregateEventsQuery = new LoadAggregateEventsQuery(cronusContextAccessor, cassandraProvider, tableNameStrategy);
+            _insertEventsQuery = new InsertEventsQuery(cronusContextAccessor, cassandraProvider, tableNameStrategy);
+            _loadEventsQuery = new LoadEventsQuery(cronusContextAccessor, cassandraProvider, tableNameStrategy);
+            _loadAggregateEventsWithinSpecifiedRevisionsQuery = new LoadAggregateEventsWithinSpecifiedRevisionsQuery(cronusContextAccessor, cassandraProvider, tableNameStrategy);
+            _loadAggregateRebuildEventsQuery = new LoadAggregateEventsRebuildQuery(cronusContextAccessor, cassandraProvider, tableNameStrategy);
+            _loadEventQuery = new LoadEventQuery(cronusContextAccessor, cassandraProvider, tableNameStrategy);
+            _deleteEventQuery = new DeleteEventQuery(cronusContextAccessor, cassandraProvider, tableNameStrategy);
         }
 
         public async Task AppendAsync(AggregateCommit aggregateCommit)
@@ -68,7 +64,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             try
             {
                 ISession session = await GetSessionAsync().ConfigureAwait(false);
-                PreparedStatement writeStatement = await GetWriteStatementAsync(session).ConfigureAwait(false);
+                PreparedStatement writeStatement = await _insertEventsQuery.PrepareAsync(session).ConfigureAwait(false);
                 BatchStatement batch = new BatchStatement();
                 batch.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
                 batch.SetIdempotence(false);
@@ -103,7 +99,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             try
             {
                 ISession session = await GetSessionAsync().ConfigureAwait(false);
-                PreparedStatement statement = await GetWriteStatementAsync(session).ConfigureAwait(false);
+                PreparedStatement statement = await _insertEventsQuery.PrepareAsync(session).ConfigureAwait(false);
                 BoundStatement boundStatement = statement.Bind(aggregateCommitRaw.AggregateRootId, aggregateCommitRaw.Revision, aggregateCommitRaw.Position, aggregateCommitRaw.Timestamp, aggregateCommitRaw.Data);
 
                 await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
@@ -133,7 +129,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             try
             {
                 ISession session = await GetSessionAsync().ConfigureAwait(false);
-                PreparedStatement statement = await GetDeleteStatement(session).ConfigureAwait(false);
+                PreparedStatement statement = await _deleteEventQuery.PrepareAsync(session).ConfigureAwait(false);
                 BoundStatement boundStatement = statement.Bind(eventRaw.AggregateRootId, eventRaw.Revision, eventRaw.Position);
 
                 await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
@@ -168,7 +164,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         public async Task<IEvent> LoadEventWithRebuildProjectionAsync(IndexRecord indexRecord)
         {
             ISession session = await GetSessionAsync().ConfigureAwait(false);
-            PreparedStatement statement = await GetRebuildDataStatementAsync(session).ConfigureAwait(false);
+            PreparedStatement statement = await _loadAggregateRebuildEventsQuery.PrepareAsync(session).ConfigureAwait(false);
 
             BoundStatement boundStatement = statement.Bind(indexRecord.AggregateRootId, indexRecord.Revision, indexRecord.Position);
 
@@ -182,7 +178,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         public async Task<AggregateEventRaw> LoadAggregateEventRaw(IndexRecord indexRecord)
         {
             ISession session = await GetSessionAsync().ConfigureAwait(false);
-            PreparedStatement queryStatement = await PrepareLoadEventQueryStatementAsync(session).ConfigureAwait(false);
+            PreparedStatement queryStatement = await _loadEventQuery.PrepareAsync(session).ConfigureAwait(false);
             BoundStatement query = queryStatement.Bind(indexRecord.AggregateRootId, indexRecord.Revision, indexRecord.Position);
             RowSet rowSet = await session.ExecuteAsync(query).ConfigureAwait(false);
             Row row = rowSet.SingleOrDefault();
@@ -200,7 +196,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         private async Task<List<AggregateCommit>> LoadAggregateCommitsAsync(IBlobId id)
         {
             ISession session = await GetSessionAsync().ConfigureAwait(false);
-            PreparedStatement bs = await GetReadStatementAscendingAsync(session).ConfigureAwait(false);
+            PreparedStatement bs = await _loadAggregateEventsQuery.PrepareAsync(session).ConfigureAwait(false);
             BoundStatement boundStatement = bs.Bind(id.RawId);
 
             var result = await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
@@ -249,14 +245,14 @@ namespace Elders.Cronus.Persistence.Cassandra
 
             if (pagingOptions.Order?.Equals(Order.Descending) ?? false)
             {
-                PreparedStatement ps = await GetReadStatementDescendingAsync(session).ConfigureAwait(false);
+                PreparedStatement ps = await _loadAggregateEventsWithinSpecifiedRevisionsQuery.PrepareAsync(session).ConfigureAwait(false);
                 boundStatement = ps.Bind(id.RawId)
                     .SetPageSize(pagingOptions.Take)
                     .SetAutoPage(false);
             }
             else
             {
-                PreparedStatement ps = await GetReadStatementAscendingAsync(session).ConfigureAwait(false);
+                PreparedStatement ps = await _loadAggregateEventsQuery.PrepareAsync(session).ConfigureAwait(false);
                 boundStatement = ps.Bind(id.RawId)
                     .SetPageSize(pagingOptions.Take)
                     .SetAutoPage(false);
@@ -283,7 +279,7 @@ namespace Elders.Cronus.Persistence.Cassandra
         private async Task EnumerateEventStoreForSpecifiedEvent(PlayerOperator @operator, PlayerOptions replayOptions, CancellationToken cancellationToken = default)
         {
             ISession session = await GetSessionAsync().ConfigureAwait(false);
-            PreparedStatement queryStatement = await PrepareLoadEventQueryStatementAsync(session).ConfigureAwait(false);
+            PreparedStatement queryStatement = await _loadEventQuery.PrepareAsync(session).ConfigureAwait(false);
 
             List<Task> tasks = new List<Task>();
             await foreach (IndexRecord indexRecord in indexByEventTypeStore.GetRecordsAsync(replayOptions, @operator.NotifyProgressAsync, cancellationToken))
@@ -400,7 +396,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             List<AggregateEventRaw> aggregateEvents = new List<AggregateEventRaw>();
 
             ISession session = await GetSessionAsync().ConfigureAwait(false);
-            PreparedStatement bs = await GetReadStatementAscendingAsync(session).ConfigureAwait(false);
+            PreparedStatement bs = await _loadAggregateEventsQuery.PrepareAsync(session).ConfigureAwait(false);
             BoundStatement boundStatement = bs.Bind(id);
 
             var result = await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
@@ -425,7 +421,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             long before = replayOptions.Before.HasValue ? replayOptions.Before.Value.ToFileTime() : 0;
 
             ISession session = await GetSessionAsync().ConfigureAwait(false);
-            PreparedStatement statement = await GetReplayStatementAsync(session).ConfigureAwait(false);
+            PreparedStatement statement = await _loadEventsQuery.PrepareAsync(session).ConfigureAwait(false);
 
             IStatement queryStatement = statement.Bind();
             queryStatement
@@ -476,81 +472,67 @@ namespace Elders.Cronus.Persistence.Cassandra
             return pagingInfo;
         }
 
-        private async Task<PreparedStatement> GetRebuildDataStatementAsync(ISession session)
+        class LoadEventQuery : PreparedStatementCache
         {
-            if (_loadAggregateRebuildEventsPreparedStatements is null)
-            {
-                string tableName = tableNameStrategy.GetName();
-                _loadAggregateRebuildEventsPreparedStatements = await session.PrepareAsync(string.Format(LoadAggregateEventsRebuildQueryTemplate, session.Keyspace, tableName)).ConfigureAwait(false);
-                _loadAggregateRebuildEventsPreparedStatements.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-            }
-            return _loadAggregateRebuildEventsPreparedStatements;
+            private const string LoadEventQueryTemplate = @"SELECT data,ts FROM {0}.{1} WHERE id = ? AND rev = ? AND pos = ?;";
+
+            public LoadEventQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
+
+            internal override string GetQueryTemplate() => LoadEventQueryTemplate;
         }
 
-        private async Task<PreparedStatement> PrepareLoadEventQueryStatementAsync(ISession session)
+        class LoadAggregateEventsQuery : PreparedStatementCache
         {
-            if (_loadEventPreparedStatements is null)
-            {
-                string tableName = tableNameStrategy.GetName();
-                _loadEventPreparedStatements = await session.PrepareAsync(string.Format(LoadEventQueryTemplate, session.Keyspace, tableName)).ConfigureAwait(false);
-                _loadEventPreparedStatements.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-            }
-            return _loadEventPreparedStatements;
+            private const string Template = @"SELECT rev,pos,ts,data FROM {0}.{1} WHERE id = ?;";
+
+            public LoadAggregateEventsQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
+
+            internal override string GetQueryTemplate() => Template;
         }
 
-        private async Task<PreparedStatement> GetWriteStatementAsync(ISession session)
+        class InsertEventsQuery : PreparedStatementCache
         {
-            if (_insertEventsPreparedStatements is null)
-            {
-                string tableName = tableNameStrategy.GetName();
-                _insertEventsPreparedStatements = await session.PrepareAsync(string.Format(InsertEventsQueryTemplate, session.Keyspace, tableName)).ConfigureAwait(false);
-                _insertEventsPreparedStatements.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-            }
-            return _insertEventsPreparedStatements;
+            private const string Template = @"INSERT INTO {0}.{1} (id,rev,pos,ts,data) VALUES (?,?,?,?,?);";
+
+            public InsertEventsQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
+
+            internal override string GetQueryTemplate() => Template;
         }
 
-        private async Task<PreparedStatement> GetReadStatementAscendingAsync(ISession session)
+        class LoadEventsQuery : PreparedStatementCache
         {
-            if (_loadAggregateEventsPreparedStatements is null)
-            {
-                string tableName = tableNameStrategy.GetName();
-                _loadAggregateEventsPreparedStatements = await session.PrepareAsync(string.Format(LoadAggregateEventsQueryTemplate, session.Keyspace, tableName)).ConfigureAwait(false);
-                _loadAggregateEventsPreparedStatements.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-            }
-            return _loadAggregateEventsPreparedStatements;
+            private const string Template = @"SELECT id,rev,pos,ts,data FROM {0}.{1};";
+
+            public LoadEventsQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
+
+            internal override string GetQueryTemplate() => Template;
         }
 
-        private async Task<PreparedStatement> GetDeleteStatement(ISession session)
+        class LoadAggregateEventsWithinSpecifiedRevisionsQuery : PreparedStatementCache
         {
-            if (_deleteEventsPreparedStatements is null)
-            {
-                string tableName = tableNameStrategy.GetName();
-                _deleteEventsPreparedStatements = await session.PrepareAsync(string.Format(DeleteEventQueryTemplate, session.Keyspace, tableName)).ConfigureAwait(false);
-                _deleteEventsPreparedStatements.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-            }
-            return _deleteEventsPreparedStatements;
+            private const string Template = @"SELECT rev,pos,ts,data FROM {0}.{1} WHERE id = ? order by rev desc, pos desc";
+
+            public LoadAggregateEventsWithinSpecifiedRevisionsQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
+
+            internal override string GetQueryTemplate() => Template;
         }
 
-        private async Task<PreparedStatement> GetReplayStatementAsync(ISession session)
+        class LoadAggregateEventsRebuildQuery : PreparedStatementCache
         {
-            if (_loadEventsPreparedStatements is null)
-            {
-                string tableName = tableNameStrategy.GetName();
-                _loadEventsPreparedStatements = await session.PrepareAsync(string.Format(LoadEventsQueryTemplate, session.Keyspace, tableName)).ConfigureAwait(false);
-                _loadEventsPreparedStatements.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-            }
-            return _loadEventsPreparedStatements;
+            private const string Template = @"SELECT data FROM {0}.{1} WHERE id = ? AND rev = ? AND pos = ?;";
+
+            public LoadAggregateEventsRebuildQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
+
+            internal override string GetQueryTemplate() => Template;
         }
 
-        private async Task<PreparedStatement> GetReadStatementDescendingAsync(ISession session)
+        class DeleteEventQuery : PreparedStatementCache
         {
-            if (_loadSpecificAggregateEventsSavePreparedStatements is null)
-            {
-                string tableName = tableNameStrategy.GetName();
-                _loadSpecificAggregateEventsSavePreparedStatements = await session.PrepareAsync(string.Format(LoadAggregateEventsWithinSpecifiedRevisionsQueryTemplate, session.Keyspace, tableName)).ConfigureAwait(false);
-                _loadSpecificAggregateEventsSavePreparedStatements.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-            }
-            return _loadSpecificAggregateEventsSavePreparedStatements;
+            private const string Template = @"DELETE FROM {0}.{1} WHERE id = ? and rev=? and pos=?;";
+
+            public DeleteEventQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
+
+            internal override string GetQueryTemplate() => Template;
         }
     }
 }

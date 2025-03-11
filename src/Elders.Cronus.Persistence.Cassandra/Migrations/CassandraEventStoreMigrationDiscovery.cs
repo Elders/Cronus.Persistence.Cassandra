@@ -3,7 +3,6 @@ using System.Linq;
 using Elders.Cronus.Discoveries;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.Migrations;
-using Elders.Cronus.Projections;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Elders.Cronus.Persistence.Cassandra.Migrations

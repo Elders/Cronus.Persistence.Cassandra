@@ -1,24 +1,20 @@
 ﻿using System.Security.Cryptography;
-using Cassandra;
 using Elders.Cronus.EventStore.Index;
+using Elders.Cronus.MessageProcessing;
 
 namespace Elders.Cronus.Persistence.Cassandra.Integration.Tests;
 
 [EnsureEventStore]
 public class IndexByEventTypeStoreTests :
-    IClassFixture<IndexByEventTypeStoreFixture>,
     IClassFixture<CassandraEventStoreSchemaFixture>
 {
-    private readonly IIndexStore index;
     private readonly CassandraFixture cassandraFixture;
     private readonly CassandraEventStoreSchemaFixture schemaFixture;
 
     public IndexByEventTypeStoreTests(
-        IndexByEventTypeStoreFixture indexByEventTypeStoreFixture,
         CassandraFixture cassandraFixture,
         CassandraEventStoreSchemaFixture schemaFixture)
     {
-        index = indexByEventTypeStoreFixture.Index;
         this.cassandraFixture = cassandraFixture;
         this.schemaFixture = schemaFixture;
     }
@@ -26,19 +22,33 @@ public class IndexByEventTypeStoreTests :
     [Fact]
     public async Task ApendAsync()
     {
-        var indexRecordFixture = new IndexRecordFixture();
-        var record = indexRecordFixture.IndexRecord;
+        var accessor = new CronusContextAccessorMock
+        {
+            CronusContext = new CronusContext("tests", new NullServiceProviderMock())
+        };
+        var index = new IndexByEventTypeStoreFixture(accessor, cassandraFixture).Index;
+
+        var id = Guid.NewGuid().ToString();
+        Memory<byte> arId = new byte[64];
+        RandomNumberGenerator.Fill(arId.Span);
+        var revision = 1;
+        var position = 0;
+        var timestamp = DateTime.UtcNow.ToFileTimeUtc();
+
+        var record = new IndexRecord(id, arId, revision, position, timestamp);
         await index.ApendAsync(record);
 
-        var session = await cassandraFixture.GetSessionAsync();
-        var statement = new SimpleStatement("SELECT aid,rev,pos,ts FROM index_by_eventtype WHERE et=? AND pid=?;", record.Id, indexRecordFixture.PartitionId);
-        var rows = await session.ExecuteAsync(statement);
+        List<IndexRecord> results = new List<IndexRecord>();
+        await foreach (var item in index.GetRecordsAsync(new EventStore.PlayerOptions() { EventTypeId = id}).ConfigureAwait(false))
+        {
+            results.Add(item);
+        }
+        var row = Assert.Single(results);
 
-        var row = Assert.Single(rows);
-        Assert.Equal(record.AggregateRootId.Span, row.GetValue<byte[]>("aid"));
-        Assert.Equal(record.Revision, row.GetValue<int>("rev"));
-        Assert.Equal(record.Position, row.GetValue<int>("pos"));
-        Assert.Equal(record.TimeStamp, row.GetValue<long>("ts"));
+        Assert.Equal(record.AggregateRootId.Span, results.First().AggregateRootId.Span);
+        Assert.Equal(record.Revision, results.First().Revision);
+        Assert.Equal(record.Position, results.First().Position);
+        Assert.Equal(record.TimeStamp, results.First().TimeStamp);
     }
 
     //[Fact]
@@ -62,31 +72,12 @@ public class IndexByEventTypeStoreTests :
     [Fact]
     public async Task DeleteAsync()
     {
-        var indexRecordFixture = new IndexRecordFixture();
-        await index.ApendAsync(indexRecordFixture.IndexRecord);
-        Exception exception = null;
-        try
+        var accessor = new CronusContextAccessorMock
         {
-            await index.DeleteAsync(indexRecordFixture.IndexRecord);
-        }
-        catch (Exception ex)
-        {
-            exception = ex;
-        }
+            CronusContext = new CronusContext("tests", new NullServiceProviderMock())
+        };
+        var index = new IndexByEventTypeStoreFixture(accessor, cassandraFixture).Index;
 
-        var session = await cassandraFixture.GetSessionAsync();
-        var statement = new SimpleStatement("SELECT aid,rev,pos,ts FROM index_by_eventtype WHERE et=? AND pid=?;", indexRecordFixture.IndexRecord.Id, indexRecordFixture.PartitionId);
-        var rows = await session.ExecuteAsync(statement);
-
-        Assert.Null(exception);
-        Assert.Empty(rows);
-    }
-}
-
-public class IndexRecordFixture
-{
-    public IndexRecordFixture()
-    {
         var id = Guid.NewGuid().ToString();
         Memory<byte> arId = new byte[64];
         RandomNumberGenerator.Fill(arId.Span);
@@ -94,10 +85,25 @@ public class IndexRecordFixture
         var position = 0;
         var timestamp = DateTime.UtcNow.ToFileTimeUtc();
 
-        IndexRecord = new IndexRecord(id, arId, revision, position, timestamp);
-        PartitionId = IndexByEventTypeStore.CalculatePartition(timestamp);
-    }
+        var record = new IndexRecord(id, arId, revision, position, timestamp);
+        await index.ApendAsync(record);
+        Exception exception = null;
+        try
+        {
+            await index.DeleteAsync(record);
+        }
+        catch (Exception ex)
+        {
+            exception = ex;
+        }
 
-    public IndexRecord IndexRecord { get; }
-    public int PartitionId { get; }
+        List<IndexRecord> results = new List<IndexRecord>();
+        await foreach (var item in index.GetRecordsAsync(new EventStore.PlayerOptions() { EventTypeId = id }).ConfigureAwait(false))
+        {
+            results.Add(item);
+        }
+
+        Assert.Null(exception);
+        Assert.Empty(results);
+    }
 }

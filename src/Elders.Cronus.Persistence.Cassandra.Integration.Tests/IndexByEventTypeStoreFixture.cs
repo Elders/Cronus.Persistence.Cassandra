@@ -1,12 +1,13 @@
-﻿using Microsoft.Extensions.Logging.Abstractions;
+﻿using Elders.Cronus.MessageProcessing;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Elders.Cronus.Persistence.Cassandra.Integration.Tests;
 
 public class IndexByEventTypeStoreFixture
 {
-    public IndexByEventTypeStoreFixture(CassandraFixture cassandraFixture)
+    public IndexByEventTypeStoreFixture(ICronusContextAccessor cronusContextAccessor, CassandraFixture cassandraFixture)
     {
-        Index = new IndexByEventTypeStore(cassandraFixture, NullLogger<IndexByEventTypeStore>.Instance);
+        Index = new IndexByEventTypeStore(cronusContextAccessor, cassandraFixture, NullLogger<IndexByEventTypeStore>.Instance);
     }
 
     public IndexByEventTypeStore Index { get; }

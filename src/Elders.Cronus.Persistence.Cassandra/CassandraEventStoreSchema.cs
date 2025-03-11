@@ -11,19 +11,14 @@ namespace Elders.Cronus.Persistence.Cassandra
     {
         private static readonly ILogger logger = CronusLogger.CreateLogger(typeof(CassandraEventStoreSchema));
 
-        private const string CREATE_EVENTS_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id blob, ts bigint, rev int, pos int, data blob, PRIMARY KEY (id,rev,pos)) WITH CLUSTERING ORDER BY (rev ASC, pos ASC);";
-        private const string INDEX_REV = @"DROP INDEX IF EXISTS ""{0}_idx_rev""";
-        private const string INDEX_POS = @"DROP INDEX IF EXISTS ""{0}_idx_pos""";
-
-        private const string CREATE_INDEX_STATUS_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (id blob, status text, PRIMARY KEY (id));";
-        private const string CREATE_INDEX_BY_EVENT_TYPE_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS ""{0}"" (et text, pid int, aid blob, rev int, pos int, ts bigint, PRIMARY KEY ((et,pid),ts,aid,rev,pos)) WITH CLUSTERING ORDER BY (ts ASC);"; // ASC element required to be in second position in primary key https://stackoverflow.com/questions/23185331/cql-bad-request-missing-clustering-order-for-column
-
-        private const string INDEX_STATUS_TABLE_NAME = "index_status";
+        private const string CREATE_EVENTS_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS {0}.{1} (id blob, ts bigint, rev int, pos int, data blob, PRIMARY KEY (id,rev,pos)) WITH CLUSTERING ORDER BY (rev ASC, pos ASC);";
+        private const string CREATE_INDEX_BY_EVENT_TYPE_TABLE_TEMPLATE = @"CREATE TABLE IF NOT EXISTS {0}.{1} (et text, pid int, aid blob, rev int, pos int, ts bigint, PRIMARY KEY ((et,pid),ts,aid,rev,pos)) WITH CLUSTERING ORDER BY (ts ASC);"; // ASC element required to be in second position in primary key https://stackoverflow.com/questions/23185331/cql-bad-request-missing-clustering-order-for-column
         private const string INDEX_BY_EVENT_TYPE_TABLE_NAME = "index_by_eventtype";
         private readonly ICassandraProvider cassandraProvider;
         private readonly ITableNamingStrategy tableNameStrategy;
 
-        private Task<ISession> GetSessionAsync() => cassandraProvider.GetSessionAsync();// In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
+        private Task<ISession> GetSessionAsync() => cassandraProvider.GetSessionAsync();
+
         public CassandraEventStoreSchema(ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy)
         {
             if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
@@ -59,31 +54,33 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         public Task CreateIndeciesAsync()
         {
+            string keyspace = cassandraProvider.GetKeyspace();
+
             Task[] createTableTasks = new Task[]
                 {
-                    CreateTableAsync(CREATE_INDEX_STATUS_TABLE_TEMPLATE, INDEX_STATUS_TABLE_NAME),
-                    CreateTableAsync(CREATE_INDEX_BY_EVENT_TYPE_TABLE_TEMPLATE, INDEX_BY_EVENT_TYPE_TABLE_NAME),
-                    CreateTableAsync(MessageCounter.CreateTableTemplate, "EventCounter")
+                    CreateTableAsync(CREATE_INDEX_BY_EVENT_TYPE_TABLE_TEMPLATE,keyspace, INDEX_BY_EVENT_TYPE_TABLE_NAME),
+                    CreateTableAsync(MessageCounter.CreateTableTemplate, keyspace, "EventCounter")
                 };
 
             return Task.WhenAll(createTableTasks);
         }
 
-        private async Task CreateTableAsync(string cqlQuery, string tableName)
+        private async Task CreateTableAsync(string cqlQuery, string keyspace, string tableName)
         {
             try
             {
                 ISession session = await GetSessionAsync().ConfigureAwait(false);
                 if (logger.IsEnabled(LogLevel.Debug))
-                    logger.LogDebug("[EventStore] Creating table `{tableName}` with `{address}` in keyspace `{keyspace}`...", tableName, session.Cluster.AllHosts().First().Address, session.Keyspace);
+                    logger.LogDebug("[EventStore] Creating table `{tableName}` with `{address}` in keyspace `{keyspace}`...", tableName, session.Cluster.AllHosts().First().Address, keyspace);
 
-                PreparedStatement createEventsTableStatement = await session.PrepareAsync(string.Format(cqlQuery, tableName).ToLower()).ConfigureAwait(false);
+                string query = string.Format(cqlQuery, keyspace, tableName).ToLower();
+                PreparedStatement createEventsTableStatement = await session.PrepareAsync(query).ConfigureAwait(false);
                 createEventsTableStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
 
                 await session.ExecuteAsync(createEventsTableStatement.Bind()).ConfigureAwait(false);
 
                 if (logger.IsEnabled(LogLevel.Debug))
-                    logger.LogDebug("[EventStore] Created table `{tableName}` in keyspace `{keyspace}`...", tableName, session.Keyspace);
+                    logger.LogDebug("[EventStore] Created table `{tableName}` in keyspace `{keyspace}`...", tableName, keyspace);
             }
             catch (Exception)
             {
@@ -100,23 +97,13 @@ namespace Elders.Cronus.Persistence.Cassandra
                 if (logger.IsEnabled(LogLevel.Debug))
                     logger.LogDebug("[EventStore] Creating table `{tableName}` with `{address}` in keyspace `{keyspace}`...", tableName, session.Cluster.AllHosts().First().Address, session.Keyspace);
 
-                string tableQuery = string.Format(CREATE_EVENTS_TABLE_TEMPLATE, tableName).ToLower();
-                string rev = string.Format(INDEX_REV, tableName).ToLower();
-                string pos = string.Format(INDEX_POS, tableName).ToLower();
-
+                string keyspace = cassandraProvider.GetKeyspace();
+                string tableQuery = string.Format(CREATE_EVENTS_TABLE_TEMPLATE, keyspace, tableName).ToLower();
 
                 PreparedStatement tableStatement = await session.PrepareAsync(string.Format(tableQuery, tableName).ToLower()).ConfigureAwait(false);
                 tableStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
 
-                PreparedStatement revStatement = await session.PrepareAsync(string.Format(rev, tableName).ToLower()).ConfigureAwait(false);
-                tableStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-
-                PreparedStatement posStatement = await session.PrepareAsync(string.Format(pos, tableName).ToLower()).ConfigureAwait(false);
-                tableStatement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
-
                 await session.ExecuteAsync(tableStatement.Bind()).ConfigureAwait(false);
-                await session.ExecuteAsync(revStatement.Bind()).ConfigureAwait(false);
-                await session.ExecuteAsync(posStatement.Bind()).ConfigureAwait(false);
 
                 if (logger.IsEnabled(LogLevel.Debug))
                     logger.LogDebug("[EventStore] Created table `{tableName}` in keyspace `{keyspace}`...", tableName, session.Keyspace);

@@ -3,6 +3,7 @@ using System.Text;
 using Cassandra;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.EventStore.Index;
+using Elders.Cronus.MessageProcessing;
 using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json;
 
@@ -85,7 +86,6 @@ public class EnumerateEventStore : IClassFixture<CassandraEventStoreFixture>
 public class CassandraEventStoreTests : IClassFixture<CassandraEventStoreFixture>
 {
     private readonly CassandraFixture cassandraFixture;
-    private readonly IndexByEventTypeStoreFixture indexByEventTypeStoreFixture;
     private readonly BlobIdFixture blobIdFixture;
     private readonly CassandraEventStoreFixture cassandraEventStoreFixture;
 
@@ -271,8 +271,11 @@ public class CassandraEventStoreTests : IClassFixture<CassandraEventStoreFixture
         var commit = new AggregateCommit(arId, revision, [@event], [], timestamp);
 
         await cassandraEventStoreFixture.EventStore.AppendAsync(commit);
-
-        var index = new IndexByEventTypeStoreFixture(cassandraFixture).Index;
+        var accessor = new CronusContextAccessorMock
+        {
+            CronusContext = new CronusContext("tests", new NullServiceProviderMock())
+        };
+        var index = new IndexByEventTypeStoreFixture(accessor, cassandraFixture).Index;
         await index.ApendAsync(new IndexRecord(eventTypeId, arId, revision, 0, timestamp));
 
         var rawEvents = new List<AggregateEventRaw>();
@@ -434,13 +437,16 @@ public class BlobIdFixture
 
 public class CassandraEventStoreFixture
 {
-    public CassandraEventStoreFixture(
-        CassandraFixture cassandraFixture)
+    public CassandraEventStoreFixture(CassandraFixture cassandraFixture)
     {
         TableNaming = new NoTableNamingStrategy();
         Serializer = new SerializerMock();
-        var index = new IndexByEventTypeStore(cassandraFixture, NullLogger<IndexByEventTypeStore>.Instance);
-        EventStore = new CassandraEventStore(cassandraFixture, TableNaming, Serializer, index, NullLogger<CassandraEventStore>.Instance);
+        var accessor = new CronusContextAccessorMock
+        {
+            CronusContext = new CronusContext("tests", new NullServiceProviderMock())
+        };
+        var index = new IndexByEventTypeStore(accessor, cassandraFixture, NullLogger<IndexByEventTypeStore>.Instance);
+        EventStore = new CassandraEventStore(accessor, cassandraFixture, TableNaming, Serializer, index, NullLogger<CassandraEventStore>.Instance);
     }
 
     public CassandraEventStore EventStore { get; }

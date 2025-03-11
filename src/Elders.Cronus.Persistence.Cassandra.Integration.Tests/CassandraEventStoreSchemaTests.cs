@@ -25,7 +25,6 @@ public class CassandraEventStoreSchemaTests
 
         Assert.Contains(naming.GetName(), tables);
         Assert.Contains("index_by_eventtype", tables);
-        Assert.Contains("index_status", tables);
         Assert.Contains("message_counter", tables);
     }
 
@@ -44,7 +43,6 @@ public class CassandraEventStoreSchemaTests
 
         Assert.Contains(naming.GetName(), tables);
         Assert.Contains("index_by_eventtype", tables);
-        Assert.Contains("index_status", tables);
         Assert.Contains("message_counter", tables);
     }
 }

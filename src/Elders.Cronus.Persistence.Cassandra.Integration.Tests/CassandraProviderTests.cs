@@ -25,9 +25,14 @@ public class CassandraProviderTests
             ReplicationFactor = 1,
             ReplicationStrategy = "simple"
         };
+        string tenant = "tests";
+        var accessor = new CronusContextAccessorMock
+        {
+            CronusContext = new CronusContext(tenant, new NullServiceProviderMock())
+        };
         var keyspaceNaming = new NoKeyspaceNamingStrategy();
         var replicatoinStrategy = new SimpleReplicationStrategy(1);
-        var provider = new CassandraProvider(new CassandraProviderOptionsMonitorMock(options), keyspaceNaming, replicatoinStrategy, NullLogger<CassandraProvider>.Instance);
+        var provider = new CassandraProvider(accessor, new CassandraProviderOptionsMonitorMock(options), keyspaceNaming, replicatoinStrategy, NullLogger<CassandraProvider>.Instance);
 
         var cluster = await provider.GetClusterAsync();
 
@@ -49,10 +54,15 @@ public class CassandraProviderTests
             ReplicationFactor = 1,
             ReplicationStrategy = "simple"
         };
+        string tenant = "tests";
+        var accessor = new CronusContextAccessorMock
+        {
+            CronusContext = new CronusContext(tenant, new NullServiceProviderMock())
+        };
         var keyspaceNaming = new NoKeyspaceNamingStrategy();
         var replicatoinStrategy = new SimpleReplicationStrategy(1);
         var nullLogger = new NullLoggerFactory().CreateLogger<CassandraProvider>();
-        var provider = new CassandraProvider(new CassandraProviderOptionsMonitorMock(options), keyspaceNaming, replicatoinStrategy, nullLogger);
+        var provider = new CassandraProvider(accessor, new CassandraProviderOptionsMonitorMock(options), keyspaceNaming, replicatoinStrategy, nullLogger);
 
         var session = await provider.GetSessionAsync();
 
@@ -79,7 +89,7 @@ public class CassandraProviderTests
         var keyspaceNaming = new KeyspacePerTenantKeyspace(accessor);
         var replicatoinStrategy = new SimpleReplicationStrategy(1);
         var nullLogger = new NullLoggerFactory().CreateLogger<CassandraProvider>();
-        var provider = new CassandraProvider(new CassandraProviderOptionsMonitorMock(options), keyspaceNaming, replicatoinStrategy, nullLogger);
+        var provider = new CassandraProvider(accessor, new CassandraProviderOptionsMonitorMock(options), keyspaceNaming, replicatoinStrategy, nullLogger);
 
         var session = await provider.GetSessionAsync();
 

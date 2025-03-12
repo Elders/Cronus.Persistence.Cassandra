@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Cassandra;
 using Cassandra.Serialization;
+using Elders.Cronus.MessageProcessing;
 using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -13,6 +15,7 @@ namespace Elders.Cronus.Persistence.Cassandra
     public class CassandraProvider : ICassandraProvider
     {
         protected CassandraProviderOptions options;
+        private readonly ICronusContextAccessor cronusContextAccessor;
         protected readonly IKeyspaceNamingStrategy keyspaceNamingStrategy;
         protected readonly ICassandraReplicationStrategy replicationStrategy;
         protected readonly IInitializer initializer;
@@ -23,13 +26,14 @@ namespace Elders.Cronus.Persistence.Cassandra
         protected ISession sessionWithLongTimeout;
 
         private string baseConfigurationKeyspace;
-        public CassandraProvider(IOptionsMonitor<CassandraProviderOptions> optionsMonitor, IKeyspaceNamingStrategy keyspaceNamingStrategy, ICassandraReplicationStrategy replicationStrategy, ILogger<CassandraProvider> logger, IInitializer initializer = null)
+        public CassandraProvider(ICronusContextAccessor cronusContextAccessor, IOptionsMonitor<CassandraProviderOptions> optionsMonitor, IKeyspaceNamingStrategy keyspaceNamingStrategy, ICassandraReplicationStrategy replicationStrategy, ILogger<CassandraProvider> logger, IInitializer initializer = null)
         {
             if (optionsMonitor is null) throw new ArgumentNullException(nameof(optionsMonitor));
             if (keyspaceNamingStrategy is null) throw new ArgumentNullException(nameof(keyspaceNamingStrategy));
             if (replicationStrategy is null) throw new ArgumentNullException(nameof(replicationStrategy));
 
             this.options = optionsMonitor.CurrentValue;
+            this.cronusContextAccessor = cronusContextAccessor;
             this.keyspaceNamingStrategy = keyspaceNamingStrategy;
             this.replicationStrategy = replicationStrategy;
             this.initializer = initializer;
@@ -163,24 +167,9 @@ namespace Elders.Cronus.Persistence.Cassandra
                     {
                         if (logger.IsEnabled(LogLevel.Information))
                             logger.LogInformation("Refreshing cassandra session...");
-                        try
-                        {
-                            ICluster cluster = await GetClusterAsync().ConfigureAwait(false);
-                            session = await cluster.ConnectAsync().ConfigureAwait(false);
-                        }
-                        catch (InvalidQueryException)
-                        {
-                            ICluster cluster = await GetClusterAsync().ConfigureAwait(false);
-                            using (ISession schemaSession = await cluster.ConnectAsync().ConfigureAwait(false))
-                            {
-                                string createKeySpaceQuery = replicationStrategy.CreateKeySpaceTemplate(GetKeyspace());
-                                IStatement createTableStatement = await GetCreateKeySpaceQuery(schemaSession).ConfigureAwait(false);
-                                await schemaSession.ExecuteAsync(createTableStatement).ConfigureAwait(false);
-                            }
 
-                            ICluster server = await GetClusterAsync().ConfigureAwait(false);
-                            session = await server.ConnectAsync().ConfigureAwait(false);
-                        }
+                        ICluster cluster = await GetClusterAsync().ConfigureAwait(false);
+                        session = await cluster.ConnectAsync().ConfigureAwait(false);
                     }
                 }
                 finally
@@ -189,8 +178,35 @@ namespace Elders.Cronus.Persistence.Cassandra
                 }
             }
 
+            // Initializes keyspaces for new tenants
+            if (initializedKeyspaces.ContainsKey(cronusContextAccessor.CronusContext.Tenant) == false)
+            {
+                await schemaThreadGate.WaitAsync(30000).ConfigureAwait(false);
+
+                try
+                {
+                    if (initializedKeyspaces.ContainsKey(cronusContextAccessor.CronusContext.Tenant) == false)
+                    {
+                        string createKeySpaceQuery = replicationStrategy.CreateKeySpaceTemplate(GetKeyspace());
+                        IStatement createTableStatement = await GetCreateKeySpaceQuery(session).ConfigureAwait(false);
+                        await session.ExecuteAsync(createTableStatement).ConfigureAwait(false);
+
+                        initializedKeyspaces.TryAdd(cronusContextAccessor.CronusContext.Tenant, string.Empty);
+                    }
+                }
+                finally
+                {
+                    schemaThreadGate?.Release();
+                }
+            }
+            // Initializes keyspaces for new tenants
+
             return session;
         }
+
+        private static SemaphoreSlim schemaThreadGate = new SemaphoreSlim(1);
+
+        private Dictionary<string, string> initializedKeyspaces = new Dictionary<string, string>();
 
         private async Task<IStatement> GetCreateKeySpaceQuery(ISession schemaSession)
         {

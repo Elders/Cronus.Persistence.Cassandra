@@ -1,4 +1,6 @@
-﻿namespace Elders.Cronus.Persistence.Cassandra.Integration.Tests;
+﻿using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
+
+namespace Elders.Cronus.Persistence.Cassandra.Integration.Tests;
 
 public class CassandraEventStoreSchemaFixture
 {
@@ -9,8 +11,8 @@ public class CassandraEventStoreSchemaFixture
         this.cassandraFixture = cassandraFixture;
     }
 
-    public CassandraEventStoreSchema GetEventStoreSchema(ITableNamingStrategy namingStrategy)
+    public CassandraEventStoreSchema GetEventStoreSchema(ITableNamingStrategy namingStrategy, ICassandraReplicationStrategy replicationStrategy)
     {
-        return new CassandraEventStoreSchema(cassandraFixture, namingStrategy);
+        return new CassandraEventStoreSchema(cassandraFixture, namingStrategy, replicationStrategy);
     }
 }

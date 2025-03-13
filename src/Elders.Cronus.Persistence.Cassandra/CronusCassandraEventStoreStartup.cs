@@ -49,7 +49,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                     DefaultCronusContextFactory contextFactory = serviceProvider.GetRequiredService<DefaultCronusContextFactory>();
                     CronusContext context = contextFactory.Create(tenant, serviceProvider);
 
-                    serviceProvider.GetRequiredService<ICassandraEventStoreSchema>().CreateStorageAsync().GetAwaiter().GetResult();
+                    serviceProvider.GetRequiredService<CassandraEventStoreSchema>().CreateStorageAsync().GetAwaiter().GetResult();
                 }
 
                 @lock.UnlockAsync(lockKey).GetAwaiter().GetResult();

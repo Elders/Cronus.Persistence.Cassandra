@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Options;
+﻿using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
+using Microsoft.Extensions.Options;
 
 namespace Elders.Cronus.Persistence.Cassandra.Integration.Tests;
 
@@ -15,7 +16,8 @@ public class CassandraEventStoreSchemaTests
     public async Task CreateStorageWithNoTableNamingAsync()
     {
         var naming = new NoTableNamingStrategy();
-        var schema = new CassandraEventStoreSchemaFixture(cassandraFixture).GetEventStoreSchema(naming);
+        var replicatoinStrategy = new SimpleReplicationStrategy(1);
+        var schema = new CassandraEventStoreSchemaFixture(cassandraFixture).GetEventStoreSchema(naming, replicatoinStrategy);
 
         await schema.CreateStorageAsync();
 
@@ -33,7 +35,8 @@ public class CassandraEventStoreSchemaTests
     {
         var bc = new BoundedContext { Name = "tests" };
         var naming = new TablePerBoundedContext(new TablePerBoundedContextOptionsMonitorMock(bc));
-        var schema = new CassandraEventStoreSchemaFixture(cassandraFixture).GetEventStoreSchema(naming);
+        var replicatoinStrategy = new SimpleReplicationStrategy(1);
+        var schema = new CassandraEventStoreSchemaFixture(cassandraFixture).GetEventStoreSchema(naming, replicatoinStrategy);
 
         await schema.CreateStorageAsync();
 

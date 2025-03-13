@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
+using System.Reflection;
 using Xunit.v3;
 
 namespace Elders.Cronus.Persistence.Cassandra.Integration.Tests;
@@ -15,6 +16,7 @@ public class EnsureEventStoreAttribute : BeforeAfterTestAttribute
     public override void Before(MethodInfo methodUnderTest, IXunitTest test)
     {
         var schemaFixture = new CassandraEventStoreSchemaFixture(CassandraFixture.Instance);
-        schemaFixture.GetEventStoreSchema(new NoTableNamingStrategy()).CreateStorageAsync().GetAwaiter().GetResult();
+        var replicatoinStrategy = new SimpleReplicationStrategy(1);
+        schemaFixture.GetEventStoreSchema(new NoTableNamingStrategy(), replicatoinStrategy).CreateStorageAsync().GetAwaiter().GetResult();
     }
 }

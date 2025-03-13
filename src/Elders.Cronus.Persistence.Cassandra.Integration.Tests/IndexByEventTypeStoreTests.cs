@@ -39,7 +39,7 @@ public class IndexByEventTypeStoreTests :
         await index.ApendAsync(record);
 
         List<IndexRecord> results = new List<IndexRecord>();
-        await foreach (var item in index.GetRecordsAsync(new EventStore.PlayerOptions() { EventTypeId = id}).ConfigureAwait(false))
+        await foreach (var item in index.GetRecordsAsync(new EventStore.PlayerOptions() { EventTypeId = id }).ConfigureAwait(false))
         {
             results.Add(item);
         }

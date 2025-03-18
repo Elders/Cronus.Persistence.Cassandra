@@ -304,7 +304,7 @@ public class CassandraEventStoreTests : IClassFixture<CassandraEventStoreFixture
                 progressNotifications++;
                 return Task.CompletedTask;
             }
-        }, new PlayerOptions { EventTypeId = eventTypeId }, TestContext.Current.CancellationToken);
+        }, new PlayerOptions { EventTypeId = eventTypeId, After = DateTimeOffset.UtcNow.AddDays(-1), Before = DateTimeOffset.Now.AddDays(1) }, TestContext.Current.CancellationToken);
 
         Assert.True(finished);
         Assert.Equal(1, progressNotifications);

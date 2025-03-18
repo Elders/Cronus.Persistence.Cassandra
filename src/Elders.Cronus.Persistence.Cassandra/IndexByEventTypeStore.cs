@@ -177,7 +177,7 @@ public class IndexByEventTypeStore : IIndexStore
         }
         var maxPidForCurrentExecution = CalculatePartition(DateTime.Now.AddDays(2));
 
-        PagingInfo pagingInfo = PagingInfo.Parse(replayOptions.PaginationToken);
+        IndexPagingInfo pagingInfo = IndexPagingInfo.Parse(replayOptions.PaginationToken);
         long after = replayOptions.After.HasValue ? replayOptions.After.Value.ToFileTime() : new PlayerOptions().After.Value.ToFileTime();
         long before = replayOptions.Before.HasValue ? replayOptions.Before.Value.ToFileTime() : DateTimeOffset.UtcNow.AddDays(1).ToFileTime();
 
@@ -214,7 +214,7 @@ public class IndexByEventTypeStore : IIndexStore
                 if (cancellationToken.CanBeCanceled && cancellationToken.IsCancellationRequested)
                     break;
 
-                pagingInfo = PagingInfo.From(result);
+                pagingInfo = IndexPagingInfo.From(result, cpid);
 
                 if (onPagingInfoChanged is not null)
                 {
@@ -222,6 +222,8 @@ public class IndexByEventTypeStore : IIndexStore
                     catch (Exception ex) when (True(() => logger.LogError(ex, "Failed to execute onPagingInfoChanged() function."))) { }
                 }
             }
+
+            pagingInfo = new IndexPagingInfo(cpid);
 
             if (cancellationToken.CanBeCanceled && cancellationToken.IsCancellationRequested)
                 break;

@@ -175,6 +175,7 @@ public class IndexByEventTypeStore : IIndexStore
             logger.LogWarning("The PlayerOptions did not specify what EventTypeId should be replayed. Exiting...");
             yield break;
         }
+        var maxPidForCurrentExecution = CalculatePartition(DateTime.Now.AddDays(2));
 
         PagingInfo pagingInfo = PagingInfo.Parse(replayOptions.PaginationToken);
         long after = replayOptions.After.HasValue ? replayOptions.After.Value.ToFileTime() : new PlayerOptions().After.Value.ToFileTime();
@@ -223,6 +224,9 @@ public class IndexByEventTypeStore : IIndexStore
             }
 
             if (cancellationToken.CanBeCanceled && cancellationToken.IsCancellationRequested)
+                break;
+
+            if (cpid > maxPidForCurrentExecution)
                 break;
         }
     }

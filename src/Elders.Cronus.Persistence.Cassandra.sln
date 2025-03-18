@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Elders.Cronus.Persistence.C
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Elders.Cronus.Persistence.Cassandra.Integration.Tests", "Elders.Cronus.Persistence.Cassandra.Integration.Tests\Elders.Cronus.Persistence.Cassandra.Integration.Tests.csproj", "{F3E685DB-73EA-492E-B0A6-EB9820DB4CCE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Elders.Cronus.Persistence.Cassandra.Tests", "Elders.Cronus.Persistence.Cassandra.Tests\Elders.Cronus.Persistence.Cassandra.Tests.csproj", "{0DEC4DD7-8E5F-F97F-B2C6-E6A364C81633}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{F3E685DB-73EA-492E-B0A6-EB9820DB4CCE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F3E685DB-73EA-492E-B0A6-EB9820DB4CCE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F3E685DB-73EA-492E-B0A6-EB9820DB4CCE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0DEC4DD7-8E5F-F97F-B2C6-E6A364C81633}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0DEC4DD7-8E5F-F97F-B2C6-E6A364C81633}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0DEC4DD7-8E5F-F97F-B2C6-E6A364C81633}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0DEC4DD7-8E5F-F97F-B2C6-E6A364C81633}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

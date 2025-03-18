@@ -17,8 +17,6 @@
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <RequireLicenseAcceptance>true</RequireLicenseAcceptance>
 
-    <ReleaseNotes>https://github.com/Elders/Cronus.Persistence.Cassandra/blob/preview/CHANGELOG.md</ReleaseNotes>
-
     <PackageIconUrl>https://raw.githubusercontent.com/Elders/logo/master/cronus/frame.png</PackageIconUrl>
     <RepositoryUrl>https://github.com/Elders/Cronus.git</RepositoryUrl>
     <PackageProjectUrl>https://github.com/Elders/Cronus</PackageProjectUrl>
@@ -32,7 +30,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Cronus" Version="11.0.1" />
+    <PackageReference Include="Cronus" Version="11.0.3" />
     <PackageReference Include="CassandraCSharpDriver" Version="3.22.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.1" />
   </ItemGroup>

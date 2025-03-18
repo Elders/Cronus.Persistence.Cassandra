@@ -100,20 +100,20 @@ public class IndexByEventTypeStore : IIndexStore
     {
         try
         {
-            ISession session = await (cassandraProvider as CassandraProvider).GetSessionHighTimeoutAsync();
-            var keyspace = cassandraProvider.GetKeyspace();
-            IStatement countStatement = new SimpleStatement($"SELECT count(*) FROM {keyspace}.index_by_eventtype WHERE et='{indexRecordId}' ALLOW FILTERING;")
-                .SetConsistencyLevel(ConsistencyLevel.One)
-                .SetReadTimeoutMillis(1000 * 60 * 10);
+            //ISession session = await (cassandraProvider as CassandraProvider).GetSessionHighTimeoutAsync();
+            //var keyspace = cassandraProvider.GetKeyspace();
+            //IStatement countStatement = new SimpleStatement($"SELECT count(*) FROM {keyspace}.index_by_eventtype WHERE et='{indexRecordId}' ALLOW FILTERING;")
+            //    .SetConsistencyLevel(ConsistencyLevel.One)
+            //    .SetReadTimeoutMillis(1000 * 60 * 10);
 
-            RowSet result = await session.ExecuteAsync(countStatement).ConfigureAwait(false);
+            //RowSet result = await session.ExecuteAsync(countStatement).ConfigureAwait(false);
 
-            long count = result.GetRows().First().GetValue<long>("count");
+            //long count = result.GetRows().First().GetValue<long>("count");
 
-            if (logger.IsEnabled(LogLevel.Information))
-                logger.LogInformation("Number of messages for {indexRecordId}:{count}", indexRecordId, count);
+            //if (logger.IsEnabled(LogLevel.Information))
+            //    logger.LogInformation("Number of messages for {indexRecordId}:{count}", indexRecordId, count);
 
-            return count;
+            return 0;
         }
         catch (Exception ex) when (True(() => logger.LogError(ex, "Failed to count number of messages for {indexRecordId}.", indexRecordId)))
         {
@@ -180,40 +180,50 @@ public class IndexByEventTypeStore : IIndexStore
         long after = replayOptions.After.HasValue ? replayOptions.After.Value.ToFileTime() : new PlayerOptions().After.Value.ToFileTime();
         long before = replayOptions.Before.HasValue ? replayOptions.Before.Value.ToFileTime() : DateTimeOffset.UtcNow.AddDays(1).ToFileTime();
 
+        int afterPID = CalculatePartition(after);
+        int beforePID = CalculatePartition(before);
+
         ISession session = await GetSessionAsync().ConfigureAwait(false);
-        PreparedStatement statement = await _readRangeQuery.PrepareAsync(session).ConfigureAwait(false);
 
-        IStatement queryStatement = statement.Bind(replayOptions.EventTypeId, after, before);
-        queryStatement
-            .SetPageSize(replayOptions.BatchSize)
-            .SetAutoPage(false);
-
-        while (pagingInfo.HasMore)
+        for (int cpid = afterPID; cpid <= beforePID; PartitionCalculator.GetNext(cpid))
         {
-            if (pagingInfo.HasToken())// eh
-                queryStatement.SetPagingState(pagingInfo.Token);
+            PreparedStatement statement = await _readRangeQuery.PrepareAsync(session).ConfigureAwait(false);
+            IStatement queryStatement = statement.Bind(replayOptions.EventTypeId, cpid);
 
-            RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
+            queryStatement
+                .SetPageSize(replayOptions.BatchSize)
+                .SetAutoPage(false);
 
-            foreach (var row in result)
+            while (pagingInfo.HasMore)
             {
-                IndexRecord indexRecord = new IndexRecord(replayOptions.EventTypeId, row.GetValue<byte[]>("aid"), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
-                yield return indexRecord;
+                if (pagingInfo.HasToken())
+                    queryStatement.SetPagingState(pagingInfo.Token);
+
+                RowSet result = await session.ExecuteAsync(queryStatement).ConfigureAwait(false);
+
+                foreach (var row in result)
+                {
+                    IndexRecord indexRecord = new IndexRecord(replayOptions.EventTypeId, row.GetValue<byte[]>("aid"), row.GetValue<int>("rev"), row.GetValue<int>("pos"), row.GetValue<long>("ts"));
+                    yield return indexRecord;
+
+                    if (cancellationToken.CanBeCanceled && cancellationToken.IsCancellationRequested)
+                        break;
+                }
 
                 if (cancellationToken.CanBeCanceled && cancellationToken.IsCancellationRequested)
                     break;
+
+                pagingInfo = PagingInfo.From(result);
+
+                if (onPagingInfoChanged is not null)
+                {
+                    try { await onPagingInfoChanged(replayOptions.WithPaginationToken(pagingInfo.ToString())).ConfigureAwait(false); }
+                    catch (Exception ex) when (True(() => logger.LogError(ex, "Failed to execute onPagingInfoChanged() function."))) { }
+                }
             }
 
             if (cancellationToken.CanBeCanceled && cancellationToken.IsCancellationRequested)
                 break;
-
-            pagingInfo = PagingInfo.From(result);
-
-            if (onPagingInfoChanged is not null)
-            {
-                try { await onPagingInfoChanged(replayOptions.WithPaginationToken(pagingInfo.ToString())).ConfigureAwait(false); }
-                catch (Exception ex) when (True(() => logger.LogError(ex, "Failed to execute onPagingInfoChanged() function."))) { }
-            }
         }
     }
 
@@ -228,7 +238,7 @@ public class IndexByEventTypeStore : IIndexStore
 
     class IndexReadRangeQuery : PreparedStatementCache
     {
-        private const string Template = @"SELECT aid,rev,pos,ts FROM {0}.index_by_eventtype WHERE et=? AND ts>=? AND ts<=? ALLOW FILTERING;";
+        private const string Template = @"SELECT aid,rev,pos,ts FROM {0}.index_by_eventtype WHERE et=? AND pid=?;";
 
         public IndexReadRangeQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider) : base(context, cassandraProvider) { }
 
@@ -251,5 +261,38 @@ public class IndexByEventTypeStore : IIndexStore
         public IndexDeleteQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider) : base(context, cassandraProvider) { }
 
         internal override string GetQueryTemplate() => Template;
+    }
+}
+
+public static class PartitionCalculator
+{
+    public static int GetNext(int partition)
+    {
+        var temp = ExtractDateFor(partition);
+        var newtemp = temp.AddDays(1);
+        return CalculatePartition(newtemp);
+    }
+
+    private static DateTime ExtractDateFor(int partition)
+    {
+        int year = partition / 1000;
+        int day = partition % 1000;
+
+        return new DateTime(year, 1, 1).AddDays(day - 1);
+    }
+
+    public static int CalculatePartition(long filetimeUtc)
+    {
+        DateTime timestamp = DateTime.FromFileTimeUtc(filetimeUtc);
+
+        return CalculatePartition(timestamp);
+    }
+
+    public static int CalculatePartition(DateTime filetimeUtc)
+    {
+        int day = filetimeUtc.DayOfYear;
+        int partitionId = filetimeUtc.Year * 1000 + day;
+
+        return partitionId;
     }
 }

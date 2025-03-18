@@ -3,7 +3,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Cassandra;
 using Cassandra.Serialization;
-using Elders.Cronus.Persistence.Cassandra.ReplicationStrategies;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using DataStax = Cassandra;

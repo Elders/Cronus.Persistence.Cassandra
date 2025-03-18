@@ -98,7 +98,13 @@ public class IndexByEventTypeStoreTests :
         }
 
         List<IndexRecord> results = new List<IndexRecord>();
-        await foreach (var item in index.GetRecordsAsync(new EventStore.PlayerOptions() { EventTypeId = id }).ConfigureAwait(false))
+        var playerOptions = new EventStore.PlayerOptions()
+        {
+            EventTypeId = id,
+            After = DateTimeOffset.UtcNow.AddDays(-1),
+            Before = DateTimeOffset.UtcNow.AddDays(1)
+        };
+        await foreach (var item in index.GetRecordsAsync(playerOptions).ConfigureAwait(false))
         {
             results.Add(item);
         }

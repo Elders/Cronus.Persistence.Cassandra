@@ -186,7 +186,7 @@ public class IndexByEventTypeStore : IIndexStore
 
         ISession session = await GetSessionAsync().ConfigureAwait(false);
 
-        for (int cpid = afterPID; cpid <= beforePID; PartitionCalculator.GetNext(cpid))
+        for (int cpid = afterPID; cpid <= beforePID; cpid = PartitionCalculator.GetNext(cpid))
         {
             PreparedStatement statement = await _readRangeQuery.PrepareAsync(session).ConfigureAwait(false);
             IStatement queryStatement = statement.Bind(replayOptions.EventTypeId, cpid);

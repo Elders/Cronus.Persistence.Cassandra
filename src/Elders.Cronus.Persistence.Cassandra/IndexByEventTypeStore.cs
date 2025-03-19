@@ -24,6 +24,7 @@ public class IndexByEventTypeStore : IIndexStore
     private IndexReadRangeQuery _readRangeQuery;
     private IndexWriteQuery _writeQuery;
     private IndexDeleteQuery _deleteQuery;
+    private IndexMinTsQuery _minTsQuery;
 
     private Task<ISession> GetSessionAsync() => cassandraProvider.GetSessionAsync(); // In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
 
@@ -38,6 +39,7 @@ public class IndexByEventTypeStore : IIndexStore
         _readRangeQuery = new IndexReadRangeQuery(cronusContextAccessor, cassandraProvider);
         _writeQuery = new IndexWriteQuery(cronusContextAccessor, cassandraProvider);
         _deleteQuery = new IndexDeleteQuery(cronusContextAccessor, cassandraProvider);
+        _minTsQuery = new IndexMinTsQuery(cronusContextAccessor, cassandraProvider);
     }
 
     public async Task ApendAsync(IndexRecord record)
@@ -168,6 +170,8 @@ public class IndexByEventTypeStore : IIndexStore
         };
     }
 
+    private static DateTimeOffset MinAfterTimestamp = new DateTimeOffset(2000, 1, 1, 0, 0, 0, TimeSpan.Zero);
+    private static DateTimeOffset MaxAfterTimestamp = DateTimeOffset.MaxValue.Subtract(TimeSpan.FromDays(100)); // 2650381343999999999
     internal async IAsyncEnumerable<IndexRecord> GetRecordsAsync(PlayerOptions replayOptions, Func<PlayerOptions, Task> onPagingInfoChanged = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         if (replayOptions.EventTypeId is null)
@@ -178,13 +182,14 @@ public class IndexByEventTypeStore : IIndexStore
         var maxPidForCurrentExecution = CalculatePartition(DateTime.Now.AddDays(2));
 
         IndexPagingInfo pagingInfo = IndexPagingInfo.Parse(replayOptions.PaginationToken);
-        long after = replayOptions.After.HasValue ? replayOptions.After.Value.ToFileTime() : new PlayerOptions().After.Value.ToFileTime();
-        long before = replayOptions.Before.HasValue ? replayOptions.Before.Value.ToFileTime() : DateTimeOffset.UtcNow.AddDays(1).ToFileTime();
+
+        ISession session = await GetSessionAsync().ConfigureAwait(false);
+
+        long after = await GetAfterDateAsync(session, replayOptions.After).ConfigureAwait(false);
+        long before = GetBeforeDate(replayOptions.Before);
 
         int afterPID = CalculatePartition(after);
         int beforePID = CalculatePartition(before);
-
-        ISession session = await GetSessionAsync().ConfigureAwait(false);
 
         for (int cpid = afterPID; cpid <= beforePID; cpid = PartitionCalculator.GetNext(cpid))
         {
@@ -231,6 +236,26 @@ public class IndexByEventTypeStore : IIndexStore
             if (cpid > maxPidForCurrentExecution)
                 break;
         }
+
+        async ValueTask<long> GetAfterDateAsync(ISession session, DateTimeOffset? optionsValue)
+        {
+            if (optionsValue.HasValue && optionsValue.Value != MinAfterTimestamp)
+                return optionsValue.Value.ToFileTime();
+
+            PreparedStatement statement = await _minTsQuery.PrepareAsync(session).ConfigureAwait(false);
+
+            RowSet result = await session.ExecuteAsync(statement.Bind()).ConfigureAwait(false);
+            Row row = result.SingleOrDefault();
+            return row.GetValue<long>("ts");
+        }
+
+        long GetBeforeDate(DateTimeOffset? optionsValue)
+        {
+            if (optionsValue.HasValue && optionsValue.Value != MaxAfterTimestamp)
+                return optionsValue.Value.ToFileTime();
+
+            return DateTimeOffset.UtcNow.AddDays(1).ToFileTime();
+        }
     }
 
     class IndexReadQuery : PreparedStatementCache
@@ -265,6 +290,15 @@ public class IndexByEventTypeStore : IIndexStore
         private const string Template = @"DELETE FROM {0}.index_by_eventtype where et=? AND pid=? AND ts=? AND aid=? AND rev=? AND pos=?;";
 
         public IndexDeleteQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider) : base(context, cassandraProvider) { }
+
+        internal override string GetQueryTemplate() => Template;
+    }
+
+    class IndexMinTsQuery : PreparedStatementCache
+    {
+        private const string Template = @"SELECT MIN(ts) AS ts FROM {0}.index_by_eventtype;";
+
+        public IndexMinTsQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider) : base(context, cassandraProvider) { }
 
         internal override string GetQueryTemplate() => Template;
     }

@@ -13,7 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Cronus" Version="11.0.3" />
+    <PackageReference Include="Cronus" Version="11.2.0" />
     <PackageReference Include="Testcontainers" Version="4.1.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
     <PackageReference Include="xunit.v3" Version="1.1.0" />

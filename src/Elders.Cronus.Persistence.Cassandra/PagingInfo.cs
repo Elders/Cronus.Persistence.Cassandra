@@ -9,11 +9,13 @@ namespace Elders.Cronus.Persistence.Cassandra
     {
         public int PartitionId { get; set; }
 
-        IndexPagingInfo() { }
-
-        public IndexPagingInfo(int partitionId)
+        IndexPagingInfo()
         {
             HasMore = true;
+        }
+
+        public IndexPagingInfo(int partitionId) : this()
+        {
             PartitionId = partitionId;
         }
 

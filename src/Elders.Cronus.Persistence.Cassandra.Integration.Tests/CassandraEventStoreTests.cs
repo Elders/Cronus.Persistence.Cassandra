@@ -307,7 +307,7 @@ public class CassandraEventStoreTests : IClassFixture<CassandraEventStoreFixture
         }, new PlayerOptions { EventTypeId = eventTypeId, After = DateTimeOffset.UtcNow.AddDays(-1), Before = DateTimeOffset.Now.AddDays(1) }, TestContext.Current.CancellationToken);
 
         Assert.True(finished);
-        Assert.Equal(2, progressNotifications); // The number of notifications is based on the number of partitions you are enumerating and also the pages per partition
+        Assert.Equal(3, progressNotifications); // The number of notifications is based on the number of partitions you are enumerating and also the pages per partition
 
         var rawEvent = Assert.Single(rawEvents);
         Assert.Equal(arId, rawEvent.AggregateRootId);

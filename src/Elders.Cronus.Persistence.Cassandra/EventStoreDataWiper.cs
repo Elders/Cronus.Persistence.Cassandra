@@ -41,8 +41,12 @@ public class EventStoreDataWiper : IDangerZone
             ISession session = await GetSessionAsync().ConfigureAwait(false);
             PreparedStatement statement = await _dropKeyspaceQuery.PrepareAsync(session).ConfigureAwait(false);
 
+            logger.LogInformation("Wiping eventstore data for tenant {tenant} query {query}", tenant, statement.QueryString);
+
             var bs = statement.Bind().SetIdempotence(true);
             await session.ExecuteAsync(bs).ConfigureAwait(false);
+
+            logger.LogInformation("Eventstore data for tenant {tenant} wiped", tenant);
         }
         catch (Exception ex)
         {

@@ -63,8 +63,8 @@ namespace Elders.Cronus.Persistence.Cassandra
             yield return new DiscoveredModel(typeof(IndexByEventTypeStore), typeof(IndexByEventTypeStore), ServiceLifetime.Singleton) { CanOverrideDefaults = true };
             yield return new DiscoveredModel(typeof(IIndexStore), typeof(IndexByEventTypeStore), ServiceLifetime.Singleton) { CanOverrideDefaults = true };
 
-            yield return new DiscoveredModel(typeof(TenantDataWiper), typeof(TenantDataWiper), ServiceLifetime.Singleton);
-            yield return new DiscoveredModel(typeof(IDangerZone), typeof(TenantDataWiper), ServiceLifetime.Singleton);
+            yield return new DiscoveredModel(typeof(EventStoreDataWiper), typeof(EventStoreDataWiper), ServiceLifetime.Singleton);
+            yield return new DiscoveredModel(typeof(IDangerZone), typeof(EventStoreDataWiper), ServiceLifetime.Singleton) { CanAddMultiple = true };
 
             yield return new DiscoveredModel(typeof(CassandraEventStoreSchema), typeof(CassandraEventStoreSchema), ServiceLifetime.Singleton);
 

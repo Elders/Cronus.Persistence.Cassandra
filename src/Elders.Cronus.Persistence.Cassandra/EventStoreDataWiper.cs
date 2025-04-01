@@ -7,17 +7,17 @@ using Microsoft.Extensions.Logging;
 
 namespace Elders.Cronus.Persistence.Cassandra;
 
-public class TenantDataWiper : IDangerZone
+public class EventStoreDataWiper : IDangerZone
 {
     private readonly ICassandraProvider cassandraProvider;
     private readonly ICronusContextAccessor cronusContextAccessor;
-    private readonly ILogger<TenantDataWiper> logger;
+    private readonly ILogger<EventStoreDataWiper> logger;
 
     private DropKeyspaceQuery _dropKeyspaceQuery;
 
     private Task<ISession> GetSessionAsync() => cassandraProvider.GetSessionAsync(); // In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
 
-    public TenantDataWiper(ICronusContextAccessor cronusContextAccessor, ICassandraProvider cassandraProvider, ILogger<TenantDataWiper> logger)
+    public EventStoreDataWiper(ICronusContextAccessor cronusContextAccessor, ICassandraProvider cassandraProvider, ILogger<EventStoreDataWiper> logger)
     {
         if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
 

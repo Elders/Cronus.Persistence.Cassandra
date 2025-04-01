@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using Elders.Cronus.DangerZone;
 using Elders.Cronus.Discoveries;
 using Elders.Cronus.EventStore;
 using Elders.Cronus.EventStore.Index;
@@ -17,7 +18,6 @@ namespace Elders.Cronus.Persistence.Cassandra
             IEnumerable<DiscoveredModel> models = base.DiscoverFromAssemblies(context).Models
                 .Concat(GetModels(context))
                 .Concat(DiscoverCassandraTableNameStrategy(context));
-
 
             return new DiscoveryResult<IEventStore>(models, services =>
             {
@@ -62,6 +62,9 @@ namespace Elders.Cronus.Persistence.Cassandra
 
             yield return new DiscoveredModel(typeof(IndexByEventTypeStore), typeof(IndexByEventTypeStore), ServiceLifetime.Singleton) { CanOverrideDefaults = true };
             yield return new DiscoveredModel(typeof(IIndexStore), typeof(IndexByEventTypeStore), ServiceLifetime.Singleton) { CanOverrideDefaults = true };
+
+            yield return new DiscoveredModel(typeof(TenantDataWiper), typeof(TenantDataWiper), ServiceLifetime.Singleton);
+            yield return new DiscoveredModel(typeof(IDangerZone), typeof(TenantDataWiper), ServiceLifetime.Singleton);
 
             yield return new DiscoveredModel(typeof(CassandraEventStoreSchema), typeof(CassandraEventStoreSchema), ServiceLifetime.Singleton);
 

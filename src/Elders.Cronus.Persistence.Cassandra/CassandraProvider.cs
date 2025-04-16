@@ -32,17 +32,21 @@ namespace Elders.Cronus.Persistence.Cassandra
             this.logger = logger;
         }
 
-        private static SemaphoreSlim clusterThreadGate = new SemaphoreSlim(1); // Instantiate a Singleton of the Semaphore with a value of 1. This means that only 1 thread can be granted access at a time
+        private static SemaphoreSlim clusterThreadGate = new SemaphoreSlim(1, 1); // Instantiate a Singleton of the Semaphore with a value of 1. This means that only 1 thread can be granted access at a time
 
         public async Task<ICluster> GetClusterAsync()
         {
             if (cluster is null == false)
                 return cluster;
 
-            await clusterThreadGate.WaitAsync(30000).ConfigureAwait(false);
+            bool lockSuccess = false;
 
             try
             {
+                lockSuccess = await clusterThreadGate.WaitAsync(30000).ConfigureAwait(false);
+                if (lockSuccess == false)
+                    throw new TimeoutException("Timeout while waiting for cluster lock.");
+
                 if (cluster is null == false)
                     return cluster;
 
@@ -91,20 +95,27 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
             finally
             {
-                clusterThreadGate?.Release();
+                if (lockSuccess)
+                {
+                    clusterThreadGate?.Release();
+                }
             }
         }
 
-        private static SemaphoreSlim longSessionThreadGate = new SemaphoreSlim(1); // Instantiate a Singleton of the Semaphore with a value of 1. This means that only 1 thread can be granted access at a time
+        private static SemaphoreSlim longSessionThreadGate = new SemaphoreSlim(1, 1); // Instantiate a Singleton of the Semaphore with a value of 1. This means that only 1 thread can be granted access at a time
 
         internal async Task<ISession> GetSessionHighTimeoutAsync()
         {
             if (sessionWithLongTimeout is null || sessionWithLongTimeout.IsDisposed)
             {
-                await longSessionThreadGate.WaitAsync(30000).ConfigureAwait(false);
+                bool lockSuccess = false;
 
                 try
                 {
+                    lockSuccess = await longSessionThreadGate.WaitAsync(30000).ConfigureAwait(false);
+                    if (lockSuccess == false)
+                        throw new TimeoutException("Timeout while waiting for session lock.");
+
                     int TenMinutes = 1000 * 60 * 10;
                     SocketOptions so = new SocketOptions();
                     so.SetConnectTimeoutMillis(TenMinutes);
@@ -132,7 +143,10 @@ namespace Elders.Cronus.Persistence.Cassandra
                 }
                 finally
                 {
-                    longSessionThreadGate?.Release();
+                    if (lockSuccess)
+                    {
+                        longSessionThreadGate?.Release();
+                    }
                 }
             }
 

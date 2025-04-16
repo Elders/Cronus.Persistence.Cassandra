@@ -145,16 +145,20 @@ namespace Elders.Cronus.Persistence.Cassandra
             return keyspaceNamingStrategy.GetName(baseConfigurationKeyspace).ToLower();
         }
 
-        private static SemaphoreSlim sessionThreadGate = new SemaphoreSlim(1); // Instantiate a Singleton of the Semaphore with a value of 1. This means that only 1 thread can be granted access at a time
+        private static SemaphoreSlim sessionThreadGate = new SemaphoreSlim(1, 1); // Instantiate a Singleton of the Semaphore with a value of 1. This means that only 1 thread can be granted access at a time
+
 
         public async Task<ISession> GetSessionAsync()
         {
             if (session is null || session.IsDisposed)
             {
-                await sessionThreadGate.WaitAsync(30000).ConfigureAwait(false);
-
+                bool lockSuccess = false;
                 try
                 {
+                    lockSuccess = await sessionThreadGate.WaitAsync(30000).ConfigureAwait(false);
+                    if (lockSuccess == false)
+                        throw new TimeoutException("Timeout while waiting for session lock.");
+
                     if (session is null || session.IsDisposed)
                     {
                         if (logger.IsEnabled(LogLevel.Information))
@@ -166,7 +170,10 @@ namespace Elders.Cronus.Persistence.Cassandra
                 }
                 finally
                 {
-                    sessionThreadGate?.Release();
+                    if (lockSuccess)
+                    {
+                        sessionThreadGate?.Release();
+                    }
                 }
             }
 

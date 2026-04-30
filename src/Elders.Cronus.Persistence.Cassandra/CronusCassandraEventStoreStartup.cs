@@ -7,6 +7,8 @@ using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Elders.Cronus.Persistence.Cassandra
 {
@@ -34,25 +36,29 @@ namespace Elders.Cronus.Persistence.Cassandra
             tenantsOptions.OnChange(OptionsChangedBootstrapEventStoreForTenant);
         }
 
-        public void Bootstrap()
+        /// <summary>
+        /// Bootstraps the Cassandra event store schema for all configured tenants.
+        /// </summary>
+        /// <param name="cancellationToken">Token used to cancel the bootstrap operation.</param>
+        public async Task BootstrapAsync(CancellationToken cancellationToken = default)
         {
-            BootstrapTenants(tenants.Tenants);
+            await BootstrapTenantsAsync(tenants.Tenants, cancellationToken).ConfigureAwait(false);
         }
 
-        private void BootstrapTenants(IEnumerable<string> tenants)
+        private async Task BootstrapTenantsAsync(IEnumerable<string> tenants, CancellationToken cancellationToken = default)
         {
             string lockKey = $"{bc.Name}{Enum.GetName(typeof(Bootstraps), Bootstraps.ExternalResource)}";
-            if (@lock.LockAsync(lockKey, lockTtl).GetAwaiter().GetResult())
+            if (await @lock.LockAsync(lockKey, lockTtl).ConfigureAwait(false))
             {
                 foreach (var tenant in tenants)
                 {
                     DefaultCronusContextFactory contextFactory = serviceProvider.GetRequiredService<DefaultCronusContextFactory>();
                     CronusContext context = contextFactory.Create(tenant, serviceProvider);
 
-                    serviceProvider.GetRequiredService<CassandraEventStoreSchema>().CreateStorageAsync().GetAwaiter().GetResult();
+                    await serviceProvider.GetRequiredService<CassandraEventStoreSchema>().CreateStorageAsync().ConfigureAwait(false);
                 }
 
-                @lock.UnlockAsync(lockKey).GetAwaiter().GetResult();
+                await @lock.UnlockAsync(lockKey).ConfigureAwait(false);
             }
             else
             {
@@ -70,7 +76,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                 // Find the difference between the old and new tenants
                 // and bootstrap the new tenants
                 var newTenants = newOptions.Tenants.Except(tenants.Tenants);
-                BootstrapTenants(newTenants);
+                _ = BootstrapTenantsAsync(newTenants);
 
                 tenants = newOptions;
             }

@@ -68,17 +68,31 @@ namespace Elders.Cronus.Persistence.Cassandra
 
         private void OptionsChangedBootstrapEventStoreForTenant(TenantsOptions newOptions)
         {
-            if (tenants.Tenants.SequenceEqual(newOptions.Tenants) == false) // Check for difference between tenants and newOptions
+            if (tenants.Tenants.SequenceEqual(newOptions.Tenants))
+                return;
+
+            if (logger.IsEnabled(LogLevel.Debug))
+                logger.LogDebug("Cronus tenant options re-loaded with {@options}", newOptions);
+
+            // Find the difference between the old and new tenants and bootstrap the new ones.
+            // The IOptionsMonitor.OnChange callback is sync (Action<T>) so the async bootstrap
+            // is fire-and-forget; exceptions are caught and logged inside the helper, and
+            // the local tenants snapshot only commits to the new value on success so a failed
+            // bootstrap will be retried on the next options reload.
+            var newTenants = newOptions.Tenants.Except(tenants.Tenants).ToList();
+            _ = BootstrapAndCommitAsync(newOptions, newTenants);
+        }
+
+        private async Task BootstrapAndCommitAsync(TenantsOptions newOptions, List<string> newTenants)
+        {
+            try
             {
-                if (logger.IsEnabled(LogLevel.Debug))
-                    logger.LogDebug("Cronus tenant options re-loaded with {@options}", newOptions);
-
-                // Find the difference between the old and new tenants
-                // and bootstrap the new tenants
-                var newTenants = newOptions.Tenants.Except(tenants.Tenants);
-                _ = BootstrapTenantsAsync(newTenants);
-
+                await BootstrapTenantsAsync(newTenants).ConfigureAwait(false);
                 tenants = newOptions;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to bootstrap event store for new tenants: {tenants}", string.Join(", ", newTenants));
             }
         }
     }

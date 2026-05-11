@@ -14,7 +14,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Counters
 
         public CounterIncrementQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider) : base(context, cassandraProvider) { }
 
-        internal override string GetQueryTemplate() => Template;
+        protected override string GetQueryTemplate() => Template;
     }
 
     internal class CounterDecrementQuery : PreparedStatementCache
@@ -23,7 +23,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Counters
 
         public CounterDecrementQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider) : base(context, cassandraProvider) { }
 
-        internal override string GetQueryTemplate() => Template;
+        protected override string GetQueryTemplate() => Template;
     }
 
     internal class CounterLoadQuery : PreparedStatementCache
@@ -32,7 +32,7 @@ namespace Elders.Cronus.Persistence.Cassandra.Counters
 
         public CounterLoadQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider) : base(context, cassandraProvider) { }
 
-        internal override string GetQueryTemplate() => Template;
+        protected override string GetQueryTemplate() => Template;
     }
 
     /// We tried to use <see cref="ISession.PrepareAsync(string, string)"/> where we wanted to specify the keyspace (we use [cqlsh 6.2.0 | Cassandra 5.0.2 | CQL spec 3.4.7 | Native protocol v5] cassandra)

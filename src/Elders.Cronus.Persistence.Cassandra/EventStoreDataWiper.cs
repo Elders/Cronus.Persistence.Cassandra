@@ -61,6 +61,6 @@ public class EventStoreDataWiper : IDangerZone
 
         public DropKeyspaceQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider) : base(context, cassandraProvider) { }
 
-        internal override string GetQueryTemplate() => Template;
+        protected override string GetQueryTemplate() => Template;
     }
 }

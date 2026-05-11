@@ -264,7 +264,7 @@ public class IndexByEventTypeStore : IIndexStore
 
         public IndexReadQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider) : base(context, cassandraProvider) { }
 
-        internal override string GetQueryTemplate() => Template;
+        protected override string GetQueryTemplate() => Template;
     }
 
     class IndexReadRangeQuery : PreparedStatementCache
@@ -273,7 +273,7 @@ public class IndexByEventTypeStore : IIndexStore
 
         public IndexReadRangeQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider) : base(context, cassandraProvider) { }
 
-        internal override string GetQueryTemplate() => Template;
+        protected override string GetQueryTemplate() => Template;
     }
 
     class IndexWriteQuery : PreparedStatementCache
@@ -282,7 +282,7 @@ public class IndexByEventTypeStore : IIndexStore
 
         public IndexWriteQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider) : base(context, cassandraProvider) { }
 
-        internal override string GetQueryTemplate() => Template;
+        protected override string GetQueryTemplate() => Template;
     }
 
     class IndexDeleteQuery : PreparedStatementCache
@@ -291,7 +291,7 @@ public class IndexByEventTypeStore : IIndexStore
 
         public IndexDeleteQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider) : base(context, cassandraProvider) { }
 
-        internal override string GetQueryTemplate() => Template;
+        protected override string GetQueryTemplate() => Template;
     }
 
     class IndexMinTsQuery : PreparedStatementCache
@@ -300,7 +300,7 @@ public class IndexByEventTypeStore : IIndexStore
 
         public IndexMinTsQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider) : base(context, cassandraProvider) { }
 
-        internal override string GetQueryTemplate() => Template;
+        protected override string GetQueryTemplate() => Template;
     }
 }
 

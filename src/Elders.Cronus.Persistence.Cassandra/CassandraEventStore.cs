@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 namespace Elders.Cronus.Persistence.Cassandra
 {
     public class CassandraEventStore<TSettings> : CassandraEventStore, IEventStorePlayer<TSettings>
-    where TSettings : class, ICassandraEventStoreSettings
+        where TSettings : class, ICassandraEventStoreSettings
     {
         public CassandraEventStore(ICronusContextAccessor cronusContextAccessor, TSettings settings, IndexByEventTypeStore indexByEventTypeStore, ILogger<CassandraEventStore> logger)
             : base(cronusContextAccessor, settings.CassandraProvider, settings.TableNameStrategy, settings.Serializer, indexByEventTypeStore, logger)
@@ -26,29 +26,27 @@ namespace Elders.Cronus.Persistence.Cassandra
     /// https://datastax-oss.atlassian.net/jira/software/c/projects/CSHARP/issues/CSHARP-856 as of 01.23.25 this epic is still in todo.
     public class CassandraEventStore : IEventStore, IEventStorePlayer
     {
-        private readonly ISerializer serializer;
-        private readonly IndexByEventTypeStore indexByEventTypeStore;
-        private readonly ILogger<CassandraEventStore> logger;
-        private readonly ICassandraProvider cassandraProvider;
+        private readonly ISerializer _serializer;
+        private readonly IndexByEventTypeStore _indexByEventTypeStore;
+        private readonly ILogger<CassandraEventStore> _logger;
+        private readonly ICassandraProvider _cassandraProvider;
 
         // the store is registered as tenant singleton and the events table is only 1 so there could only be one prepared statement per tenant
-        private LoadAggregateEventsQuery _loadAggregateEventsQuery;
-        private InsertEventsQuery _insertEventsQuery;
-        private LoadEventsQuery _loadEventsQuery;
-        private LoadAggregateEventsWithinSpecifiedRevisionsQuery _loadAggregateEventsWithinSpecifiedRevisionsQuery;
-        private LoadAggregateEventsRebuildQuery _loadAggregateRebuildEventsQuery;
-        private LoadEventQuery _loadEventQuery;
-        private DeleteEventQuery _deleteEventQuery;
-
-        private Task<ISession> GetSessionAsync() => cassandraProvider.GetSessionAsync();// In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
+        private readonly LoadAggregateEventsQuery _loadAggregateEventsQuery;
+        private readonly InsertEventsQuery _insertEventsQuery;
+        private readonly LoadEventsQuery _loadEventsQuery;
+        private readonly LoadAggregateEventsWithinSpecifiedRevisionsQuery _loadAggregateEventsWithinSpecifiedRevisionsQuery;
+        private readonly LoadAggregateEventsRebuildQuery _loadAggregateRebuildEventsQuery;
+        private readonly LoadEventQuery _loadEventQuery;
+        private readonly DeleteEventQuery _deleteEventQuery;
 
         public CassandraEventStore(ICronusContextAccessor cronusContextAccessor, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy, ISerializer serializer, IndexByEventTypeStore indexByEventTypeStore, ILogger<CassandraEventStore> logger)
         {
-            if (cassandraProvider is null) throw new ArgumentNullException(nameof(cassandraProvider));
-            this.cassandraProvider = cassandraProvider;
-            this.serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
-            this.indexByEventTypeStore = indexByEventTypeStore ?? throw new ArgumentNullException(nameof(indexByEventTypeStore));
-            this.logger = logger;
+            ArgumentNullException.ThrowIfNull(cassandraProvider);
+            _cassandraProvider = cassandraProvider;
+            _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
+            _indexByEventTypeStore = indexByEventTypeStore ?? throw new ArgumentNullException(nameof(indexByEventTypeStore));
+            _logger = logger;
 
             _loadAggregateEventsQuery = new LoadAggregateEventsQuery(cronusContextAccessor, cassandraProvider, tableNameStrategy);
             _insertEventsQuery = new InsertEventsQuery(cronusContextAccessor, cassandraProvider, tableNameStrategy);
@@ -71,17 +69,17 @@ namespace Elders.Cronus.Persistence.Cassandra
                 batch.SetBatchType(BatchType.Unlogged);
 
                 var pos = -1;
-                for (int idx = 0; idx < aggregateCommit.Events.Count; idx++)
+                foreach (var @event in aggregateCommit.Events)
                 {
-                    byte[] data = serializer.SerializeToBytes(aggregateCommit.Events[idx]);
+                    byte[] data = _serializer.SerializeToBytes(@event);
                     BoundStatement boundStatement = writeStatement.Bind(aggregateCommit.AggregateRootId, aggregateCommit.Revision, ++pos, aggregateCommit.Timestamp, data);
                     batch.Add(boundStatement);
                 }
 
                 pos += AggregateCommitBlock.PublicEventsOffset;
-                for (int idx = 0; idx < aggregateCommit.PublicEvents.Count; idx++)
+                foreach (var publicEvent in aggregateCommit.PublicEvents)
                 {
-                    byte[] data = serializer.SerializeToBytes(aggregateCommit.PublicEvents[idx]);
+                    byte[] data = _serializer.SerializeToBytes(publicEvent);
                     BoundStatement boundStatement = writeStatement.Bind(aggregateCommit.AggregateRootId, aggregateCommit.Revision, pos++, aggregateCommit.Timestamp, data);
                     batch.Add(boundStatement);
                 }
@@ -90,7 +88,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
             catch (WriteTimeoutException ex)
             {
-                logger.LogWarning(ex, "Write timeout while persisting an aggregate commit.");
+                _logger.LogWarning(ex, "Write timeout while persisting an aggregate commit.");
             }
         }
 
@@ -106,7 +104,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
             catch (WriteTimeoutException ex)
             {
-                logger.LogWarning(ex, "Write timeout while persisting an aggregate commit.");
+                _logger.LogWarning(ex, "Write timeout while persisting an aggregate commit.");
             }
         }
 
@@ -136,43 +134,40 @@ namespace Elders.Cronus.Persistence.Cassandra
 
                 return true;
             }
-            catch (WriteTimeoutException ex) when (True(() => logger.LogWarning(ex, "Failed to delete event.")))
+            catch (WriteTimeoutException ex)
             {
+                _logger.LogWarning(ex, "Failed to delete event.");
                 return false;
             }
-            catch (Exception ex) when (True(() => logger.LogError(ex, "Failed to delete event."))) { }
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Failed to delete event.");
                 return false;
             }
         }
 
         public Task EnumerateEventStore(PlayerOperator @operator, PlayerOptions replayOptions, CancellationToken cancellationToken = default)
         {
-            if (@operator is null) throw new ArgumentNullException(nameof(@operator));
-            if (replayOptions is null) throw new ArgumentNullException(nameof(replayOptions));
+            ArgumentNullException.ThrowIfNull(@operator);
+            ArgumentNullException.ThrowIfNull(replayOptions);
 
             if (replayOptions.EventTypeId is null)
-            {
-                return EnumerateEventStoreGG(@operator, replayOptions, cancellationToken);
-            }
+                return EnumerateEventStoreGG(@operator, replayOptions, cancellationToken); // TODO: Add proper naming for this
             else
-            {
                 return EnumerateEventStoreForSpecifiedEvent(@operator, replayOptions, cancellationToken);
-            }
         }
 
         public async Task<IEvent> LoadEventWithRebuildProjectionAsync(IndexRecord indexRecord)
         {
             ISession session = await GetSessionAsync().ConfigureAwait(false);
             PreparedStatement statement = await _loadAggregateRebuildEventsQuery.PrepareAsync(session).ConfigureAwait(false);
-
             BoundStatement boundStatement = statement.Bind(indexRecord.AggregateRootId, indexRecord.Revision, indexRecord.Position);
 
             var result = await session.ExecuteAsync(boundStatement).ConfigureAwait(false);
-            var row = result.GetRows().Single();
+            var row = result.Single();
             byte[] data = row.GetValue<byte[]>(CassandraColumn.Data);
 
-            return serializer.DeserializeFromBytes<IEvent>(data);
+            return _serializer.DeserializeFromBytes<IEvent>(data);
         }
 
         public async Task<AggregateEventRaw> LoadAggregateEventRaw(IndexRecord indexRecord)
@@ -188,10 +183,12 @@ namespace Elders.Cronus.Persistence.Cassandra
                 return new AggregateEventRaw(indexRecord.AggregateRootId, data, indexRecord.Revision, indexRecord.Position, indexRecord.TimeStamp);
             }
 
-            logger.LogError("Unable to load aggregate event by index record: {cronus_messageData}", indexRecord.ToJson());
+            _logger.LogError("Unable to load aggregate event by index record: {cronus_messageData}", indexRecord.ToJson());
 
             return default;
         }
+
+        private Task<ISession> GetSessionAsync() => _cassandraProvider.GetSessionAsync(); // In order to keep only 1 session alive (https://docs.datastax.com/en/developer/csharp-driver/3.16/faq/)
 
         private async Task<List<AggregateCommit>> LoadAggregateCommitsAsync(IBlobId id)
         {
@@ -209,7 +206,7 @@ namespace Elders.Cronus.Persistence.Cassandra
                 long timestamp = row.GetValue<long>(CassandraColumn.Timestamp);
                 byte[] data = row.GetValue<byte[]>(CassandraColumn.Data);
 
-                IMessage messageData = serializer.DeserializeFromBytes<IMessage>(data);
+                IMessage messageData = _serializer.DeserializeFromBytes<IMessage>(data);
                 block.AppendBlock(revision, position, messageData, timestamp);
             }
 
@@ -229,9 +226,12 @@ namespace Elders.Cronus.Persistence.Cassandra
                     return new AggregateEventRaw(indexRecord.AggregateRootId, data, indexRecord.Revision, indexRecord.Position, indexRecord.TimeStamp);
                 }
 
-                logger.LogError("Unable to load aggregate event by index record: {cronus_messageData}", indexRecord.ToJson());
+                _logger.LogError("Unable to load aggregate event by index record: {cronus_messageData}", indexRecord.ToJson());
             }
-            catch (Exception ex) when (True(() => logger.LogError(ex, "Unable to load aggregate event by index record: {cronus_messageData}", indexRecord.ToJson()))) { }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unable to load aggregate event by index record: {cronus_messageData}", indexRecord.ToJson());
+            }
 
             return default;
         }
@@ -282,7 +282,7 @@ namespace Elders.Cronus.Persistence.Cassandra
             PreparedStatement queryStatement = await _loadEventQuery.PrepareAsync(session).ConfigureAwait(false);
 
             List<Task> tasks = new List<Task>();
-            await foreach (IndexRecord indexRecord in indexByEventTypeStore.GetRecordsAsync(replayOptions, @operator.NotifyProgressAsync, cancellationToken))
+            await foreach (IndexRecord indexRecord in _indexByEventTypeStore.GetRecordsAsync(replayOptions, @operator.NotifyProgressAsync, cancellationToken))
             {
                 if (@operator.OnLoadAsync is not null)
                 {
@@ -300,8 +300,9 @@ namespace Elders.Cronus.Persistence.Cassandra
                         Task completedTask = await Task.WhenAny(tasks);
                         if (completedTask.Status == TaskStatus.Faulted)
                         {
-                            logger.LogError(completedTask.Exception, "Failed to replay event for index record: {cronus_messageData}", indexRecord.ToJson());
+                            _logger.LogError(completedTask.Exception, "Failed to replay event for index record: {cronus_messageData}", indexRecord.ToJson());
                         }
+
                         tasks.Remove(completedTask);
                     }
                 }
@@ -320,8 +321,9 @@ namespace Elders.Cronus.Persistence.Cassandra
                         Task completedTask = await Task.WhenAny(tasks);
                         if (completedTask.Status == TaskStatus.Faulted)
                         {
-                            logger.LogError(completedTask.Exception, "Failed to replay event for index record: {cronus_messageData}", indexRecord.ToJson());
+                            _logger.LogError(completedTask.Exception, "Failed to replay event for index record: {cronus_messageData}", indexRecord.ToJson());
                         }
+
                         tasks.Remove(completedTask);
                     }
                 }
@@ -352,8 +354,9 @@ namespace Elders.Cronus.Persistence.Cassandra
                         if (completedTask.Status == TaskStatus.Faulted)
                         {
                             string dataAsJson = System.Text.Json.JsonSerializer.Serialize(@event);
-                            logger.LogError(completedTask.Exception, "Failed to replay event: {cronus_messageData}", dataAsJson);
+                            _logger.LogError(completedTask.Exception, "Failed to replay event: {cronus_messageData}", dataAsJson);
                         }
+
                         tasks.Remove(completedTask);
                     }
                 }
@@ -460,13 +463,19 @@ namespace Elders.Cronus.Persistence.Cassandra
             }
         }
 
-        private async Task<PagingInfo> HandlePaginationStateChangesAsync(PlayerOptions replayOptions, Func<PlayerOptions, Task> onPagingInfoChanged, PagingInfo pagingInfo, RowSet result)
+        private async Task<PagingInfo> HandlePaginationStateChangesAsync(PlayerOptions replayOptions, Func<PlayerOptions, Task> onPagingInfoChanged, PagingInfo pagingInfo, RowSet result) // TODO:  PagingInfo pagingInfo parameter is overridden
         {
             pagingInfo = PagingInfo.From(result);
-            if (onPagingInfoChanged is not null)
+            if (onPagingInfoChanged is null)
+                return pagingInfo;
+
+            try
             {
-                try { await onPagingInfoChanged(replayOptions.WithPaginationToken(pagingInfo.ToString())).ConfigureAwait(false); }
-                catch (Exception ex) when (True(() => logger.LogError(ex, "Failed to execute onPagingInfoChanged() function."))) { }
+                await onPagingInfoChanged(replayOptions.WithPaginationToken(pagingInfo.ToString())).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to execute onPagingInfoChanged() function.");
             }
 
             return pagingInfo;
@@ -476,63 +485,77 @@ namespace Elders.Cronus.Persistence.Cassandra
         {
             private const string LoadEventQueryTemplate = @"SELECT data,ts FROM {0}.{1} WHERE id = ? AND rev = ? AND pos = ?;";
 
-            public LoadEventQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
+            public LoadEventQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy)
+            {
+            }
 
-            internal override string GetQueryTemplate() => LoadEventQueryTemplate;
+            protected override string GetQueryTemplate() => LoadEventQueryTemplate;
         }
 
         class LoadAggregateEventsQuery : PreparedStatementCache
         {
             private const string Template = @"SELECT rev,pos,ts,data FROM {0}.{1} WHERE id = ?;";
 
-            public LoadAggregateEventsQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
+            public LoadAggregateEventsQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy)
+            {
+            }
 
-            internal override string GetQueryTemplate() => Template;
+            protected override string GetQueryTemplate() => Template;
         }
 
         class InsertEventsQuery : PreparedStatementCache
         {
             private const string Template = @"INSERT INTO {0}.{1} (id,rev,pos,ts,data) VALUES (?,?,?,?,?);";
 
-            public InsertEventsQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
+            public InsertEventsQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy)
+            {
+            }
 
-            internal override string GetQueryTemplate() => Template;
+            protected override string GetQueryTemplate() => Template;
         }
 
         class LoadEventsQuery : PreparedStatementCache
         {
             private const string Template = @"SELECT id,rev,pos,ts,data FROM {0}.{1};";
 
-            public LoadEventsQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
+            public LoadEventsQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy)
+            {
+            }
 
-            internal override string GetQueryTemplate() => Template;
+            protected override string GetQueryTemplate() => Template;
         }
 
         class LoadAggregateEventsWithinSpecifiedRevisionsQuery : PreparedStatementCache
         {
             private const string Template = @"SELECT rev,pos,ts,data FROM {0}.{1} WHERE id = ? order by rev desc, pos desc";
 
-            public LoadAggregateEventsWithinSpecifiedRevisionsQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
+            public LoadAggregateEventsWithinSpecifiedRevisionsQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy)
+            {
+            }
 
-            internal override string GetQueryTemplate() => Template;
+            protected override string GetQueryTemplate() => Template;
         }
 
         class LoadAggregateEventsRebuildQuery : PreparedStatementCache
         {
             private const string Template = @"SELECT data FROM {0}.{1} WHERE id = ? AND rev = ? AND pos = ?;";
 
-            public LoadAggregateEventsRebuildQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
+            public LoadAggregateEventsRebuildQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy)
+            {
+            }
 
-            internal override string GetQueryTemplate() => Template;
+            protected override string GetQueryTemplate() => Template;
         }
 
         class DeleteEventQuery : PreparedStatementCache
         {
             private const string Template = @"DELETE FROM {0}.{1} WHERE id = ? and rev=? and pos=?;";
 
-            public DeleteEventQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy) { }
+            public DeleteEventQuery(ICronusContextAccessor context, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy) : base(context, cassandraProvider, tableNameStrategy)
+            {
+            }
 
-            internal override string GetQueryTemplate() => Template;
+            protected override string GetQueryTemplate() => Template;
         }
     }
 }

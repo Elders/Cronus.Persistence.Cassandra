@@ -9,67 +9,67 @@ namespace Elders.Cronus.Persistence.Cassandra
 {
     internal abstract class PreparedStatementCache
     {
-        private readonly ICronusContextAccessor context;
-        private readonly ICassandraProvider cassandraProvider;
-        private readonly ITableNamingStrategy tableNameStrategy;
-        private SemaphoreSlim threadGate = new SemaphoreSlim(1);
-        private Dictionary<string, PreparedStatement> _tenantCache;
+        private readonly ICronusContextAccessor _context;
+        private readonly ICassandraProvider _cassandraProvider;
+        private readonly ITableNamingStrategy _tableNameStrategy;
+        private readonly Dictionary<string, PreparedStatement> _tenantCache;
+        private readonly SemaphoreSlim _threadGate = new SemaphoreSlim(1);
 
         protected PreparedStatementCache(ICronusContextAccessor context, ICassandraProvider cassandraProvider) : this(context, cassandraProvider, default) { }
 
-        public PreparedStatementCache(ICronusContextAccessor cronusContextAccessor, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy)
+        protected PreparedStatementCache(ICronusContextAccessor cronusContextAccessor, ICassandraProvider cassandraProvider, ITableNamingStrategy tableNameStrategy)
         {
             _tenantCache = new Dictionary<string, PreparedStatement>();
 
-            this.context = cronusContextAccessor ?? throw new ArgumentNullException(nameof(cronusContextAccessor));
-            this.cassandraProvider = cassandraProvider ?? throw new ArgumentNullException(nameof(cassandraProvider));
-            this.tableNameStrategy = tableNameStrategy; // allows null/default
+            _context = cronusContextAccessor ?? throw new ArgumentNullException(nameof(cronusContextAccessor));
+            _cassandraProvider = cassandraProvider ?? throw new ArgumentNullException(nameof(cassandraProvider));
+            _tableNameStrategy = tableNameStrategy; // allows null/default
         }
 
-        internal abstract string GetQueryTemplate();
-        internal virtual string GetTableName() => tableNameStrategy?.GetName();
+        protected abstract string GetQueryTemplate();
+
+        protected virtual string GetTableName() => _tableNameStrategy?.GetName();
+
+        protected virtual void SetPreparedStatementOptions(PreparedStatement statement)
+        {
+            statement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
+        }
 
         internal async Task<PreparedStatement> PrepareAsync(ISession session)
         {
             try
             {
-                PreparedStatement preparedStatement = default;
-                if (_tenantCache.TryGetValue(context.CronusContext.Tenant, out preparedStatement) == false)
-                {
-                    await threadGate.WaitAsync(10000).ConfigureAwait(false);
-                    if (_tenantCache.TryGetValue(context.CronusContext.Tenant, out preparedStatement))
-                        return preparedStatement;
+                if (_tenantCache.TryGetValue(_context.CronusContext.Tenant, out var preparedStatement))
+                    return preparedStatement;
 
-                    string keyspace = cassandraProvider.GetKeyspace();
-                    string tableName = GetTableName();
-                    string template = GetQueryTemplate();
+                await _threadGate.WaitAsync(10000).ConfigureAwait(false);
+                if (_tenantCache.TryGetValue(_context.CronusContext.Tenant, out preparedStatement))
+                    return preparedStatement;
 
-                    if (string.IsNullOrEmpty(keyspace)) throw new Exception($"Invalid keyspace while preparing query template: {template}");
-                    if (tableNameStrategy is not null && string.IsNullOrEmpty(tableName)) throw new Exception($"Invalid table name while preparing query template: {template}");
+                string keyspace = _cassandraProvider.GetKeyspace();
+                string tableName = GetTableName();
+                string template = GetQueryTemplate();
 
-                    string query = string.Format(template, keyspace, tableName);
+                if (string.IsNullOrEmpty(keyspace)) throw new Exception($"Invalid keyspace while preparing query template: {template}");
+                if (_tableNameStrategy is not null && string.IsNullOrEmpty(tableName)) throw new Exception($"Invalid table name while preparing query template: {template}");
 
-                    preparedStatement = await session.PrepareAsync(query).ConfigureAwait(false);
-                    SetPreparedStatementOptions(preparedStatement);
+                string query = string.Format(template, keyspace, tableName);
 
-                    _tenantCache.TryAdd(context.CronusContext.Tenant, preparedStatement);
-                }
+                preparedStatement = await session.PrepareAsync(query).ConfigureAwait(false);
+                SetPreparedStatementOptions(preparedStatement);
+
+                _tenantCache.TryAdd(_context.CronusContext.Tenant, preparedStatement);
 
                 return preparedStatement;
             }
             catch (Exception ex)
             {
-                throw new Exception($"Failed to prepare query statement for {this.GetType().Name}", ex);
+                throw new Exception($"Failed to prepare query statement for {GetType().Name}", ex);
             }
             finally
             {
-                threadGate?.Release();
+                _threadGate?.Release();
             }
-        }
-
-        internal virtual void SetPreparedStatementOptions(PreparedStatement statement)
-        {
-            statement.SetConsistencyLevel(ConsistencyLevel.LocalQuorum);
         }
     }
 }
